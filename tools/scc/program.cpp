@@ -44,7 +44,10 @@ namespace suil::scc {
     static void generateMetaTypeHeaders(ProgramFile &pf, File &out) {
         for (auto &tp: pf.MetaTypes) {
             // add type
-            out << spaces(4) << "struct " << tp.Name << ": iod::MetaType {\n\n";
+            out << spaces(4) << "struct " << tp.Name << ": iod::MetaType";
+            if (!tp.Base.empty())
+                out << ", public " << tp.Base;
+            out << " {\n\n";
 
             // type schema
             out << spaces(8) << "typedef decltype(iod::D(\n";
@@ -115,6 +118,27 @@ namespace suil::scc {
             }
         };
 
+        auto appendCtors = [&](const std::vector<Constructor> &ctors) {
+            for (auto &m: ctors) {
+                out << spaces(8) << m.Name << "(";
+                bool first = true;
+                for (auto &p : m.Params) {
+                    if (!first)
+                        out << ", ";
+                    first = false;
+                    if (p.IsConst)
+                        out << "const ";
+                    out << p.ParameterType;
+                    if (p.Kind == Parameter::Move)
+                        out << "&&";
+                    else if (p.Kind == Parameter::Reference)
+                        out << "&";
+                    out << " " << p.Name;
+                }
+                out << ");\n\n";
+            }
+        };
+
         auto generateForJrpc = [&](const RpcType &svc) {
             // start with with client
             out << spaces(4) << "struct j" << svc.Name << "Client: suil::rpc::JsonRpcClient {\n\n"
@@ -147,7 +171,12 @@ namespace suil::scc {
         };
 
         for (auto &svc: pf.Services) {
-            out << spaces(4) << svc.Kind << " " << svc.Name << " {\n\n";
+            out << spaces(4) << svc.Kind << " " << svc.Name;
+            if (!svc.Base.empty())
+                  out << ": public " << svc.Base;
+            out << " {\n\n";
+
+            appendCtors(svc.Ctors);
             appendMethods(svc.Methods);
             out << spaces(4) << "};\n\n";
 

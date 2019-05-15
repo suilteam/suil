@@ -159,8 +159,8 @@ function(SuilApp name)
 
     # parse function arguments
     set(options DEBUG)
-    set(kvargs  TPSCHEMA SCC_SOURCES)
-    set(kvvargs LIBRARY DEPENDS INSTALL VERSION SOURCES TEST DEFINES SYMBOLS SCC_OUTDIR
+    set(kvargs  TPSCHEMA SCC_OUTDIR)
+    set(kvvargs LIBRARY DEPENDS INSTALL VERSION SOURCES TEST DEFINES SYMBOLS SCC_SOURCES
                 EXTRA_SYMS LIBRARIES INCLUDES INSTALL_FILES INSTALL_DIRS ARTIFACTS_DIR LUA2C)
     cmake_parse_arguments(SUIL_APP "${options}" "${kvargs}" "${kvvargs}" ${ARGN})
 

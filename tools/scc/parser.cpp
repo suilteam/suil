@@ -23,9 +23,10 @@ fields      : (<field> ';')+ ;
 param       : "const"? <generic> ("&&"|"&")? <ident> ;
 params      : <param>? (',' <param>)* ;
 method      : <comments>? <attribs>? <generic> <ident> '(' <params>? ')' ;
-methods     : (<method> ';')+ ;
-meta        : <comments>? "meta" <attribs>? <ident> '{' <fields> '}' ;
-rpc         : <comments>? ("service"|"srpc"|"jrpc")  <attribs>? <ident> '{' <methods> '}' ;
+ctor        : <comments>* <attribs>? <ident> '(' <params>? ')' ;
+methods     : ((<ctor>|<method>) ';')+ ;
+meta        : <comments>? "meta" <attribs>? <ident> (':' <generic>)? '{' <fields> '}' ;
+rpc         : <comments>? ("service"|"srpc"|"jrpc")  <attribs>? <ident> (':' <generic>)? '{' <methods> '}' ;
 types       : ((<meta>|<rpc>) ';')+ ;
 namespace   : "namespace" <scoped> '{' <types> '}' ;
 symbol      : <comments>? "symbol" '(' <ident> ')' ;
@@ -155,7 +156,7 @@ program     : <includes>? <symbols>? <namespace> ;
         }
 
         ProgramFile pf = buildProgramFile((mpc_ast_t *) res.output);
-        return std::move(pf);
+        return pf;
     }
 
     ProgramFile Parser::parseString(const suil::String &&str)
@@ -169,7 +170,7 @@ program     : <includes>? <symbols>? <namespace> ;
 
         ProgramFile pf = buildProgramFile((mpc_ast_t *) res.output);
         mpc_ast_delete((mpc_ast_t *) res.output);
-        return std::move(pf);
+        return pf;
     }
 
     ProgramFile Parser::buildProgramFile(mpc_ast_t *root)
@@ -194,7 +195,7 @@ program     : <includes>? <symbols>? <namespace> ;
                 }
             }
             // program file successfully built
-            return std::move(pf);
+            return pf;
         }
         catch (...) {
             // un handled exception should cause compiler to exit
@@ -205,7 +206,7 @@ program     : <includes>? <symbols>? <namespace> ;
 
     void Parser::build_Includes(suil::scc::ProgramFile &out, mpc_ast_t *ast)
     {
-        auto build_Include = [&out](mpc_ast_t *inc) -> std::string {
+        auto build_Include = [](mpc_ast_t *inc) -> std::string {
             // include has for children
             std::stringstream ss;
             ss << inc->children[0]->contents << " "
@@ -289,6 +290,12 @@ program     : <includes>? <symbols>? <namespace> ;
         }
         // get the name of the type
         mt.Name = std::string(ast->children[offset++]->contents);
+        if (strcmp(":", ast->children[offset]->contents) == 0) {
+            // we have a base class
+            Attribute atb;
+            offset++;
+            mt.Base = build_Scoped(atb, ast->children[offset++]);
+        }
         auto fields = ast->children[++offset];
         for (int i = 0; i < fields->children_num; i++) {
             // build all fields of the current type
@@ -316,6 +323,12 @@ program     : <includes>? <symbols>? <namespace> ;
         }
         // get the name of the type
         rt.Name = std::string(ast->children[offset++]->contents);
+        if (strcmp(":", ast->children[offset]->contents) == 0) {
+            // we have a base class
+            Attribute atb;
+            offset++;
+            rt.Base = build_Scoped(atb, ast->children[offset++]);
+        }
         auto methods = ast->children[++offset];
         for (int i = 0; i < methods->children_num; i++) {
             // build all fields of the current type
@@ -324,7 +337,12 @@ program     : <includes>? <symbols>? <namespace> ;
                 continue;
             }
 
-            rt.Methods.push_back(build_Method(methods->children[i]));
+            if (strcmp("ctor|>", methods->children[i]->tag) == 0) {
+                rt.Ctors.push_back(build_Constructor(methods->children[i]));
+            }
+            else {
+                rt.Methods.push_back(build_Method(methods->children[i]));
+            }
         }
 
         out.Services.push_back(std::move(rt));
@@ -465,7 +483,7 @@ program     : <includes>? <symbols>? <namespace> ;
         fld.FieldType = build_Generic(ast->children[offset++]);
         fld.Name      =  std::string(ast->children[offset]->contents);
 
-        return std::move(fld);
+        return fld;
     }
 
     Method Parser::build_Method(mpc_ast_t *ast)
@@ -487,6 +505,27 @@ program     : <includes>? <symbols>? <namespace> ;
             build_Parameters(m.Params, ast->children[++offset]);
         }
 
-        return std::move(m);
+        return m;
+    }
+
+    Constructor Parser::build_Constructor(mpc_ast_t *ast)
+    {
+        Constructor c{};
+        int offset = 0;
+        if (strstr(ast->children[0]->tag, "comments"))
+            offset++;
+
+        if (strcmp("attribs|>", ast->children[offset]->tag) == 0) {
+            // field has attributes
+            build_Attribs(c.Attribs, ast->children[offset++]);
+        }
+
+        c.Name       =  std::string(ast->children[offset++]->contents);
+        if (strcmp(")", ast->children[offset+1]->contents) != 0) {
+            // has parameters build them
+            build_Parameters(c.Params, ast->children[++offset]);
+        }
+
+        return c;
     }
 }

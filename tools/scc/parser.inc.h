@@ -15,6 +15,7 @@ __PARSER_DECLARE(Fields);
 __PARSER_DECLARE(Param);
 __PARSER_DECLARE(Params);
 __PARSER_DECLARE(Method);
+__PARSER_DECLARE(Ctor);
 __PARSER_DECLARE(Methods);
 __PARSER_DECLARE(Meta);
 __PARSER_DECLARE(Rpc);
@@ -38,6 +39,7 @@ __PARSER_INITIALIZE(Fields,                 "fields");
 __PARSER_INITIALIZE(Param,                  "param");
 __PARSER_INITIALIZE(Params,                 "params");
 __PARSER_INITIALIZE(Method,                 "method");
+__PARSER_INITIALIZE(Ctor,                   "ctor");
 __PARSER_INITIALIZE(Methods,                "methods");
 __PARSER_INITIALIZE(Meta,                   "meta");
 __PARSER_INITIALIZE(Rpc,                    "rpc");
@@ -60,6 +62,7 @@ __USE_PARSER(Fields)    = __PARSER_ASSIGN(Fields);
 __USE_PARSER(Param)     = __PARSER_ASSIGN(Param);
 __USE_PARSER(Params)    = __PARSER_ASSIGN(Params);
 __USE_PARSER(Method)    = __PARSER_ASSIGN(Method);
+__USE_PARSER(Ctor)      = __PARSER_ASSIGN(Ctor);
 __USE_PARSER(Methods)   = __PARSER_ASSIGN(Methods);
 __USE_PARSER(Meta)      = __PARSER_ASSIGN(Meta);
 __USE_PARSER(Rpc)       = __PARSER_ASSIGN(Rpc);
@@ -82,6 +85,7 @@ __USE_PARSER(Fields),
 __USE_PARSER(Param),
 __USE_PARSER(Params),
 __USE_PARSER(Method),
+__USE_PARSER(Ctor),
 __USE_PARSER(Methods),
 __USE_PARSER(Meta),
 __USE_PARSER(Rpc),

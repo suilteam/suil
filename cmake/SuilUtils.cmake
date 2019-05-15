@@ -60,6 +60,8 @@ endfunction()
 
 function(SuilListJoin VALUES GLUE OUTPUT)
     string(REPLACE ";" "${GLUE}" _TMP_STR "${VALUES}")
+        message(STATUS ${VALUES})
+    #message(FATAL_ERROR ${VALUES})
     set (${OUTPUT} "${_TMP_STR}" PARENT_SCOPE)
 endfunction()
 
@@ -143,19 +145,24 @@ function(suil_scc name)
 
     # get outputs
     set(${name}_OUTPUTS)
+    set(${name}_MOD_SOURCES)
     foreach(__${name}_SOURCE ${${name}_SOURCES})
         get_filename_component(__temp ${__${name}_SOURCE} NAME)
         list(APPEND ${name}_OUTPUTS
                 ${${name}_OUTDIR}/${__temp}.h
                 ${${name}_OUTDIR}/${__temp}.cpp)
+        if (${name}_MOD_SOURCES)
+            set(${name}_MOD_SOURCES ${${name}_MOD_SOURCES},${__${name}_SOURCE})
+        else()
+            set(${name}_MOD_SOURCES ${__${name}_SOURCE})
+        endif()
     endforeach()
 
-    SuilListJoin(${${name}_SOURCES} "," ${name}_SOURCES)
-    message(STATUS "${name} scc sources: ${${name}_SOURCES}")
+    message(STATUS "${name} scc sources: ${${name}_MOD_SOURCES}")
     message(STATUS "${name} scc outputs: ${${name}_OUTPUTS}")
 
     add_custom_command(OUTPUT ${${name}_OUTPUTS}
-            COMMAND ${suilscc} "gen" "-i" ${${name}_SOURCES} "-O" ${${name}_OUTDIR}
+            COMMAND ${suilscc} "gen" "-i" ${${name}_MOD_SOURCES} "-O" ${${name}_OUTDIR}
             WORKING_DIRECTORY  ${CMAKE_BINARY_DIR}
             DEPENDS            ${${name}_SOURCES})
     # add symbol generation target

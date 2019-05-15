@@ -49,6 +49,7 @@ namespace suil::scc {
 
         Field  build_Field(mpc_ast_t *ast);
         Method build_Method(mpc_ast_t *ast);
+        Constructor build_Constructor(mpc_ast_t *ast);
 
     private:
 #define __PARSER_DECLARE(id) mpc_parser_t * p##id

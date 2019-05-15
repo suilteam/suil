@@ -65,16 +65,24 @@ namespace suil::scc {
         std::vector<Parameter>  Params;
     };
 
+    struct Constructor : WithAttributes {
+        std::string             Name;
+        std::vector<Parameter>  Params;
+    };
+
     struct MetaType : WithAttributes {
-        std::vector<Attribute> Attribs;
-        std::string            Name;
-        std::vector<Field>     Fields;
+        std::string              Base;
+        std::string              Name;
+        std::vector<Field>       Fields;
+        std::vector<Constructor> Ctors;
     };
 
     struct RpcType : WithAttributes {
-        std::string            Kind;
-        std::string            Name;
-        std::vector<Method>    Methods;
+        std::string              Base;
+        std::string              Kind;
+        std::string              Name;
+        std::vector<Method>      Methods;
+        std::vector<Constructor> Ctors;
     };
 
     struct ProgramFile {
