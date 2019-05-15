@@ -31,8 +31,9 @@ namespace suil {
         Ego.M    = size;
     }
 
-    Heapboard::Heapboard(const uint8_t *buf, size_t size)
+    Heapboard::Heapboard(const uint8_t *buf, size_t size, bool own)
         : _cdata(buf),
+          own{own},
           Breadboard(data, size)
     {
         // push some data into it;

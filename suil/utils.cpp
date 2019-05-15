@@ -12,6 +12,8 @@
 
 #include <suil/utils.h>
 #include <suil/base64.h>
+#include <suil/logging.h>
+#include <cstdint>
 
 namespace suil {
     
@@ -42,6 +44,11 @@ namespace suil {
             out[rc++] = i2c((uint8_t) (0x0F&in[i]));
         }
         return rc;
+    }
+
+    void utils::dumpbuf(const char* hdr, const void* data, size_t len) {
+        auto str = utils::hexstr((const uint8_t *)data, len);
+        sdebug("%s: %s", hdr, str());
     }
 
     String utils::hexstr(const uint8_t *buf, size_t len) {

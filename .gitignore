@@ -79,6 +79,7 @@ cmake/SuilConfigVersion.cmake
 
 # Build directories
 .build
+.creator
 
 # IDE files
 .idea

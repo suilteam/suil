@@ -1,5 +1,5 @@
 /*
-** $Id: llex.c,v 2.101 2018/03/07 15:55:38 roberto Exp roberto $
+** $Id: llex.c,v 2.95 2015/11/19 19:16:22 roberto Exp roberto $
 ** Lexical Analyzer
 ** See Copyright Notice in lua.h
 */
@@ -63,7 +63,7 @@ static void save (LexState *ls, int c) {
     newsize = luaZ_sizebuffer(b) * 2;
     luaZ_resizebuffer(ls->L, b, newsize);
   }
-  b->buffer[luaZ_bufflen(b)++] = cast_char(c);
+  b->buffer[luaZ_bufflen(b)++] = cast(char, c);
 }
 
 
@@ -129,15 +129,15 @@ TString *luaX_newstring (LexState *ls, const char *str, size_t l) {
   TValue *o;  /* entry for 'str' */
   TString *ts = luaS_newlstr(L, str, l);  /* create new string */
   setsvalue2s(L, L->top++, ts);  /* temporarily anchor it in stack */
-  o = luaH_set(L, ls->h, s2v(L->top - 1));
-  if (isempty(o)) {  /* not in use yet? */
+  o = luaH_set(L, ls->h, L->top - 1);
+  if (ttisnil(o)) {  /* not in use yet? */
     /* boolean value does not need GC barrier;
-       table is not a metatable, so it does not need to invalidate cache */
+       table has no metatable, so it does not need to invalidate cache */
     setbvalue(o, 1);  /* t[string] = true */
     luaC_checkGC(L);
   }
   else {  /* string already present */
-    ts = keystrval(nodefromval(o));  /* re-use value previously stored */
+    ts = tsvalue(keyfromval(o));  /* re-use value previously stored */
   }
   L->top--;  /* remove string from stack */
   return ts;
@@ -425,72 +425,6 @@ static void read_string (LexState *ls, int del, SemInfo *seminfo) {
                                    luaZ_bufflen(ls->buff) - 2);
 }
 
-static void read_string_expr (LexState *ls, int del, SemInfo *seminfo) {
-    save_and_next(ls);  /* keep delimiter (for error messages) */
-    while (ls->current != del) {
-        switch (ls->current) {
-            case EOZ:
-                lexerror(ls, "unfinished string", TK_EOS);
-                break;  /* to avoid warnings */
-            case '\n':
-            case '\r':
-                lexerror(ls, "unfinished string", TK_STRING);
-                break;  /* to avoid warnings */
-            case '$': {
-                if (check_next1(ls, '{')) {
-                    /* parse variable */
-                }
-            }
-            case '\\': {  /* escape sequences */
-                int c;  /* final character to be saved */
-                save_and_next(ls);  /* keep '\\' for error messages */
-                switch (ls->current) {
-                    case 'a': c = '\a'; goto read_save;
-                    case 'b': c = '\b'; goto read_save;
-                    case 'f': c = '\f'; goto read_save;
-                    case 'n': c = '\n'; goto read_save;
-                    case 'r': c = '\r'; goto read_save;
-                    case 't': c = '\t'; goto read_save;
-                    case 'v': c = '\v'; goto read_save;
-                    case 'x': c = readhexaesc(ls); goto read_save;
-                    case 'u': utf8esc(ls);  goto no_save;
-                    case '\n': case '\r':
-                        inclinenumber(ls); c = '\n'; goto only_save;
-                    case '\\': case '\"': case '\'':
-                        c = ls->current; goto read_save;
-                    case EOZ: goto no_save;  /* will raise an error next loop */
-                    case 'z': {  /* zap following span of spaces */
-                        luaZ_buffremove(ls->buff, 1);  /* remove '\\' */
-                        next(ls);  /* skip the 'z' */
-                        while (lisspace(ls->current)) {
-                            if (currIsNewline(ls)) inclinenumber(ls);
-                            else next(ls);
-                        }
-                        goto no_save;
-                    }
-                    default: {
-                        esccheck(ls, lisdigit(ls->current), "invalid escape sequence");
-                        c = readdecesc(ls);  /* digital escape '\ddd' */
-                        goto only_save;
-                    }
-                }
-                read_save:
-                next(ls);
-                /* go through */
-                only_save:
-                luaZ_buffremove(ls->buff, 1);  /* remove '\\' */
-                save(ls, c);
-                /* go through */
-                no_save: break;
-            }
-            default:
-                save_and_next(ls);
-        }
-    }
-    save_and_next(ls);  /* skip delimiter */
-    seminfo->ts = luaX_newstring(ls, luaZ_buffer(ls->buff) + 1,
-                                 luaZ_bufflen(ls->buff) - 2);
-}
 
 static int llex (LexState *ls, SemInfo *seminfo) {
   luaZ_resetbuffer(ls->buff);

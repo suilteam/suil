@@ -6,13 +6,32 @@
 
 namespace suil::rpc {
 
-    SuilRpcServerConnection::Extensions::Extensions()
+    SuilRpcHandler::SuilRpcHandler()
     {
         // register extension methods
-        Ego.methodsMeta.emplace_back(-1, "rpc_Version");
+        Ego.rpcMeta.version = String(SUIL_VERSION_STRING).dup();
+        Ego.appendExtensionMethod("rpc_Version");
+        Ego.appendExtensionMethod("rpc_enableProtoUseSize");
     }
 
-    Result SuilRpcServerConnection::Extensions::operator()(
+    int SuilRpcHandler::appendExtensionMethod(suil::String &&method)
+    {
+        auto& extensions = Ego.rpcMeta.extensions;
+        int id = 0;
+        for (const auto& ext: extensions) {
+            id = ext.id;
+            if (ext.name == method)
+                return id;
+        }
+        extensions.emplace_back(--id, std::move(method));
+        return id;
+    }
+
+    void SuilRpcHandler::appendMethod(int id, suil::String &&method) {
+        Ego.rpcMeta.methods.emplace_back(id, std::move(method));
+    }
+
+    Result SuilRpcHandler::extensionMethods(
             suil::Breadboard &results, int method, suil::Breadboard &params, int id)
     {
         switch (method) {
@@ -25,20 +44,17 @@ namespace suil::rpc {
                 // method nto found
                 Result res(SRPC_METHOD_NOT_FOUND);
                 res << "extension method with id=" << method << " does not exist";
-                return std::move(res);
+                return res;
             }
         }
     }
 
     void SuilRpcServerConnection::operator()(suil::SocketAdaptor &sock, suil::rpc::SuilRpcHandler *h)
     {
-        rpcMeta.version    = String(SUIL_VERSION_STRING).dup();
-        rpcMeta.extensions = extensionMethods.getMethods();
-        rpcMeta.methods    = h->getMethods();
-
         Ego.handler = h;
         try {
             OBuffer ob{1024};
+            Ego.protoUseSize = true;
             do {
                 ob.reset(1024, true);
                 if (!Ego.receiveRaw(sock, ob))
@@ -69,7 +85,7 @@ namespace suil::rpc {
             SuilRpcRequest rpcRequest;
             hb >> rpcRequest;
             suil::Heapboard bb(rpcRequest.params);
-            idebug("handling request {id=%d, method=%d}", rpcRequest.id, rpcRequest.method);
+            trace("handling request {id=%d, method=%d}", rpcRequest.id, rpcRequest.method);
             rpcResponse.id = rpcResponse.id;
             if (rpcRequest.method <= 0) {
                 // methods with negative indices are system
@@ -107,12 +123,12 @@ namespace suil::rpc {
     {
         if (method == 0) {
             // reserved specifically for querying meta data
-            results << Ego.rpcMeta;
+            results << Ego.handler->getMeta();
             return Result(0);
         }
         else {
             // any other extension method
-            return extensionMethods(results, method, req, id);
+            return handler->extensionMethods(results, method, req, id);
         }
     }
 
@@ -125,6 +141,8 @@ namespace suil::rpc {
             ierror("SUIL RPC connection to %s:%d failed: %s", host(), port, errno_s);
             return false;
         }
+
+        Ego.protoUseSize = true;
 
         if (Ego.getMeta().version.empty())
             iwarn("getting service meta data failed");
@@ -163,7 +181,7 @@ namespace suil::rpc {
         return Ego.rpcMeta;
     }
 
-    SuilRpcResponse __SuilRpcClient::call(suil::Breadboard& results, suil::String &&method, suil::Breadboard &params)
+    SuilRpcResponse __SuilRpcClient::call(suil::Heapboard& res, suil::String &&method, suil::Breadboard &params)
     {
         int methodId{0};
         bool found{true};
@@ -213,14 +231,16 @@ namespace suil::rpc {
             // receiving output failed
             throw Exception::create("receiving response failed: ", errno_s);
         }
-        suil::Heapboard hbResp(ob.cdata());
+
+        auto resSize = ob.size();
+        res = suil::Heapboard((const uint8_t *)ob.release(), resSize, true);
         SuilRpcResponse resp;
-        hbResp >> resp;
+        res >> resp;
         if (resp.error.code) {
             // request failed
             throw Exception::create(resp.error.message, " - ", resp.error.data);
         }
 
-        return std::move(resp);
+        return resp;
     }
 }

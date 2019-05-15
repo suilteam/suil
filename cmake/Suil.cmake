@@ -161,7 +161,7 @@ function(SuilApp name)
     set(options DEBUG)
     set(kvargs  TPSCHEMA SCC_SOURCES)
     set(kvvargs LIBRARY DEPENDS INSTALL VERSION SOURCES TEST DEFINES SYMBOLS SCC_OUTDIR
-                EXTRA_SYMS LIBRARIES INCLUDES INSTALL_FILES INSTALL_DIRS ARTIFACTS_DIR)
+                EXTRA_SYMS LIBRARIES INCLUDES INSTALL_FILES INSTALL_DIRS ARTIFACTS_DIR LUA2C)
     cmake_parse_arguments(SUIL_APP "${options}" "${kvargs}" "${kvvargs}" ${ARGN})
 
     # get the source files
@@ -189,12 +189,12 @@ function(SuilApp name)
 
     if (SUIL_APP_LIBRARY)
         message(STATUS "configuring target ${name} as a ${SUIL_APP_LIBRARY} library")
-        add_library(${name} ${SUIL_APP_LIBRARY} ${${name}_SOURCES})
+        add_library(${name} ${SUIL_APP_LIBRARY} ${${name}_SOURCES} ${SUIL_APP_LUA2C})
         target_compile_definitions(${name} PUBLIC "-DLIB_VERSION=\"${${name}_VERSION}\"")
     else()
         # add the target
         message(STATUS "configuring target ${name} as ${SUIL_APP_LIBRARY} an executable")
-        add_executable(${name} ${${name}_SOURCES})
+        add_executable(${name} ${${name}_SOURCES} ${SUIL_APP_LUA2C})
         target_compile_definitions(${name} PUBLIC "-DAPP_VERSION=\"${${name}_VERSION}\"")
         target_compile_definitions(${name} PUBLIC "-DAPP_NAME=\"${name}\"")
     endif()
@@ -243,6 +243,14 @@ function(SuilApp name)
                 BINARY  ${SUIL_gentps_BINARY}
                 SCHEMAS ${${name}_TPSCHEMA}
                 OUTPUT  ${${name}_TPSCHEMA_ODIR}/${${name}_TPSCHEMA_OUTPUT}.h)
+    endif()
+
+    # lua compiled sources
+    if (SUIL_APP_LUA2C)
+        add_custom_target(${name}-lua2c
+                DEPENDS ${SUIL_APP_LUA2C}
+                COMMENT "Converting lua script's to c sources")
+        add_dependencies(${name} ${name}-lua2c)
     endif()
 
     set(${name}_SCC_OUTDIR ${SUIL_APP_SCC_OUTDIR})

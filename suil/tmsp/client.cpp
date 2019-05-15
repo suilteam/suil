@@ -23,7 +23,7 @@ namespace suil::tmsp {
           size_t msglen = MIN(ecmsg.size(), msg.size());
           if (strncmp(msg(), ecmsg.c_str(), msglen) != 0) {
               // received message does not match sent message
-              res(CodeType::BaseEncodingError)
+              res(Codes::EncodingError)
                       .appendf("Received echo message invalid: %s", ecmsg.c_str());
           }
       }
@@ -61,7 +61,7 @@ namespace suil::tmsp {
           res() << "Processing info Request failed";
       }
 
-      out = std::move(rsif);
+      out.Swap(resp.release_info());
       return std::move(res);
   }
 
@@ -102,9 +102,9 @@ namespace suil::tmsp {
           res() << "Processing deliverTx Request failed";
       }
       else {
-          rsdt = std::move(*resp.mutable_deliver_tx());
           res((Codes)rsdt.code())
                   << rsdt.log();
+          rsdt.Swap(resp.release_deliver_tx());
       }
       return std::move(res);
   }
@@ -122,15 +122,15 @@ namespace suil::tmsp {
           res() << "Processing checkTx Request failed";
       }
       else {
-          rscx = std::move(*resp.mutable_check_tx());
           res((Codes) rscx.code())
                   << rscx.log();
+          rscx.Swap(resp.release_check_tx());
       }
 
       return std::move(res);
   }
 
-  Result BaseClient::query(RequestQuery& rq, types::ResponseQuery &rsq) {
+  Result BaseClient::query(types::RequestQuery& rq, types::ResponseQuery &rsq) {
 
       types::Request   req;
       types::Response  resp;
@@ -143,9 +143,9 @@ namespace suil::tmsp {
           res() << "Processing query Request failed";
       }
       else {
-          rsq = std::move(*resp.mutable_query());
           res((Codes)rsq.code())
                   << rsq.log();
+          rsq.Swap(resp.release_query());
       }
 
       req.release_query();
@@ -164,9 +164,7 @@ namespace suil::tmsp {
           res() << "processing query Request failed";
       }
       else {
-          rscm = std::move(*resp.mutable_commit());
-          res((Codes) rscm.code())
-                  << rscm.log();
+          rscm.Swap(resp.release_commit());
       }
 
       return std::move(res);
@@ -215,17 +213,17 @@ namespace suil::tmsp {
           res() << "Processing endBlock Request failed";
       }
 
-      rseb = std::move(*resp.mutable_end_block());
+      rseb.Swap(resp.release_end_block());
       req.release_end_block();
       return std::move(res);
   }
 
   void BaseClient::sendRequest(Result& res, types::Request &req) {
-      int rqlen = req.ByteSize();
+      int rqlen = req.ByteSizeLong();
       OBuffer out((uint32_t)(rqlen+2));
       char *data = out.data();
 
-      if (!req.SerializeToArray(data, rqlen)) {
+      if (!req.SerializePartialToArray(data, rqlen)) {
           // serializing Request failed
           res(Codes::EncodingError)
                   .appendf("serializing Request failed");
@@ -334,7 +332,7 @@ namespace suil::tmsp {
           return;
       }
 
-      if (resp.value_case() == Response::ValueCase::kException) {
+      if (resp.value_case() == types::Response::ValueCase::kException) {
           // application returned exception
           res(Codes::InternalError).appendf(
                   "application returned exception: %s", resp.exception().error().c_str());

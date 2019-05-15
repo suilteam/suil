@@ -42,35 +42,38 @@ namespace suil::rpc {
     )) SuilRpcMeta;
 
     struct SuilRpcHandler {
+        SuilRpcHandler();
+
         virtual Result operator()(suil::Breadboard& results, const int method, suil::Breadboard& params, int id) {
             Result res(SRPC_METHOD_NOT_FOUND);
             res << "method 'id=" << method << "' does not exist";
             return std::move(res);
         };
 
-        std::vector<SuilRpcMethod>& getMethodsRef() {
-            return methodsMeta;
+        std::vector<SuilRpcMethod> getMethods() {
+            return rpcMeta.methods;
         }
 
-        std::vector<SuilRpcMethod> getMethods() {
-            return methodsMeta;
+        std::vector<SuilRpcMethod> getExtensionMethods() {
+            return rpcMeta.extensions;
         }
+
+        SuilRpcMeta& getMeta() {
+            return rpcMeta;
+        }
+
+        Result extensionMethods(suil::Breadboard& results, int method, suil::Breadboard& params, int id);
 
     protected:
-        std::vector<SuilRpcMethod> methodsMeta;
+        int appendExtensionMethod(String&& method);
+        void appendMethod(int id, String&& method);
+        SuilRpcMeta     rpcMeta;
     };
 
     define_log_tag(SUIL_RPC);
 
     struct SuilRpcServerConnection : RpcTxRx, LOGGER(SUIL_RPC) {
         using suil::log::Logger<dtag(SUIL_RPC)>::log;
-
-        struct Extensions : SuilRpcHandler {
-
-            Extensions();
-
-            Result operator()(suil::Breadboard& results, int method, suil::Breadboard& params, int id);
-        };
 
         SuilRpcServerConnection() = default;
 
@@ -81,9 +84,7 @@ namespace suil::rpc {
         Result     handleExtension(suil::Breadboard& results, int method, suil::Breadboard& req, int id = 0);
 
     private:
-        Extensions      extensionMethods{};
         SuilRpcHandler  *handler{nullptr};
-        SuilRpcMeta     rpcMeta;
     };
 
     struct SuilRpcConfig: ServerConfig {
@@ -119,11 +120,12 @@ namespace suil::rpc {
             if constexpr(sizeof...(args)) {
                 Ego.pack(sb, std::forward<Params>(args)...);
             }
-            suil::Stackboard<> hb;
+            suil::Heapboard hb;
             SuilRpcResponse resp = Ego.call(hb, std::move(method), sb);
             if constexpr (!std::is_void<T>::value) {
                 // only return a value for non-void types
                 suil::Heapboard data(resp.data);
+                data.setCopyOut(true);
                 T tmp{};
                 data >> tmp;
                 return std::move(tmp);
@@ -148,7 +150,7 @@ namespace suil::rpc {
             }
         }
 
-        SuilRpcResponse call(suil::Breadboard& results, String&& method, suil::Breadboard& params);
+        SuilRpcResponse call(suil::Heapboard& results, String&& method, suil::Breadboard& params);
 
         int          idGenerator{0};
         SuilRpcMeta  rpcMeta;

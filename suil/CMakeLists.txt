@@ -48,6 +48,11 @@ set(LIB_SUIL_RPC_SOURCES
         rpc/jsonrpc.cpp
         rpc/suilrpc.cpp)
 
+set(LIB_SUIL_TMSP_SOURCES
+        tmsp/client.cpp
+        tmsp/server.cpp
+        tmsp/types.pb.cc)
+
 # only include docker sources when enables
 set(LIB_SUIL_DOCKER_SOURCES)
 

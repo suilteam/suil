@@ -181,7 +181,7 @@ namespace suil {
             clear();
             return raw;
         }
-        return (char *)"";
+        return nullptr;
     }
 
     void OBuffer::clear() {

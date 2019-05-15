@@ -10,7 +10,7 @@
 
 namespace suil::tmsp {
 
-  struct AbciConn : LOGGER(TSMP) {
+  struct AbciConn : LOGGER(TMSP) {
     AbciConn(Application& app, SocketAdaptor& sock)
       : app(app),
         sock(sock)
@@ -18,7 +18,9 @@ namespace suil::tmsp {
 
     void start();
 
-    ~AbciConn();
+    ~AbciConn() {
+        sock.close();
+    }
 
   private:
     void handle(const types::Request& req, types::Response& resp);
@@ -35,9 +37,9 @@ namespace suil::tmsp {
   };
 
   template <typename Backend = suil::TcpSs>
-  struct AbciServer : LOGGER(TSMP) {
+  struct AbciServer : LOGGER(TMSP) {
 
-      typedef abci_server<Backend> __server_t;
+      typedef AbciServer<Backend> __server_t;
 
       struct abci_handler {
           void operator()(SocketAdaptor& sock, __server_t *s) {
@@ -98,9 +100,9 @@ namespace suil::tmsp {
           backend.init();
       }
 
-      typedef server<abci_handler, Backend, __server_t> abci_backend_t;
+      typedef Server<abci_handler, Backend, __server_t> abci_backend_t;
       abci_backend_t      backend;
-      appication&         app;
+      Application&         app;
       ServerConfig        config;
   };
 

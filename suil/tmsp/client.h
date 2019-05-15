@@ -14,7 +14,7 @@ namespace suil::tmsp {
 
   protected:
     BaseClient(SocketAdaptor& sock)
-      : sock(sock)
+      : adaptor(sock)
     {}
 
     Result echo(String&& msg);
@@ -26,11 +26,11 @@ namespace suil::tmsp {
     Result setOption(String&& key, String&& value);
 
     inline Result deliverTx(const Data& data, types::ResponseDeliverTx& rsdt) {
-        return deliverTx(data.data(), data.size(), rsdt);
+        return deliverTx(data.cdata(), data.size(), rsdt);
     }
 
     inline Result checkTx(const Data& data, types::ResponseCheckTx& rscx) {
-        return checkTx(data.data(), data.size(), rscx);
+        return checkTx(data.cdata(), data.size(), rscx);
     }
 
     Result query(types::RequestQuery& , types::ResponseQuery& rsq);

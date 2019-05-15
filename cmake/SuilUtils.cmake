@@ -173,6 +173,51 @@ function(suil_scc name)
     endif()
 endfunction()
 
+function(suil_lua2c name)
+    set(kvargs TARGET SCRIPT VARIABLE OUTDIR)
+    cmake_parse_arguments(LUA2C "" "${kvargs}" "" ${ARGN})
+    if (NOT LUA2C_SCRIPT)
+        message(FATAL_ERROR "suil_lua2c requires a script to convert to C file")
+    endif()
+
+    if (NOT LUA2C_TARGET)
+        message(FATAL_ERROR "suil_lua2c requires a TARGET name to use in file")
+    endif()
+
+    if (NOT LUA2C_VARIABLE)
+        set(LUA2C_VARIABLE ${name})
+    endif()
+
+    if (NOT LUA2C_OUTDIR)
+        set(${name}_C_FILE ${CMAKE_CURRENT_BINARY_DIR}/${name}.c)
+    else()
+        set(${name}_C_FILE ${LUA2C_OUTDIR}/${name}.c)
+    endif()
+
+    message(STATUS "Compiling lua script ${LUA2C_SCRIPT}")
+    # compile the script
+    add_custom_command(
+            COMMAND luac -o ${name}.out ${LUA2C_SCRIPT}
+            OUTPUT  ${name}.out
+            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+            DEPENDS ${LUA2C_SCRIPT})
+    # dump lua object to hex file
+    add_custom_command(
+            COMMAND hexdump -v -e '/1 \"0x%02x, \"' ${name}.out > ${${name}_C_FILE}.hex
+            OUTPUT ${${name}_C_FILE}.hex
+            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+            DEPENDS ${name}.out)
+
+    # convert to c file
+    add_custom_command(
+            COMMAND echo const char ${LUA2C_VARIABLE}[] = { `cat ${${name}_C_FILE}.hex` 0x00 } \"\\;\" const unsigned long long ${LUA2C_VARIABLE}_size = `stat -c%s ${name}.out` \"\\;\" > ${${name}_C_FILE}
+            OUTPUT ${${name}_C_FILE}
+            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+            DEPENDS ${${name}_C_FILE}.hex
+    )
+    set(${LUA2C_TARGET}_LUA2C_SOURCES ${${LUA2C_TARGET}_LUA2C_SOURCES} ${${name}_C_FILE} PARENT_SCOPE)
+endfunction()
+
 ##
 # @brief Check to ensure that a system library exists in the system
 # @param {name:string:required} the name of the library

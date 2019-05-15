@@ -1,6 +1,5 @@
 /*
-** $Id:
- * llex.h,v 1.81 2018/03/07 15:55:38 roberto Exp roberto $
+** $Id: llex.h,v 1.78 2014/10/29 15:38:24 roberto Exp roberto $
 ** Lexical Analyzer
 ** See Copyright Notice in lua.h
 */
@@ -34,11 +33,11 @@ enum RESERVED {
   TK_IDIV, TK_CONCAT, TK_DOTS, TK_EQ, TK_GE, TK_LE, TK_NE,
   TK_SHL, TK_SHR,
   TK_DBCOLON, TK_EOS,
-  TK_FLT, TK_INT, TK_NAME, TK_STRING, TK_STREXP_GRAVE, TK_STREXP_CODE
+  TK_FLT, TK_INT, TK_NAME, TK_STRING
 };
 
 /* number of reserved words */
-#define NUM_RESERVED	(cast_int(TK_WHILE-FIRST_RESERVED + 1))
+#define NUM_RESERVED	(cast(int, TK_WHILE-FIRST_RESERVED+1))
 
 
 typedef union {
@@ -58,7 +57,6 @@ typedef struct Token {
    functions */
 typedef struct LexState {
   int current;  /* current character (charint) */
-  int strexp;
   int linenumber;  /* input line counter */
   int lastline;  /* line of last token 'consumed' */
   Token t;  /* current token */

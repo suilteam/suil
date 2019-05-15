@@ -54,7 +54,10 @@ namespace suil {
             auto sz = tmp.read<uint64_t>();
             if (sz) {
                 // get access to serialization buffer
-                d = Data(Ego.reverse(sz), sz, false);
+                if (!Ego.copyOut)
+                    d = Data(Ego.reverse(sz), sz, false);
+                else
+                    d = Data(Ego.reverse(sz), sz, false).copy();
             }
             return Ego;
         }
@@ -214,11 +217,14 @@ namespace suil {
 
         bool isFilterOn() const { return !always; }
 
+        inline void setCopyOut(bool en) { Ego.copyOut = en; }
+
     protected suil_ut:
         virtual size_t   forward(const uint8_t e[], size_t es) = 0;
         virtual void     reverse(uint8_t e[], size_t es) = 0;
         virtual const uint8_t *reverse(size_t es) = 0;
         bool           always{false};
+        bool           copyOut{false};
     };
 
     struct Breadboard : Wire {
@@ -310,7 +316,7 @@ namespace suil {
     struct Heapboard : Breadboard {
         Heapboard(size_t size);
 
-        Heapboard(const uint8_t *buf = nullptr, size_t size = 0);
+        Heapboard(const uint8_t *buf = nullptr, size_t size = 0, bool own = false);
 
         explicit Heapboard(const Data& data)
             : Heapboard(data.cdata(), data.size())

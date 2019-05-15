@@ -1,6 +1,8 @@
 syntax = "proto3";
 package suil.tmsp.types;
 
+option optimize_for = LITE_RUNTIME;
+
 //-------------------------------------------------------------------------
 // Copied from github.com/tendermint/tendermint/crypto/merkle/proto
 //-------------------------------------------------------------------------

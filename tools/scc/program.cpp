@@ -263,7 +263,7 @@ namespace suil::scc {
            << spaces(4) << "{\n";
         int id = 1;
         for (auto &m: svc.Methods) {
-            sf << spaces(8) << "Ego.methodsMeta.emplace_back(" << utils::tostr(id++) << ", \"" << m.Name << "\");\n";
+            sf << spaces(8) << "Ego.appendMethod(" << utils::tostr(id++) << ", \"" << m.Name << "\");\n";
         }
         sf << spaces(4) << "}\n\n";
 
