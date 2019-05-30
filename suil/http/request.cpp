@@ -22,7 +22,7 @@ namespace suil {
 
             const std::vector<char *> parts = it->second.split(";");
             for (char *ch: parts) {
-
+                auto tmp = ch;
                 while(isspace(*ch) && *ch != '\0') ch++;
                 if (*ch == '\0')  {
                     trace("invalid cookie in header %s", tmp);

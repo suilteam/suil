@@ -124,10 +124,9 @@ namespace suil {
                     bold = 1;
                     break;
                 default:
-                    c = console::DEFAULT;
                     break;
             }
-            cprintf(c, bold, log);
+            cprint(c, bold, log);
         }
     }
 

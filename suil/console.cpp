@@ -6,6 +6,14 @@
 
 namespace suil {
 
+    void console::cprint(uint8_t color, int bold, const char *str) {
+        if (color >= 0 && color <= console::CYAN)
+            printf("\033[%s3%dm", (bold? "1;" : ""), color);
+        (void) printf("%s", str);
+        if (color > 0 && color <= console::CYAN)
+            printf("\033[0m");
+    }
+
     void console::cprintv(uint8_t color, int bold, const char *fmt, va_list args) {
         if (color > 0 && color <= console::CYAN)
             printf("\033[%s3%dm", (bold? "1;" : ""), color);

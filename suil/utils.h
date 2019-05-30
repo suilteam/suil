@@ -691,6 +691,10 @@ namespace suil {
             close(p[1]);
         }
 
+        void setnonblocking(int fd);
+
+        void setblocking(int fd);
+
         namespace regex {
             inline bool match(std::regex& reg, const char *data, size_t len = 0) {
                 return std::regex_match(std::string(data, len), reg);

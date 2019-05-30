@@ -14,14 +14,74 @@ namespace suil {
 
     define_log_tag(PROCESS);
 
+    using Reader = std::function<void(String&&)>;
+
+    struct ProcessBuffer {
+    private:
+      friend struct Process;
+      ProcessBuffer()
+      {}
+
+      inline void writeOutput(String&& s) {
+        push(stdOutput, stdoutBytes, std::move(s));
+      }
+
+      inline void writeError(String&& s) {
+        push(stdError, stderrBytes, std::move(s));
+      }
+
+      inline String readError() {
+        return pop(stdError, stderrBytes);
+      }
+
+      inline String readOutput() {
+        return pop(stdOutput, stdoutBytes);
+      }
+
+      inline bool hasStderr() const {
+        return !stdError.empty();
+      }
+
+      inline bool hasStdout() const {
+        return !stdOutput.empty();
+      }
+
+    private:
+      void push(std::deque<String>& buf, size_t& sz, String&& s) {
+        sz += s.size();
+        while ((sz >= MAXIMUM_BUFFER_SIZE) && !buf.empty()) {
+          sz -= buf.back().size();
+          buf.pop_back();
+        }
+        buf.push_front(std::move(s));
+      }
+
+      String pop(std::deque<String>& buf, size_t& sz) {
+          if (buf.empty()) {
+            return "";
+          }
+          else {
+            sz -= buf.back().size();
+            String tmp = std::move(buf.back());
+            buf.pop_back();
+            return std::move(tmp);
+          }
+      }
+
+    private:
+      static size_t MAXIMUM_BUFFER_SIZE;
+      size_t      stderrBytes;
+      size_t      stdoutBytes;
+      std::deque<String> stdError;
+      std::deque<String> stdOutput;
+    };
+
     struct Process : LOGGER(PROCESS) {
 
-        using __ReadCallback = std::function<bool(String&&)>;
+        using ReadCallback = std::function<bool(String&&)>;
         struct ReadCallbacks{
-            __ReadCallback onStdOutput{nullptr};
-            __ReadCallback onStdError{nullptr};
-            int            fdOutput{-1};
-            int            fdError{-1};
+            ReadCallback onStdOutput{nullptr};
+            ReadCallback onStdError{nullptr};
         };
 
         sptr(Process);
@@ -67,24 +127,26 @@ namespace suil {
 
         void waitExit(int timeout = -1);
 
-        String getStdOutput();
+        inline String getStdOutput() {
+            return Ego.buffer.readOutput();
+        }
 
-        String getStdError();
+        inline String getStdError() {
+            return Ego.buffer.readError();
+        }
 
         template <typename... Callbacks>
         inline void readAsync(Callbacks&&... callbacks) {
-            // cancel pending asynchronous read
-            Ego.cancelAsyncRead();
             // configure the callbacks
-            utils::apply_config(Ego.readCallbacks, std::forward<Callbacks>(callbacks)...);
-            if (Ego.readCallbacks.onStdOutput)
-                Ego.readCallbacks.fdOutput = dup(Ego.stdOut);
-            if (Ego.readCallbacks.onStdError)
-                Ego.readCallbacks.fdError = dup(Ego.stdErr);
-            startReadAsync();
+            ReadCallbacks cbs{nullptr, nullptr};
+            utils::apply_config(cbs, std::forward<Callbacks>(callbacks)...);
+            if (cbs.onStdError) {
+                go(flushBuffers(Ego, std::move(cbs.onStdError), true));
+            }
+            if (cbs.onStdOutput) {
+                go(flushBuffers(Ego, std::move(cbs.onStdOutput), false));
+            }
         }
-
-        void cancelAsyncRead();
 
         ~Process() {
             terminate();
@@ -127,7 +189,10 @@ namespace suil {
         static void on_SIGCHLD(int sig, siginfo_t *info, void *context);
         static void on_TERMINATION(int sig, siginfo_t *info, void *context);
 
-        static coroutine void processAsyncRead(Process& proc, int fd, Process::__ReadCallback& readCb);
+        static coroutine void processAsyncRead(Process& proc, int fd, bool err);
+
+        static coroutine void flushBuffers(Process& p, Reader&& rd, bool err);
+
 
         pid_t           pid{0};
         int             stdOut{0};
@@ -136,7 +201,9 @@ namespace suil {
         int             notifChan[2];
         bool            waitingExit{false};
         int             pendingReads{0};
-        ReadCallbacks readCallbacks{nullptr, nullptr, -1, -1};
+        ProcessBuffer   buffer;
+        Reader          asyncStdout;
+        Reader          asyncStderr;
     };
 
 }

@@ -27,6 +27,14 @@ namespace suil::console {
     /**
      * color formatted print to console
      * @param color the color that will be used to print
+     * @param bold true if characters are to be printed in bold, false otherwise
+     * @param str the string to print
+     */
+    void cprint(uint8_t color, int bold, const char* str);
+
+    /**
+     * color formatted print to console
+     * @param color the color that will be used to print
      * @param bold 1 if the characters are to be bolded, false otherwise
      * @param fmt printf-style format string
      * @param args variable arguments list

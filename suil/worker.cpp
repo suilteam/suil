@@ -247,7 +247,7 @@ namespace suil {
             Worker_t& wrk = mIpc->Workers[w];
             if (wrk.Pid != pid) continue;
 
-            ltrace(WLOG, "worker/%hhu exiting, status %d", wrk.id, status);
+            ltrace(WLOG, "worker/%hhu exiting, status %d", wrk.Wid, status);
             wrk.Active = 0;
             break;
         }
@@ -452,7 +452,7 @@ namespace suil {
         int ticket = __sync_fetch_and_add(&l.Next, 1);
 
         strace("{%ld} lock-%d Request (ticket %d,  next %d serving %d)",
-               mnow(), l.id, ticket, l.next, l.serving);
+               mnow(), l.Id, ticket, l.Next, l.Serving);
         if (tout > 0) {
             /* compute the time at which we should giveup */
             tout += mnow();
@@ -470,7 +470,7 @@ namespace suil {
         }
 
         strace("{%ld} lock %d issued (ticket %d,  next %d serving %d)",
-               mnow(), l.id, ticket, l.next, l.serving);
+               mnow(), l.Id, ticket, l.Next, l.Serving);
 
         return status;
     }

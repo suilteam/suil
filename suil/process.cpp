@@ -5,30 +5,20 @@
 #include <sys/wait.h>
 #include <signal.h>
 
+#include "suil/utils.h"
 #include "suil/process.h"
 
 
 namespace suil {
 
-#define closep(pfd) close(pfd[0]); close(pfd[1])
-
     static std::map<pid_t, Process*> PID_Process{};
     static bool PROC_Exiting{false};
-
-    static void __setNonBlock(int fd) {
-        /* Make the file descriptor non-blocking. */
-        int opt = fcntl(fd, F_GETFL, 0);
-        if (opt == -1)
-            opt = 0;
-        if (fcntl(fd, F_SETFL, opt | O_NONBLOCK) == -1) {
-            // failed to set fd to nonblocking
-            serror("setting fd=%d to nonblocking failed: %s", fd, errno_s);
-        }
-    }
+    size_t ProcessBuffer::MAXIMUM_BUFFER_SIZE{0};
 
     extern void Worker_sa_handler(int sig, siginfo_t *info, void *context);
 
     void Process_sa_handler(int sig, siginfo_t *info, void *context) {
+        strace("signal=%d", sig);
         if (PROC_Exiting)
             return;
 
@@ -50,7 +40,7 @@ namespace suil {
 
     }
 
-    static void __updateEnv(Map<String>& env)
+    static void updatenv(Map<String>& env)
     {
         if (env.empty())
             return;
@@ -62,7 +52,7 @@ namespace suil {
         }
     }
 
-    bool __openPipes(int in[2], int out[2], int err[2]) {
+    bool openpipes(int in[2], int out[2], int err[2]) {
         if (pipe(in)) {
             // failed to open IO pipe
             serror("failed to pipe(input): %s", errno_s);
@@ -72,31 +62,32 @@ namespace suil {
         if (pipe(out)) {
             // failed to open IO pipe
             serror("failed to pipe(output): %s", errno_s);
-            closep(in);
+            utils::closepipe(in);
             return false;
         }
 
         if (pipe(err)) {
             // failed to open IO pipe
             serror("failed to pipe(error): %s", errno_s);
-            closep(in);
-            closep(out);
+            utils::closepipe(in);
+            utils::closepipe(out);
             return false;
         }
 
         return true;
     }
 
-    inline void __closePipes(int in[2], int out[2], int err[2]) {
-        closep(in);
-        closep(out);
-        closep(err);
+    inline void closepipes(int in[2], int out[2], int err[2]) {
+        utils::closepipe(in);
+        utils::closepipe(out);
+        utils::closepipe(err);
     }
 
     void Process::on_SIGCHLD(int sig, siginfo_t *info, void *context)
     {
         pid_t pid = info? info->si_pid : -1;
         uid_t uid = info? info->si_uid : -1;
+        strace("Process::on_SIGCHLD pid=%ld, uid=%ld", pid, uid);
 
         if (pid == -1) {
             // invalid SIGCHLD received
@@ -132,23 +123,23 @@ namespace suil {
     Process::Ptr Process::start(Map<String>& env, const char * cmd, int argc, char *argv[])
     {
         int out[2], err[2], in[2];
-        if (!__openPipes(in, out, err))
+        if (!openpipes(in, out, err))
             return nullptr;
 
         auto proc = Process::mkshared();
         if (pipe(proc->notifChan) == -1) {
             // forking process failed
             serror("error opening notification pipe: %s", errno_s);
-            __closePipes(in, out, err);
+            closepipes(in, out, err);
             return nullptr;
         }
         // the read end of the pipe should be non-blocking
-        __setNonBlock(proc->notifChan[0]);
+        utils::setnonblocking(proc->notifChan[0]);
 
         if ((proc->pid = mfork()) == -1) {
             // forking process failed
             serror("forking failed: %s", errno_s);
-            __closePipes(in, out, err);
+            closepipes(in, out, err);
             return nullptr;
         }
 
@@ -159,7 +150,7 @@ namespace suil {
             dup2(err[1], STDERR_FILENO);
             close(in[0]); close(out[0]); close(err[0]);
             // update environment variables
-            __updateEnv(env);
+            updatenv(env);
 
             int ret = ::execvp(cmd, argv);
 
@@ -171,12 +162,15 @@ namespace suil {
             // close the unused ends of the pipe
             close(in[1]); close(out[1]); close(err[1]);
             proc->stdIn  = in[0];
-            __setNonBlock(proc->stdIn);
+            utils::setnonblocking(proc->stdIn);
             proc->stdOut = out[0];
-            __setNonBlock(proc->stdOut);
+            utils::setnonblocking(proc->stdOut);
             proc->stdErr = err[0];
-            __setNonBlock(proc->stdErr);
+            utils::setnonblocking(proc->stdErr);
             PID_Process[proc->pid] = proc.get();
+            strace("launched process pid=%ld", proc->pid);
+            // start reading asynchronously
+            proc->startReadAsync();
         }
 
         return proc;
@@ -246,7 +240,7 @@ namespace suil {
             Ego.stopIO();
         }
         fdclear(Ego.notifChan[0]);
-        closep(Ego.notifChan);
+        utils::closepipe(Ego.notifChan);
     }
 
     void Process::stopIO()
@@ -254,6 +248,7 @@ namespace suil {
         if (Ego.stdOut >= 0) {
             close(Ego.stdOut);
             Ego.stdOut = -1;
+            yield();
         }
 
         if (Ego.stdIn >= 0) {
@@ -264,58 +259,11 @@ namespace suil {
         if (Ego.stdErr >= 0) {
             close(Ego.stdErr);
             Ego.stdErr = -1;
-        }
-
-        if (Ego.pendingReads) {
-            // cancel all async reads;
-            Ego.cancelAsyncRead();
+            yield();
         }
     }
 
-    String Process::getStdError()
-    {
-        if (Ego.stdErr <= 0) {
-            // cannot read standard error from an exited process
-            iwarn("attempt to read stderr from an exited process {pid=%ld}", Ego.pid);
-            return nullptr;
-        }
-
-        OBuffer buf(1024);
-        ssize_t sz = read(Ego.stdErr, buf.data(), buf.capacity());
-        if (sz == -1) {
-            if (errno != EWOULDBLOCK)
-                // unexpected error
-                serror("reading process{pid=%ld} error file{fd=%d} failed: %s", Ego.pid, Ego.stdErr, errno_s);
-
-            return nullptr;
-        }
-        // advance and grow buffer
-        buf.seek(sz);
-        return String{buf};
-    }
-
-    String Process::getStdOutput()
-    {
-        if (Ego.stdOut <= 0) {
-            // cannot read standard error from an exited process
-            iwarn("attempt to read stdout from an exited process {pid=%ld}", Ego.pid);
-            return nullptr;
-        }
-
-        OBuffer buf(1024);
-        ssize_t sz = read(Ego.stdOut, buf.data(), buf.capacity());
-        if (sz == -1) {
-            if (errno != EWOULDBLOCK)
-                // unexpected errors
-                ierror("reading process{pid=%ld} output file{fd=%d} failed: %s", Ego.pid, Ego.stdOut, errno_s);
-            return nullptr;
-        }
-        // advance and grow buffer
-        buf.seek(sz);
-        return String{buf};
-    }
-
-    void Process::processAsyncRead(Process& proc, int fd, Process::__ReadCallback& readCb)
+    void Process::processAsyncRead(Process& proc, int fd, bool err)
     {
         proc.pendingReads++;
         char buffer[1024];
@@ -324,7 +272,7 @@ namespace suil {
             ltrace(&proc, "read event{fd=%d} %d",fd, ev);
             if (ev == FDW_IN) {
                 /* data available to read from fd */
-                ssize_t nread = read(fd, buffer, sizeof(buffer));
+                ssize_t nread = read(fd, buffer, sizeof(buffer)-1);
                 if (nread == -1) {
                     if (errno == EWOULDBLOCK)
                         continue;
@@ -335,9 +283,23 @@ namespace suil {
                     continue;
 
                 // something has been read
-                if (!readCb(String{buffer, (size_t)nread, false}.dup())) {
-                    // read has been aborted by callback
-                    break;
+                buffer[nread] = '\0';
+                String tmp{buffer, (size_t)nread, false};
+                if (err) {
+                    if (proc.asyncStderr) {
+                        proc.asyncStderr(tmp.dup());
+                    }
+                    else {
+                        proc.buffer.writeError(tmp.dup());
+                    }
+                }
+                else {
+                    if (proc.asyncStdout) {
+                        proc.asyncStdout(tmp.dup());
+                    }
+                    else {
+                        proc.buffer.writeOutput(tmp.dup());
+                    }
                 }
             } else {
                 // received an error
@@ -347,34 +309,26 @@ namespace suil {
         } while (!proc.isExited());
 
         proc.pendingReads--;
-        readCb = nullptr;
     }
+
+    void Process::flushBuffers(Process& p, Reader&& rd, bool err) {
+        if (err) {
+          while (p.buffer.hasStderr())
+            rd(p.buffer.readError());
+
+          p.asyncStderr = std::move(rd);
+        }
+        else {
+          while (p.buffer.hasStdout())
+            rd(p.buffer.readOutput());
+
+          p.asyncStdout = std::move(rd);
+        }
+      }
 
     void Process::startReadAsync()
     {
-        if (Ego.readCallbacks.onStdOutput) {
-            // read standard output asynchronously
-            go(processAsyncRead(Ego, Ego.readCallbacks.fdOutput, Ego.readCallbacks.onStdOutput));
-        }
-
-        if (Ego.readCallbacks.onStdError) {
-            // read standard output asynchronously
-            go(processAsyncRead(Ego, Ego.readCallbacks.fdError, Ego.readCallbacks.onStdError));
-        }
-    }
-
-    void Process::cancelAsyncRead()
-    {
-        if (Ego.readCallbacks.onStdOutput != nullptr) {
-            fdclear(Ego.readCallbacks.fdOutput);
-            close(Ego.readCallbacks.fdOutput);
-            Ego.readCallbacks.fdOutput = -1;
-        }
-
-        if (Ego.readCallbacks.onStdError != nullptr) {
-            fdclear(Ego.readCallbacks.fdError);
-            close(Ego.readCallbacks.fdError);
-            Ego.readCallbacks.fdError = -1;
-        }
+        go(processAsyncRead(Ego, Ego.stdErr, true));
+        go(processAsyncRead(Ego, Ego.stdOut, false));
     }
 }

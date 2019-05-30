@@ -37,9 +37,10 @@ namespace suil {
     static void suil_sah(int sig, siginfo_t *info, void *ctx) {
         if (g_sah)
             g_sah(sig, info, ctx);
-        else
+        else {
             swarn("received signal %d while signal handler is null");
-        exit(0);
+            exit(0);
+        }
     }
 
     void Process_sa_init() {

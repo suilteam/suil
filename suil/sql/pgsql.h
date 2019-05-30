@@ -384,7 +384,7 @@ namespace suil {
                                 PQclear(result);
                                 break;
                             case PGRES_COMMAND_OK:
-                                trace("ASYNC QUERY: continue waiting for results")
+                                trace("ASYNC QUERY: continue waiting for results");
                                 PQclear(result);
                                 break;
                             case PGRES_TUPLES_OK:

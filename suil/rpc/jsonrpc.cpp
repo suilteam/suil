@@ -10,7 +10,7 @@ namespace suil::rpc {
         : RpcTxRx()
     {
         extensionMethods.emplace(String{"rpc_Version"},
-        [&](const json::Object& _) -> ReturnType {
+        [&](const json::Object&) -> ReturnType {
             /* just return library version*/
             return std::make_pair(0, json::Object(SUIL_VERSION_STRING));
         });
@@ -120,7 +120,7 @@ namespace suil::rpc {
             resp.error = std::move(tmp);
         }
 
-        return std::move(resp);
+        return resp;
     }
 
     JrpcResponse JsonRpcServerConnection::handle_Extension(
@@ -160,7 +160,7 @@ namespace suil::rpc {
             resp.error = std::move(err);
         }
 
-        return std::move(resp);
+        return resp;
     }
 
     bool __JsonRpcClient::connect(String&& host, int port)
@@ -204,7 +204,7 @@ namespace suil::rpc {
         std::vector<ReturnType> resps = Ego.batch(std::move(method), std::move(params));
         auto resp = std::move(resps.back());
         resps.pop_back();
-        return std::move(resp);
+        return resp;
     }
 
     std::vector<ReturnType> __JsonRpcClient::call(std::vector<JrpcRequest> & package)
@@ -270,7 +270,7 @@ namespace suil::rpc {
             }
         }
 
-        return std::move(res);
+        return res;
     }
 
 }

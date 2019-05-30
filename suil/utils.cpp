@@ -371,6 +371,28 @@ namespace suil {
 
         return "text/plain";
     }
+
+    void utils::setnonblocking(int fd)
+    {
+        int opt = fcntl(fd, F_GETFL, 0);
+        if (opt == -1)
+            opt = 0;
+        if (fcntl(fd, F_SETFL, opt | O_NONBLOCK) == -1) {
+            // failed to set fd to nonblocking
+            serror("setting fd=%d to nonblocking failed: %s", fd, errno_s);
+        }
+    }
+
+    void utils::setblocking(int fd)
+    {
+        int opt = fcntl(fd, F_GETFL, 0);
+        if (opt == -1)
+            opt = 0;
+        if (fcntl(fd, F_SETFL, (opt & ~O_NONBLOCK)) == -1) {
+            // failed to set fd to nonblocking
+            serror("setting fd=%d to nonblocking failed: %s", fd, errno_s);
+        }
+    }
 }
 
 #ifdef unit_test
