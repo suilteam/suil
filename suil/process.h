@@ -94,7 +94,7 @@ namespace suil {
         }
 
         template <typename... Args>
-        static Ptr launch(Map<String> env, const char *cmd, Args... args) {
+        static Ptr launch(const  Map<String>& env, const char *cmd, Args... args) {
             // reserve buffer for process arguments
             size_t argc  = sizeof...(args);
             char *argv[argc+2];
@@ -106,9 +106,17 @@ namespace suil {
         }
 
         template <typename ...Args>
-        static Process::Ptr bash(Map<String> env, const char *cmd, Args... args) {
+        static Process::Ptr bash(const Map<String>& env, const char *cmd, Args... args) {
             OBuffer tmp{256};
-            Process::strfmt(tmp, cmd, std::forward<Args>(args)...);
+            Process::strfmt(tmp, cmd, std::forward<Args>(args)..., "; sleep 0.1");
+            String cmdStr(tmp);
+            return Process::launch(env, "bash", "-c", cmdStr());
+        }
+
+        template <typename ...Args>
+        static Process::Ptr bash(const Map<String>&& env, const char *cmd, Args... args) {
+            OBuffer tmp{256};
+            Process::strfmt(tmp, cmd, std::forward<Args>(args)..., "; sleep 0.1");
             String cmdStr(tmp);
             return Process::launch(env, "bash", "-c", cmdStr());
         }
@@ -183,7 +191,7 @@ namespace suil {
 
         void startReadAsync();
 
-        static Ptr start(Map<String>& env, const char* cmd, int argc, char* argv[]);
+        static Ptr start(const Map<String>& env, const char* cmd, int argc, char* argv[]);
 
         friend void Process_sa_handler(int sig, siginfo_t *info, void *context);
         static void on_SIGCHLD(int sig, siginfo_t *info, void *context);

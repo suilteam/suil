@@ -40,7 +40,7 @@ namespace suil {
 
     }
 
-    static void updatenv(Map<String>& env)
+    static void updatenv(const Map<String>& env)
     {
         if (env.empty())
             return;
@@ -120,7 +120,7 @@ namespace suil {
         PID_Process.clear();
     }
 
-    Process::Ptr Process::start(Map<String>& env, const char * cmd, int argc, char *argv[])
+    Process::Ptr Process::start(const Map<String>& env, const char * cmd, int argc, char *argv[])
     {
         int out[2], err[2], in[2];
         if (!openpipes(in, out, err))
