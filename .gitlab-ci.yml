@@ -6,6 +6,7 @@ variables:
 
 .job_def:
   before_script: &docker_hub_login
+    - export DOCKER_HOST=tcp://docker:2375/
     - docker login -u $SUILTEAM_DOCKERHUB_USER -p $SUILTEAM_DOCKERHUB_PASSWD
 
 # Build alpine development image based of docker
