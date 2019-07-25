@@ -6,13 +6,17 @@ variables:
 
 .job_def:
   before_script: &docker_hub_login
+    - export DOCKER_HOST=tcp://docker:2375/
     - docker login -u $SUILTEAM_DOCKERHUB_USER -p $SUILTEAM_DOCKERHUB_PASSWD
 
 # Build alpine development image based of docker
 build:dev:
   stage: build
   tags:
-    - alpine
+    - docker
+    - linux
+  services:
+    - docker:dind
   only:
     - master
   # Install all the required dependencies before proceeding to build
@@ -48,8 +52,11 @@ build:dev:
     
 build:prod:
   stage: build
+  services:
+    - docker:dind
   tags:
-    - alpine
+    - docker
+    - linux
   only:
     - master
 
@@ -86,8 +93,11 @@ build:prod:
     
 build:release:dev:alpine:
   stage: build
+  services:
+    - docker:dind
   tags:
-    - alpine
+    - docker
+    - linux
   only:
     - tags
   # Install all the required dependencies before proceeding to build
@@ -117,8 +127,11 @@ build:release:dev:alpine:
 build:release:dev:
   image: suilteam/mecury:ubuntu
   stage: build
+  services:
+    - docker:dind
   tags:
-    - x86_64
+    - docker
+    - linux
   only:
     - tags
     
@@ -161,8 +174,11 @@ build:release:dev:
 
 build:release:prod:
   stage: build
+  services:
+    - docker:dind
   tags:
-    - alpine
+    - docker
+    - linux
   only:
     - tags
 
@@ -194,8 +210,11 @@ build:release:prod:
       
 test:devel:
   stage: test
+  services:
+    - docker:dind
   tags:
-    - alpine
+    - docker
+    - linux
   only:
     - master
   before_script: *docker_hub_login
@@ -205,8 +224,11 @@ test:devel:
 
 test:production:
   stage: test
+  services:
+    - docker:dind
   tags:
-    - alpine
+    - docker
+    - linux
   only:
     - tags
   before_script: *docker_hub_login
