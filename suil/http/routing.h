@@ -16,7 +16,10 @@ namespace suil {
         public:
             BaseRule(std::string rule)
                 : rule_(std::move(rule))
-            {}
+            {
+                static uint32_t idGenerator{0};
+                id_ = idGenerator++;
+            }
 
             virtual ~BaseRule() = default;
 
@@ -30,6 +33,10 @@ namespace suil {
                 return methods_;
             }
 
+            uint32_t get_id() const {
+                return id_;
+            }
+
             friend class Router;
             route_attributes_t attrs_{false, false, false, false, nullptr};
 
@@ -38,7 +45,7 @@ namespace suil {
 
             std::string rule_;
             std::string name_;
-
+            uint32_t    id_{0};
             template<typename T>
             friend struct rule_parameter_traits;
         };
@@ -259,10 +266,11 @@ namespace suil {
             }
 
             template <typename Func>
-            void operator()(Func f)
+            uint32_t operator()(Func f)
             {
                 using function_t = function_traits<Func>;
                 erased_handler_ = wrap(std::move(f), magic::gen_seq<function_t::arity>());
+                return id_;
             }
 
             // enable_if Arg1 == Request && Arg2 == Response

@@ -861,7 +861,7 @@ namespace suil {
             suil::detail::routing_params decoded;
             route_attributes_t  *attrs{nullptr};
             uint32_t            methods{0};
-
+            uint32_t            route_id{0};
             inline void  clear() {
                 decoded.clear();
                 attrs = nullptr;

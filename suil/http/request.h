@@ -131,6 +131,10 @@ namespace suil {
                 return params;
             }
 
+            uint32_t routeid() const {
+                return params.route_id;
+            }
+
             template <typename T>
             T query(const char *name, bool strict = false) const {
                 return qps.get<T>(name, strict);
