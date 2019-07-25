@@ -179,7 +179,6 @@ namespace suil::scc {
             appendCtors(svc.Ctors);
             appendMethods(svc.Methods);
             out << spaces(4) << "};\n\n";
-
             auto both = (svc.Kind == "service");
             // start with with client
             if (both || (svc.Kind == "srpc"))
@@ -274,12 +273,12 @@ namespace suil::scc {
             if (m.Params.empty())
                 sf << spaces(8) << "suil::json::Object params(nullptr);";
             else
-                sf << spaces(8) << "suil::json::Object params(json::Obj, " << ob << ");";
+                sf << spaces(8) << "suil::json::Object params(suil::json::Obj, " << ob << ");";
             sf << "\n"
                << spaces(8) << "auto ret = Ego.call(\"" << m.Name << "\", std::move(params));\n"
                << spaces(8) << "if (ret.first)\n"
                << spaces(12) << "// api error\n"
-               << spaces(12) << "throw suil::Exception::create((String)ret.second);\n\n";
+               << spaces(12) << "throw suil::Exception::create((suil::String)ret.second);\n\n";
             if (m.ReturnType != "void")
                 sf << spaces(8) << "return (" << m.ReturnType << ") ret.second;\n";
             sf << spaces(4) << "}\n\n";
@@ -296,7 +295,7 @@ namespace suil::scc {
         }
         sf << spaces(4) << "}\n\n";
 
-        sf << spaces(4) << "Result s" << svc.Name
+        sf << spaces(4) << "suil::Result s" << svc.Name
            << "Handler::operator()(suil::Breadboard& results, int method, suil::Breadboard& params, int id)\n"
            << spaces(4) << "{\n"
            << spaces(8) << "switch(method) {\n";
@@ -327,12 +326,12 @@ namespace suil::scc {
                 sf << spaces(16) << m.ReturnType << " tmp = Ego." << m.Name << "(" << ob << ");\n";
                 sf << spaces(16) << "results << tmp;\n";
             }
-            sf << spaces(16) << "return Result(0);\n"
+            sf << spaces(16) << "return suil::Result(0);\n"
                << spaces(12) << "}\n";
         }
         sf << spaces(12) << "default:\n"
            << spaces(16) << "// method not found\n"
-           << spaces(16) << "Result res(SRPC_METHOD_NOT_FOUND);\n"
+           << spaces(16) << "suil::Result res(SRPC_METHOD_NOT_FOUND);\n"
            << spaces(16) << "res << \"requested method does not exist\";\n"
            << spaces(16) << "return std::move(res);\n"
            << spaces(12) << "}\n"
@@ -483,15 +482,22 @@ namespace suil::scc {
 
     void ProgramFile::generate(const char *filename, const char *outDir)
     {
-        const char *dir = outDir == nullptr? "./" : outDir;
-        if (!utils::fs::exists(dir)) {
-            // output directory does not exist, attempt to create
-            utils::fs::mkdir(dir, true);
-        }
-
         auto fname = utils::fs::getname(filename);
-        auto hdrFile = utils::catstr(dir, "/", fname, ".h");
-        auto cppFile = utils::catstr(dir, "/", fname, ".cpp");
+
+        String hdrFile, cppFile;
+        if (outDir != nullptr) {
+            if (!utils::fs::exists(outDir)) {
+                // output directory does not exist, attempt to create
+                utils::fs::mkdir(outDir, true);
+            }
+
+            hdrFile = utils::catstr(outDir, "/", fname, ".h");
+            cppFile = utils::catstr(outDir, "/", fname, ".cpp");
+        }
+        else {
+            hdrFile = utils::catstr(filename, ".h");
+            cppFile = utils::catstr(filename, ".cpp");
+        }
 
         // generate header file
         generateHeaderFile(hdrFile);

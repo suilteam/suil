@@ -95,6 +95,7 @@ namespace suil {
             waitn = async.waitn;
             ddline = async.ddline;
             async.ch = nullptr;
+            return Ego;
         }
 
         /**

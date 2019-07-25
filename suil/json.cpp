@@ -22,12 +22,14 @@
 */
 
 #include "json.h"
+#include "file.h"
 
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <lua/lua.hpp>
 
 #define out_of_memory() do {                    \
 		fprintf(stderr, "Out of memory.\n");    \
@@ -1389,18 +1391,42 @@ namespace suil::json {
         return obj;
     }
 
-    Object Object::operator[](const char *key) const {
-        if (mNode == nullptr || mNode->tag != JsonTag::JSON_OBJECT)
-            throw Exception::create("json::Object::[index] - object is not a JSON object");
-        Object obj(json_find_member(mNode, key));
-        return obj;
+    Object Object::operator()(const char *key, bool throwNotFound) const {
+        const char *s = key, *p = key;
+        Object obj{mNode};
+        while ((p = strchr(s, '.')) != nullptr) {
+            String part{s, (size_t)(p-s), false};
+            obj = obj.get(part, throwNotFound);
+            if (obj.empty() || !obj.isObject()) {
+                if (throwNotFound)
+                    throw Exception::create("Key '", key, "'is not an object");
+                else
+                    return Object{nullptr};
+            }
+            s = p+1;
+        }
+        String tmp{s};
+        if (tmp == "*") {
+            return std::move(obj);
+        }
+
+        return obj.get(s, throwNotFound);
     }
 
-    Object Object::operator[](const suil::String &&key) const {
-		if (mNode == nullptr || mNode->tag != JsonTag::JSON_OBJECT)
-			throw Exception::create("json::Object::[index] - object is not a JSON object");
-		Object obj(json_find_member(mNode, key.data(), key.size()));
-		return obj;
+    Object Object::operator[](const suil::String &key) const {
+        return Ego.get(key, true);
+    }
+
+    Object Object::get(const suil::String &key, bool shouldThrow) const {
+        if (mNode == nullptr || mNode->tag != JsonTag::JSON_OBJECT) {
+            if (shouldThrow)
+                throw Exception::create("json::Object::[index] - object is not a JSON object");
+            else
+                return Object{nullptr};
+        }
+
+        Object obj(json_find_member(mNode, key.data(), key.size()));
+        return obj;
     }
 
     Object::operator bool()   const {
@@ -1578,6 +1604,99 @@ namespace suil::json {
 		}
 		return Ego;
 	}
+
+	Object Object::fromLuaFile(const suil::String &file) {
+
+        if (utils::fs::exists(file())) {
+            try {
+                auto str = utils::fs::readall(file(), true);
+                return Object::fromLuaString(str);
+            }
+            catch (...) {
+                serror("failed to load lua '%s' to json: %s", file(), Exception::fromCurrent().what());
+            }
+        }
+        return Object{nullptr};
+    }
+
+    static Object parseLuaTable(lua_State* L);
+
+    static Object parseLuaValue(lua_State* L) {
+        Object obj{nullptr};
+        auto type = lua_type(L, -1);
+
+        switch (type) {
+            case LUA_TBOOLEAN:
+                obj = Object(lua_toboolean(L, -1) != 0);
+                break;
+            case LUA_TNUMBER:
+                obj = Object(lua_tonumber(L, -1));
+                break;
+            case LUA_TSTRING:
+                obj = Object(lua_tostring(L, -1));
+                break;
+            case LUA_TTABLE:
+                obj = parseLuaTable(L);
+                break;
+            default:
+                throw Exception::create("type '", luaL_typename(L, -1), "' is not supported");
+        }
+
+        return std::move(obj);
+    }
+
+    Object parseLuaTable(lua_State* L) {
+        Object obj(Obj);
+        lua_pushnil(L);
+        bool first{true}, isArray{false};
+        while (lua_next(L, -2) != 0) {
+            if (first) {
+                if (lua_type(L, -2) == LUA_TNUMBER) {
+                    isArray = true;
+                    obj = Object(Arr);
+                }
+                first = false;
+            }
+            if (isArray) {
+                if (lua_type(L, -2) != LUA_TNUMBER) {
+                    throw Exception::create("Invalid config file, array indexes can only be numbers");
+                }
+                obj.push(parseLuaValue(L));
+            }
+            else {
+                if (lua_type(L, -2) != LUA_TSTRING) {
+                    throw Exception::create("Invalid config file, array indexes can only be numbers");
+                }
+                auto key = lua_tostring(L, -2);
+                obj.set(key, parseLuaValue(L));
+            }
+            lua_pop(L, 1);
+        }
+        return  std::move(obj);
+    }
+
+    Object Object::fromLuaString(const suil::String &script) {
+        lua_State *L{luaL_newstate()};
+        luaL_openlibs(L);
+        defer(L, {
+            if (L != nullptr)
+                lua_close(L);
+        });
+
+        if (luaL_loadstring(L, script()) || lua_pcall(L, 0, LUA_MULTRET, 0)) {
+            // loading configuration file failed
+            throw Exception::create(lua_tostring(L, -1));
+        }
+        lua_getglobal(L, "config");
+        if (lua_type(L, -1) != LUA_TTABLE) {
+            // config invalid
+            throw Exception::create("Configuration must be within a 'config' tag");
+        }
+
+        auto obj = parseLuaTable(L);
+
+        return std::move(obj);
+    }
 
     Object::~Object() {
         if (mNode && !ref)
@@ -2043,6 +2162,29 @@ TEST_CASE("suil::json::Object", "[json][Object]")
 			obj = json::Object(json::Arr);
 			REQUIRE_THROWS(obj["arr"]);
     	}
+
+    	WHEN("Using fullpath lookup") {
+            json::Object obj(json::Obj, "one", 1, "bool", true, "str", "cali", "obj1",
+                             json::Object(json::Obj, "two", 2, "bool", false, "str", "carter", "obj2",
+                                          json::Object(json::Obj, "three", 3)));
+            auto tmp = obj("obj1", true);
+            REQUIRE_FALSE(tmp.empty());
+            REQUIRE(tmp.isObject());
+            REQUIRE_NOTHROW(tmp = obj("*", true));
+            REQUIRE(tmp.isObject());
+            REQUIRE(tmp.mNode == obj.mNode);
+            REQUIRE_NOTHROW(tmp = obj("obj1.two", true));
+            REQUIRE(tmp.isNumber());
+            REQUIRE((int)tmp == 2);
+            REQUIRE_THROWS(tmp = obj("obj1.str.*", true)); // Wilcard expects an object
+            REQUIRE_NOTHROW(tmp = obj("obj1.obj2", true));
+            REQUIRE(tmp.isObject());
+            REQUIRE_NOTHROW(tmp = obj("obj1.obj2.*", true)); // result is an object so * operation won't throw
+            REQUIRE(tmp.isObject());
+            REQUIRE_NOTHROW(tmp = obj("obj1.obj2.three", true));
+            REQUIRE(tmp.isNumber());
+            REQUIRE((int)tmp == 3);
+    	}
     }
 
     SECTION("enumerating arrays and objects") {
@@ -2360,6 +2502,59 @@ TEST_CASE("suil::json::Object", "[json][Object]")
             json::decode(str, mt1);
             REQUIRE(mt1.a == 29);
             REQUIRE(mt1.b == "Carter");
+        }
+
+        WHEN("Loading a LUA config script to JSON object") {
+            String lConfig{"config = { "
+                            "   num = 1,"
+                            "   str = 'A string',"
+                            "   bool = true,"
+                            "   arr = {1, true, 'string', {1, true}},"
+                            "   obj = {"
+                            "       num = 1,"
+                            "       bool = true"
+                            "   }"
+                            "}"};
+            json::Object obj = json::Object::fromLuaString(lConfig);
+            REQUIRE_FALSE(obj.empty());
+            json::Object val, v2;
+
+            REQUIRE_NOTHROW(val = obj["num"]);
+            REQUIRE(val.isNumber());
+            REQUIRE((int)val == 1);
+
+            REQUIRE_NOTHROW(val = obj["str"]);
+            REQUIRE(val.isString());
+            REQUIRE((String)val == "A string");
+
+            REQUIRE_NOTHROW(val = obj["bool"]);
+            REQUIRE(val.isBool());
+            REQUIRE((bool)val);
+
+            REQUIRE_NOTHROW(val = obj["arr"]);
+            REQUIRE(val.isArray());
+            REQUIRE((int)val[0] == 1);
+            REQUIRE((bool)val[1]);
+            REQUIRE((String)val[2] == "string");
+
+            REQUIRE_NOTHROW(v2 = val[3]);
+            REQUIRE(v2.isArray());
+            REQUIRE((int)v2[0] == 1);
+            REQUIRE((bool)v2[1]);
+
+            REQUIRE_NOTHROW(val = obj["obj"]);
+            REQUIRE(val.isObject());
+            REQUIRE((int)val["num"] == 1);
+            REQUIRE((bool)val["bool"]);
+
+            // When passing empty config
+            REQUIRE_NOTHROW(obj = json::Object::fromLuaString("config = {}"));
+            // passing empty config will fail
+            REQUIRE_THROWS(obj = json::Object::fromLuaString(""));
+            // Config must be within configuration declaration
+            REQUIRE_THROWS(obj = json::Object::fromLuaString("configuration = {}"));
+            // Cannot mix array and object indexing
+            REQUIRE_THROWS(obj = json::Object::fromLuaString("config = {'one', name='Carter'}"));
         }
     }
 }

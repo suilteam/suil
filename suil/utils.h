@@ -218,6 +218,24 @@ namespace suil {
                 __R &res;
             };
 
+            struct __defer final {
+                __defer(std::function<void(void)> func)
+                    : func(func)
+                {}
+
+                __defer(const __defer&) = delete;
+                __defer& operator=(const __defer&) = delete;
+                __defer(__defer&&) = delete;
+                __defer& operator=(__defer&) = delete;
+
+                ~__defer() {
+                    if (func)
+                        func();
+                }
+            private:
+                std::function<void(void)> func;
+            };
+
             template<typename... A>
             inline void catstr(OBuffer &out, A &... args) {
                 (out << ... << args);
@@ -231,6 +249,8 @@ namespace suil {
  * of the scope
  */
 #define scoped(n, x) auto& n = x ; suil::utils::__internal::scoped_res<decltype( n )> _##n { n }
+
+#define defer(n, f) suil::utils::__internal::__defer _##n {[&]() f }
 
         /**
          * case insensitive sapi \class String keyed map

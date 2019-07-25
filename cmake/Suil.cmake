@@ -254,9 +254,6 @@ function(SuilApp name)
     endif()
 
     set(${name}_SCC_OUTDIR ${SUIL_APP_SCC_OUTDIR})
-    if (NOT SUIL_APP_SCC_OUTDIR)
-        set(${name}_SCC_OUTDIR ${CMAKE_CURRENT_SOURCE_DIR})
-    endif()
 
     # generate scc types/services
     if (SUIL_APP_SCC_SOURCES)

@@ -138,7 +138,7 @@ function(suil_scc name)
     endif()
 
     # set output directory
-    set(${name}_OUTDIR ${CMAKE_CURRENT_BINARY_DIR}/.generated)
+    set(${name}_OUTDIR)
     if (SUIL_SCC_OUTDIR)
         set(${name}_OUTDIR ${SUIL_SCC_OUTDIR})
     endif()
@@ -146,25 +146,46 @@ function(suil_scc name)
     # get outputs
     set(${name}_OUTPUTS)
     set(${name}_MOD_SOURCES)
-    foreach(__${name}_SOURCE ${${name}_SOURCES})
-        get_filename_component(__temp ${__${name}_SOURCE} NAME)
-        list(APPEND ${name}_OUTPUTS
-                ${${name}_OUTDIR}/${__temp}.h
-                ${${name}_OUTDIR}/${__temp}.cpp)
-        if (${name}_MOD_SOURCES)
-            set(${name}_MOD_SOURCES ${${name}_MOD_SOURCES},${__${name}_SOURCE})
-        else()
-            set(${name}_MOD_SOURCES ${__${name}_SOURCE})
-        endif()
-    endforeach()
+    if (${name}_OUTDIR)
+        foreach(__${name}_SOURCE ${${name}_SOURCES})
+            get_filename_component(__temp ${__${name}_SOURCE} NAME)
+            list(APPEND ${name}_OUTPUTS
+                    ${${name}_OUTDIR}/${__temp}.h
+                    ${${name}_OUTDIR}/${__temp}.cpp)
+            if (${name}_MOD_SOURCES)
+                set(${name}_MOD_SOURCES ${${name}_MOD_SOURCES},${__${name}_SOURCE})
+            else()
+                set(${name}_MOD_SOURCES ${__${name}_SOURCE})
+            endif()
+        endforeach()
 
-    message(STATUS "${name} scc sources: ${${name}_MOD_SOURCES}")
-    message(STATUS "${name} scc outputs: ${${name}_OUTPUTS}")
+        message(STATUS "${name} scc sources: ${${name}_MOD_SOURCES}")
+        message(STATUS "${name} scc outputs: ${${name}_OUTPUTS}")
 
-    add_custom_command(OUTPUT ${${name}_OUTPUTS}
-            COMMAND ${suilscc} "gen" "-i" ${${name}_MOD_SOURCES} "-O" ${${name}_OUTDIR}
-            WORKING_DIRECTORY  ${CMAKE_BINARY_DIR}
-            DEPENDS            ${${name}_SOURCES})
+        add_custom_command(OUTPUT ${${name}_OUTPUTS}
+                COMMAND ${suilscc} "gen" "-i" ${${name}_MOD_SOURCES} "-O" ${${name}_OUTDIR}
+                WORKING_DIRECTORY  ${CMAKE_BINARY_DIR}
+                DEPENDS            ${${name}_SOURCES})
+    else()
+        foreach(__${name}_SOURCE ${${name}_SOURCES})
+            list(APPEND ${name}_OUTPUTS
+                    ${__${name}_SOURCE}.h
+                    ${__${name}_SOURCE}.cpp)
+            if (${name}_MOD_SOURCES)
+                set(${name}_MOD_SOURCES ${${name}_MOD_SOURCES},${__${name}_SOURCE})
+            else()
+                set(${name}_MOD_SOURCES ${__${name}_SOURCE})
+            endif()
+        endforeach()
+
+        message(STATUS "${name} scc sources: ${${name}_MOD_SOURCES}")
+        message(STATUS "${name} scc outputs: ${${name}_OUTPUTS}")
+
+        add_custom_command(OUTPUT ${${name}_OUTPUTS}
+                COMMAND ${suilscc} "gen" "-i" ${${name}_MOD_SOURCES}
+                WORKING_DIRECTORY  ${CMAKE_BINARY_DIR}
+                DEPENDS            ${${name}_SOURCES})
+    endif()
     # add symbol generation target
     add_custom_target(${name}-scc
             DEPENDS ${${name}_OUTPUTS}

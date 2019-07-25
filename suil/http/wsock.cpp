@@ -192,11 +192,11 @@ namespace suil {
                 }
             }
 
-            String key = std::move(String(sock.id()).dup());
-            api.websocks.emplace(key, *this);
+            Ego.uuid = utils::uuidstr();
+            api.websocks.emplace(Ego.uuid.peek(), *this);
             api.nsocks++;
 
-            idebug("%s - entering Connection loop %lu", key(), api.nsocks);
+            idebug("%s - entering Connection loop %lu", Ego.uuid(), api.nsocks);
 
             OBuffer b(0);
             while (!end_session && sock.isopen()) {
@@ -243,11 +243,10 @@ namespace suil {
             }
 
             // remove from list of know web sockets
-            api.websocks.erase(key);
+            api.websocks.erase(Ego.uuid);
             api.nsocks--;
 
-            trace("%s - done handling web socket %hhu",
-                  sock.id(), api.nsocks);
+            trace("%s - done handling web socket %hhu", Ego.uuid(), api.nsocks);
 
             // definitely disconnecting
             if (api.onDisconnect) {
@@ -393,6 +392,14 @@ namespace suil {
                 ch << result;
         }
 
+        WebSock* WebSockApi::find(const String& uuid) {
+            auto it = Ego.websocks.find(uuid);
+            if (it != Ego.websocks.end()) {
+                return &it->second;
+            }
+            return nullptr;
+        }
+
         void WebSockApi::broadcast(WebSock* src,const void *data, size_t size) {
             strace("WebSockApi::broadcast src %p, data %p, size %lu",
                    src, data, size);
@@ -404,7 +411,7 @@ namespace suil {
 
             for(auto ws : websocks) {
                 if (&ws.second != src) {
-                    if (websocks.size() == 1) {
+                    if (websocks.size() == 2) {
                         WebSock& wsock = ws.second;
                         // there is no need to spawn go-routines if there is only
                         // one other node

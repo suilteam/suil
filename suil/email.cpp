@@ -91,7 +91,7 @@ namespace suil {
 
         // get the server line
         if ((code = getresponse(5000)) != 220) {
-            ierror("stmp connect error: %d - %s", showerror(code));
+            ierror("stmp connect error: %d - %s",code, showerror(code));
             goto client_login_do_quit;
         }
 
@@ -99,7 +99,7 @@ namespace suil {
         if (!sendline(5000, "HELO ", domain)) goto client_login_exit;
 
         if ((code = getresponse(5000)) != 250) {
-            ierror("stmp HELO error: %d - %s"), showerror(code);
+            ierror("stmp HELO error: %d - %s"), code, showerror(code);
             goto client_login_do_quit;
         }
 

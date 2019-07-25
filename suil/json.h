@@ -328,8 +328,13 @@ namespace suil {
 
             Object operator[](int index) const;
 
-            Object operator[](const char *key) const;
-            Object operator[](const String&& key) const;
+            Object operator()(const char *key, bool throwNotFound = false) const;
+            inline Object operator[](const char *key) const {
+                return Ego[String{key}];
+            }
+
+            Object operator[](const String& key) const;
+            Object get(const String& key, bool shouldThrow = true) const;
 
             operator bool() const;
 
@@ -346,6 +351,10 @@ namespace suil {
             operator double() const;
 
             static Object decode(const char *str, size_t &sz);
+
+            static Object fromLuaString(const String& script);
+
+            static Object fromLuaFile(const String& file);
 
             void encode(iod::encode_stream &ss) const;
 
@@ -456,6 +465,13 @@ namespace suil {
                     return std::move(s);
                 else
                     return ((String) Ego).dup();
+            }
+
+            inline std::string operator ||(std::string&& s) {
+                if (Ego.empty())
+                    return std::move(s);
+                else
+                    return (std::string) Ego;
             }
 
             bool empty() const;

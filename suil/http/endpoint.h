@@ -85,6 +85,7 @@ namespace suil {
         template <typename B = TcpSs, typename... Mws>
         struct Endpoint : public BaseServer<Router, B, Mws...> {
             typedef BaseServer<Router, B, Mws...> basesrv_t;
+            using unique_ptr = std::unique_ptr<Endpoint<B, Mws...>>;
             /**
              * creates a new http endpoint which handles http requests
              * @param conf the configuration

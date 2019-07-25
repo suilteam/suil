@@ -42,6 +42,8 @@ namespace suil {
 
             int64_t                 timeout{-1};
 
+            WebSock* find(const String& uuid);
+
         private:
             friend struct WebSock;
 
@@ -51,7 +53,7 @@ namespace suil {
 
             static coroutine void   bsend(Channel<int>&, WebSock& ws, const void *data, size_t len);
 
-            Map<WebSock&>   websocks{};
+            Map<WebSock&>    websocks{};
             size_t           nsocks{0};
             uint8_t          id;
         };
@@ -169,10 +171,11 @@ namespace suil {
             virtual bool receive_opcode(header& h);
             virtual bool receive_frame(header& h, OBuffer& b);
 
-            SocketAdaptor&       sock;
-            WebSockApi&        api;
+            SocketAdaptor&      sock;
+            WebSockApi&         api;
             bool                end_session{false};
             void                *data_{nullptr};
+            String              uuid{};
         private:
             friend struct WebSockApi;
             void handle();

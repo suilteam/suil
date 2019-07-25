@@ -5,8 +5,11 @@
 #ifndef SUIL_SMTP_HPP
 #define SUIL_SMTP_HPP
 
+#include <list>
+
 #include <suil/sock.h>
 #include <suil/base64.h>
+#include "channel.h"
 
 namespace suil {
 
@@ -20,8 +23,10 @@ namespace suil {
     }
 
     struct Email {
+        using unique_ptr = std::unique_ptr<Email>;
+
         struct Address {
-            Address(const char *email, const char *name = nullptr)
+            Address(const String& email, const String& name = nullptr)
                 : name(String(name).dup()),
                   email(String(email).dup())
             {}
@@ -37,8 +42,8 @@ namespace suil {
         };
 
         struct Attachment {
-            String fname;
-            String  mimetype;
+            String   fname;
+            String   mimetype;
             char    *data{nullptr};
             off_t    size{0};
             size_t   len{0};
@@ -79,6 +84,7 @@ namespace suil {
                 other.data = nullptr;
                 other.size = other.len = 0;
                 other.mapped = false;
+                return Ego;
             }
 
             inline bool load();
@@ -189,14 +195,14 @@ namespace suil {
                    (bccs.end() != std::find_if(bccs.begin(), bccs.end(), predicate));
         }
 
-        String                body_type{"text/plain"};
-        String                subject;
-        String                boundry;
+        String                  body_type{"text/plain"};
+        String                  subject;
+        String                  boundry;
         std::vector<Address>    receipts;
         std::vector<Address>    ccs;
         std::vector<Address>    bccs;
-        CaseMap<Attachment> attachments;
-        OBuffer                bodybuf;
+        CaseMap<Attachment>     attachments;
+        OBuffer                 bodybuf;
     };
 
     namespace __internal {
@@ -333,9 +339,149 @@ namespace suil {
 
         Proto proto{};
         __internal::client sender;
-        String  server;
+        String    server;
         int       port;
     };
+
+    template <typename Sock>
+    struct MailOutbox : LOGGER(SMTP_CLIENT) {
+        using unique_ptr = std::unique_ptr<MailOutbox<Sock>>;
+    private:
+
+        using Sync = Channel<char*>;
+
+        struct Composed {
+            using shared_ptr = std::shared_ptr<Composed>;
+            Composed(Email::unique_ptr&& mail, int64_t timeout)
+                : expire(utils::after(timeout)),
+                  email(std::move(mail))
+            {}
+
+            Composed(Composed&& composed)
+                : expire(composed.expire),
+                  sync(std::move(composed.sync)),
+                  email(std::move(composed.email))
+            { }
+
+            Composed& operator=(Composed&& composed) {
+                expire = composed.expire;
+                sync = std::move(composed.sync);
+                email = std::move(composed.email);
+                return Ego;
+            }
+
+            Composed(const Composed&) = delete;
+            Composed& operator=(const Composed&) = delete;
+
+            inline int64_t getExpire() const {
+                return Ego.expire;
+            }
+
+            inline Sync& getSync() {
+                return Ego.sync;
+            }
+
+            inline Email& getEmail() {
+                return *email;
+            }
+
+            inline bool done(bool set = false) {
+                if (!isDone) {
+                    if (set) isDone = true;
+                    return false;
+                }
+                return true;
+            }
+
+        private:
+            int64_t             expire;
+            Sync                sync{(char *)0x0A};
+            Email::unique_ptr   email;
+            bool                isDone{false};
+        };
+
+    public:
+
+        MailOutbox(const String& server, int port, Email::Address sender)
+            : stmp(server(), port),
+              sender{sender}
+        {}
+
+        MailOutbox(const MailOutbox&) = delete;
+        MailOutbox& operator=(const MailOutbox&) = delete;
+        MailOutbox(MailOutbox&&) = delete;
+        MailOutbox& operator=(MailOutbox&&) = delete;
+
+        template <typename... Params>
+        inline bool login(const String username, const String passwd, Params... params) {
+            return Ego.stmp.login(username, passwd, std::forward<Params>(params)...);
+        }
+
+        inline Email::unique_ptr draft(const String& to, const String& subject) {
+            return std::make_unique<Email>(Email::Address{to()}, subject);
+        }
+
+        String send(Email::unique_ptr&& mail, int64_t timeout = -1) {
+            auto ob = std::make_shared<Composed>(std::move(mail), timeout);
+            sendQ.push_back(ob);
+            if (timeout > 0) {
+                if (!Ego.sending) {
+                    go(sendOutbox(Ego));
+                }
+
+                char *msg{nullptr};
+                if ((ob->getSync()[timeout] >> msg)) {
+                    // it will be erased by sending coroutine
+                    return String{msg, (msg? strlen(msg): 0), (msg != nullptr)};
+                }
+                else {
+                    return String{"Sending email message timed out"};
+                }
+            }
+            else {
+                return String{};
+            }
+        }
+    private:
+
+        static coroutine void sendOutbox(MailOutbox<Sock>& self) {
+            self.sending = true;
+            while (!self.sendQ.empty() && !self.quiting) {
+                auto& ob = self.sendQ.back();
+                char *status{nullptr};
+                try {
+                    self.stmp.send(ob->getEmail(), self.sender);
+                }
+                catch (...) {
+                    status = strdup(Exception::fromCurrent().what());
+                }
+
+                if (mnow() < ob->getExpire()) {
+                    // job was done, notify waiting sender
+                    ob->getSync() << status;
+                }
+                else {
+                    if (status != nullptr) {
+                        lerror(&self, "sending mail failed: %s", status);
+                        free(status);
+                    }
+                }
+                self.sendQ.pop_back();
+                yield();
+            }
+            self.sending = false;
+        }
+
+        using SendQueue = std::list<typename Composed::shared_ptr>;
+        SendQueue             sendQ;
+        Stmp<Sock>            stmp;
+        Email::Address        sender;
+        bool                  quiting{false};
+        bool                  sending{false};
+    };
+
+    using TcpMailOutbox = MailOutbox<TcpSock>;
+    using SslMailOutbox = MailOutbox<SslSock>;
 
 }
 #endif //SUIL_SMTP_HPP
