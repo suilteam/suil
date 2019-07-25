@@ -12,7 +12,8 @@ variables:
 build:dev:
   stage: build
   tags:
-    - alpine
+    - docker
+    - linux
   only:
     - master
   # Install all the required dependencies before proceeding to build
@@ -49,7 +50,8 @@ build:dev:
 build:prod:
   stage: build
   tags:
-    - alpine
+    - docker
+    - linux
   only:
     - master
 
@@ -87,7 +89,8 @@ build:prod:
 build:release:dev:alpine:
   stage: build
   tags:
-    - alpine
+    - docker
+    - linux
   only:
     - tags
   # Install all the required dependencies before proceeding to build
@@ -118,7 +121,8 @@ build:release:dev:
   image: suilteam/mecury:ubuntu
   stage: build
   tags:
-    - x86_64
+    - docker
+    - linux
   only:
     - tags
     
@@ -162,7 +166,8 @@ build:release:dev:
 build:release:prod:
   stage: build
   tags:
-    - alpine
+    - docker
+    - linux
   only:
     - tags
 
@@ -195,7 +200,8 @@ build:release:prod:
 test:devel:
   stage: test
   tags:
-    - alpine
+    - docker
+    - linux
   only:
     - master
   before_script: *docker_hub_login
@@ -206,7 +212,8 @@ test:devel:
 test:production:
   stage: test
   tags:
-    - alpine
+    - docker
+    - linux
   only:
     - tags
   before_script: *docker_hub_login
