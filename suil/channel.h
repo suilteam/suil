@@ -292,6 +292,53 @@ namespace suil {
         int     waitn{-1};
         int64_t ddline{-1};
     };
+
+    /**
+     * A Sync can be used with a conditional to syncronize access to resources
+     */
+    using Sync = Channel<uint8_t, 0>;
+    /**
+     * A conditional can be used to syncronize access to resources.
+     * e.g Can be used to limit the number of open connections to a database
+     * at a time
+     */
+    struct Conditional final {
+        Conditional() = default;
+
+        Conditional(Conditional&&) = default;
+        Conditional&operator=(Conditional&&) = default;
+
+        Conditional(const Conditional&) = delete;
+        Conditional&operator=(const Conditional&) = delete;
+
+        /**
+         * Wait for this conditional variable
+         * @param ch the channel to wait on
+         * @param timeout the amout of time in milliseconds to wait for
+         * @return true if the conditional was notified before timeout,
+         * false otherwise
+         */
+        bool wait(Sync& ch, int64_t timeout) {
+            auto it = waiting.insert(waiting.end(), &ch);
+            uint8_t status{0};
+            ch[timeout] >> status;
+            waiting.erase(it);
+            return status != 0;
+        }
+
+        /**
+         * Notify a coroutine waiting on this conditional
+         */
+        void notify() {
+            if (!waiting.empty()) {
+                auto ch = waiting.front();
+                (*ch) << (uint8_t) 1;
+            }
+        }
+
+    private:
+        std::vector<Sync*> waiting{};
+    };
 }
 
 #endif //SUIL_ASYNC_H

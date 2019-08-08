@@ -1035,6 +1035,7 @@ namespace suil {
                 inline void cleanup() {
                     if (conn) {
                         PQfinish(conn);
+                        conn = nullptr;
                     }
                 }
             };

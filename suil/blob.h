@@ -43,8 +43,8 @@ namespace suil {
         };
 
         template  <size_t S=0>
-        inline void copy(Data& d) {
-            Ego.copy<S>(d.data(), d.size());
+        inline void copy(const Data& d) {
+            Ego.copy<S>(d.cdata(), d.size());
         }
 
         template  <size_t S=0>

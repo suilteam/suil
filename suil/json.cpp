@@ -1687,7 +1687,7 @@ namespace suil::json {
             // loading configuration file failed
             throw Exception::create(lua_tostring(L, -1));
         }
-        lua_getglobal(L, "config");
+        lua_getglobal(L, "app");
         if (lua_type(L, -1) != LUA_TTABLE) {
             // config invalid
             throw Exception::create("Configuration must be within a 'config' tag");

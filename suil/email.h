@@ -439,6 +439,9 @@ namespace suil {
                 }
             }
             else {
+                if (!Ego.sending) {
+                    go(sendOutbox(Ego));
+                }
                 return String{};
             }
         }
