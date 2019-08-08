@@ -327,7 +327,7 @@ namespace suil {
         }
 
         /**
-         * Notify a coroutine waiting on this conditional
+         * Notify a coroutine waiting on this conditional if any
          */
         void notify() {
             if (!waiting.empty()) {

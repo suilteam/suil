@@ -1690,7 +1690,7 @@ namespace suil::json {
         lua_getglobal(L, "app");
         if (lua_type(L, -1) != LUA_TTABLE) {
             // config invalid
-            throw Exception::create("Configuration must be within a 'config' tag");
+            throw Exception::create("Configuration must be within an 'app' tag");
         }
 
         auto obj = parseLuaTable(L);
@@ -2505,7 +2505,7 @@ TEST_CASE("suil::json::Object", "[json][Object]")
         }
 
         WHEN("Loading a LUA config script to JSON object") {
-            String lConfig{"config = { "
+            String lConfig{"app = { "
                             "   num = 1,"
                             "   str = 'A string',"
                             "   bool = true,"
@@ -2548,13 +2548,13 @@ TEST_CASE("suil::json::Object", "[json][Object]")
             REQUIRE((bool)val["bool"]);
 
             // When passing empty config
-            REQUIRE_NOTHROW(obj = json::Object::fromLuaString("config = {}"));
+            REQUIRE_NOTHROW(obj = json::Object::fromLuaString("app = {}"));
             // passing empty config will fail
             REQUIRE_THROWS(obj = json::Object::fromLuaString(""));
-            // Config must be within configuration declaration
+            // Config must be within app declaration
             REQUIRE_THROWS(obj = json::Object::fromLuaString("configuration = {}"));
             // Cannot mix array and object indexing
-            REQUIRE_THROWS(obj = json::Object::fromLuaString("config = {'one', name='Carter'}"));
+            REQUIRE_THROWS(obj = json::Object::fromLuaString("app = {'one', name='Carter'}"));
         }
     }
 }
