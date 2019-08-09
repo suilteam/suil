@@ -173,7 +173,7 @@ if (SUIL_DEV_IDE)
     if (SUIL_BUILD_APPS)
         add_subdirectory(apps/utouch)
         add_subdirectory(apps/sci)
-        add_subdirectory(apps/suil-safe)
+        add_subdirectory(apps/suilauth)
     endif()
 endif()
 

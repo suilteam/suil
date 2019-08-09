@@ -115,10 +115,7 @@ namespace suil::sql {
         if (cleaning) {
             /* unschedule the cleaning coroutine */
             trace("notifying cleanup routine to exit");
-            notify << true;
-            /* wait for the cleaning coroutine to end*/
-            while (cleaning)
-                yield();
+            !notify;
         }
 
         trace("cleaning up %lu connections", conns.size());
@@ -195,9 +192,11 @@ namespace suil::sql {
         db.cleaning = true;
 
         do {
-            /* this will */
-            status = (db.notify[expires](1) | Void);
-            if (status) continue;
+            /* if notified to exit, exit immediately*/
+            uint8_t status{0};
+            if ((db.notify[expires] >> status)) {
+                if (status == 1) break;
+            }
 
             /* was not forced to exit */
             auto it = db.conns.begin();

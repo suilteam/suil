@@ -253,10 +253,7 @@ namespace suil {
                 return false;
             }
 
-            ~client() {
-                // close current Connection gracefully
-                quit();
-            }
+            ~client();
 
             SocketAdaptor&    sock;
         };

@@ -209,8 +209,7 @@ namespace suil {
             int64_t dd = ddline;
             ddline = -1;
             if (ch) {
-                bool rc = chrx(dd, res);
-                return (rc && res != term);
+                return chrx(dd, res);
             }
             return false;
         }
@@ -280,7 +279,6 @@ namespace suil {
                         chin(ch, R, tmp) :
                         res = tmp;
                         deadline(dd):
-                        res = term;
                         rc  = false;
                         chend
                 }
@@ -296,7 +294,18 @@ namespace suil {
     /**
      * A Sync can be used with a conditional to syncronize access to resources
      */
-    using Sync = Channel<uint8_t, 0>;
+    struct Sync final : public Channel<uint8_t> {
+        Sync()
+            : Channel(0)
+        {}
+
+        Sync(Sync&&) = default;
+        Sync& operator=(Sync&&) = default;
+
+        Sync(const Sync&) = delete;
+        Sync& operator=(const Sync&) = delete;
+
+    };
     /**
      * A conditional can be used to syncronize access to resources.
      * e.g Can be used to limit the number of open connections to a database

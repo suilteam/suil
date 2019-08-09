@@ -1044,7 +1044,7 @@ namespace suil {
             bool          async{false};
             int64_t       keep_alive{-1};
             int64_t       timeout{-1};
-            Channel<bool> notify{false};
+            Channel<uint8_t> notify{1};
             bool          cleaning{false};
             String        conn_str;
             String        dbname{"public"};

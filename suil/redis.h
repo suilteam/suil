@@ -7,6 +7,8 @@
 #define SUIL_REDIS_HPP
 
 #include <deque>
+#include <list>
+#include <suil/channel.h>
 #include <suil/net.h>
 #include <suil/blob.h>
 
@@ -166,7 +168,7 @@ namespace suil {
                 else  return entries[0];
             }
 
-            inline const char* error() const {
+            const char* error() const {
                 if (entries.empty()) {
                     return "";
                 } else if(entries.size() > 1){
@@ -249,8 +251,9 @@ namespace suil {
         };
 
         struct redisdb_config {
-            int64_t     timeout;
-            std::string passwd;
+            int64_t     timeout{-1};
+            std::string passwd{""};
+            uint64_t    keep_alive{30000};
         };
 
         struct ServerInfo {
@@ -260,31 +263,15 @@ namespace suil {
             ServerInfo(const ServerInfo& o) = delete;
             ServerInfo&operator=(const ServerInfo& o) = delete;
 
-            ServerInfo(ServerInfo&& o)
-                : version(std::move(o.version)),
-                  buffer(std::move(o.buffer)),
-                  params(std::move(o.params))
-            {}
+            ServerInfo(ServerInfo&& o);
 
-            ServerInfo&operator=(ServerInfo&& o) {
-                version = std::move(o.version);
-                buffer  = std::move(o.buffer);
-                params  = std::move(o.params);
-                return *this;
+            ServerInfo&operator=(ServerInfo&& o);
+
+            inline const String&operator[](const char *key) const {
+                return (*this)[String{key}];
             }
 
-            const String&operator[](const char *key) const {
-                String tmp(key);
-                return (*this)[key];
-            }
-
-            const String&operator[](const String& key) const {
-                auto data = params.find(key);
-                if (data != params.end()) {
-                    return data->second;
-                }
-                throw Exception::create("parameter '", key, "' does not exist");
-            }
+            const String&operator[](const String& key) const;
 
         private:
             friend  struct BaseClient;
@@ -293,8 +280,7 @@ namespace suil {
         };
 
         struct BaseClient : LOGGER(REDIS) {
-
-            Response send(Commmand& cmd) {
+            inline Response send(Commmand& cmd) {
                 return dosend(cmd, 1);
             }
 
@@ -309,13 +295,12 @@ namespace suil {
                 return send(cd, args...);
             }
 
-            void flush() {
+            inline void flush() {
                 reset();
             }
 
-            bool auth(const char *pass) {
-                String tmp(pass);
-                return auth(tmp);
+            inline bool auth(const char *pass) {
+                return auth(String{pass});
             }
 
             bool auth(const String& pass) {
@@ -330,7 +315,7 @@ namespace suil {
             }
 
             template <typename T>
-            auto get(String&& key) -> T {
+            auto get(const String& key) -> T {
                 Response resp = send("GET", key);
                 if (!resp) {
                     throw Exception::create("redis GET '", key,
@@ -340,111 +325,33 @@ namespace suil {
             }
 
             template <typename T>
-            inline bool set(String&& key, const T val) {
+            inline bool set(const String& key, const T val) {
                 return send("SET", key, val).status();
             }
 
-            int64_t incr(String&& key, int by = 0) {
-                Response resp;
-                if (by == 0)
-                    resp = send("INCR", key);
-                else
-                    resp = send("INCRBY", by);
+            int64_t incr(const String& key, int by = 0);
 
-                if (!resp) {
-                    throw Exception::create("redis INCR '", key,
-                                             "' failed: ", resp.error());
-                }
-                return (int64_t) resp;
-            }
-
-            int64_t decr(String&& key, int by = 0) {
-                Response resp;
-                if (by == 0)
-                    resp = send("DECR", key);
-                else
-                    resp = send("DECRBY", by);
-
-                if (!resp) {
-                    throw Exception::create("redis DECR '", key,
-                                             "' failed: ", resp.error());
-                }
-                return (int64_t) resp;
-            }
+            int64_t decr(const String& key, int by = 0);
 
             template <typename T>
-            inline bool append(String&& key, const T val) {
+            inline bool append(const String& key, const T val) {
                 return send("APPEND", key, val);
             }
 
-            String substr(String&& key, int start, int end) {
-                Response resp = send("SUBSTR", key, start, end);
-                if (resp) {
-                    return resp.get<String>(0);
-                }
-                throw Exception::create("redis SUBSTR '", key,
-                                         "' start=", start, ", end=",
-                                         end, " failed: ", resp.error());
-            }
+            String substr(const String& key, int start, int end);
 
-            bool exists(String&& key) {
-                Response resp = send("EXISTS", key);
-                if (resp) {
-                    return (int) resp != 0;
-                }
-                else {
-                    throw Exception::create("redis EXISTS '", key,
-                                             "' failed: ", resp.error());
-                }
-            }
+            bool exists(const String& key);
 
-            bool del(String&& key) {
-                Response resp = send("DEL", key);
-                if (resp) {
-                    return (int) resp != 0;
-                }
-                else {
-                    throw Exception::create("redis DEL '", key,
-                                             "' failed: ", resp.error());
-                }
-            }
+            bool del(const String& key);
 
-            std::vector<String> keys(String&& pattern) {
-                Response resp = send("KEYS", pattern);
-                if (resp) {
-                    std::vector<String> tmp = resp;
-                    return std::move(tmp);
-                }
-                else {
-                    throw Exception::create("redis KEYS pattern = '", pattern,
-                                             "' failed: ", resp.error());
-                }
-            }
+            std::vector<String> keys(const String& pattern);
 
-            int expire(String&& key, int64_t secs) {
-                Response resp =  send("EXPIRE", key, secs);
-                if (resp) {
-                    return (int) resp;
-                }
-                else {
-                    throw Exception::create("redis EXPIRE  '", key, "' secs ", secs,
-                                             " failed: ", resp.error());
-                }
-            }
+            int expire(const String& key, int64_t secs);
 
-            int ttl(String&& key) {
-                Response resp =  send("TTL", key);
-                if (resp) {
-                    return (int) resp;
-                }
-                else {
-                    throw Exception::create("redis TTL  '", key,
-                                             "' failed: ", resp.error());
-                }
-            }
+            int ttl(const String& key);
 
             template <typename... T>
-            int rpush(String&& key, const T... vals) {
+            int rpush(const String& key, const T... vals) {
                 Response resp = send("RPUSH", key, vals...);
                 if (resp) {
                     return (int) resp;
@@ -456,7 +363,7 @@ namespace suil {
             }
 
             template <typename... T>
-            int lpush(String&& key, const T... vals) {
+            int lpush(const String& key, const T... vals) {
                 Response resp = send("LPUSH", key, vals...);
                 if (resp) {
                     return (int) resp;
@@ -467,19 +374,10 @@ namespace suil {
                 }
             }
 
-            int llen(String&& key) {
-                Response resp = send("LLEN", key);
-                if (resp) {
-                    return (int) resp;
-                }
-                else {
-                    throw Exception::create("redis LLEN  '", key,
-                                             "' failed: ", resp.error());
-                }
-            }
+            int llen(const String& key);
 
             template <typename T>
-            auto lrange(String&& key, int start = 0, int end = -1) -> std::vector<T> {
+            auto lrange(const String& key, int start = 0, int end = -1) -> std::vector<T> {
                 Response resp = send("LRANGE", key, start, end);
                 if (resp) {
                     std::vector<T> tmp = resp;
@@ -491,19 +389,10 @@ namespace suil {
                 }
             }
 
-            bool ltrim(String&& key, int start = 0, int end = -1) {
-                Response resp = send("LTRIM", key, start, end);
-                if (resp) {
-                    return resp.status();
-                }
-                else {
-                    throw Exception::create("redis LTRIM  '", key,
-                                             "' failed: ", resp.error());
-                }
-            }
+            bool ltrim(const String& key, int start = 0, int end = -1);
 
             template <typename T>
-            auto ltrim(String&& key, int index) -> T {
+            auto ltrim(const String& key, int index) -> T {
                 Response resp = send("LINDEX", key, index);
                 if (resp) {
                     return (T) resp;
@@ -514,42 +403,14 @@ namespace suil {
                 }
             }
 
-            int hdel(const String&& hash, const String&& key) {
-                Response resp = send("HDEL", hash, key);
-                if (resp) {
-                    return (int) resp;
-                }
-                else {
-                    throw Exception::create("redis HDEL  '", key,
-                                            "' failed: ", resp.error());
-                }
-            }
+            int hdel(const String& hash, const String& key);
 
-            bool hexists(String&& hash, String&& key) {
-                Response resp = send("HEXISTS", hash, key);
-                if (resp) {
-                    return (int) resp != 0;
-                }
-                else {
-                    throw Exception::create("redis HEXISTS  '", hash, " ", key,
-                                            "' failed: ", resp.error());
-                }
-            }
+            bool hexists(const String& hash, const String& key);
 
-            std::vector<String> hkeys(String&& hash) {
-                Response resp = send("HKEYS", hash);
-                if (resp) {
-                    std::vector<String> keys = resp;
-                    return  std::move(keys);
-                }
-                else {
-                    throw Exception::create("redis HKEYS  '", hash,
-                                            "' failed: ", resp.error());
-                }
-            }
+            std::vector<String> hkeys(const String& hash);
 
             template <typename T>
-            auto hvals(String&& hash) -> std::vector<T> {
+            auto hvals(const String& hash) -> std::vector<T> {
                 Response resp = send("HVALS", hash);
                 if (resp) {
                     std::vector<T> vals = resp;
@@ -562,31 +423,31 @@ namespace suil {
             }
 
             template <typename T>
-            auto hget(String&& hash, String&& key) -> T {
+            auto hget(const String& hash, const String& key) -> T {
                 Response resp = send("HGET", hash, key);
                 if (!resp) {
-                    throw Exception::create("redis HGET '", hash, " ", key,
+                    throw Exception::create("redis HGET '", hash, ":", key,
                                             "' failed: ", resp.error());
                 }
                 return (T) resp;
             }
 
             template <typename T>
-            inline bool hset(String&& hash, String&& key, const T val) {
+            inline bool hset(const String& hash, const String& key, const T val) {
                 Response resp = send("HSET", hash, key, val);
                 if (!resp) {
-                    throw Exception::create("redis HSET '", hash, " ", key,
+                    throw Exception::create("redis HSET '", hash, ":", key,
                                             "' failed: ", resp.error());
                 }
                 return (int) resp != 0;
             }
 
-            inline size_t hlen(String&& hash) {
+            inline size_t hlen(const String& hash) {
                 return (size_t) send("HLEN", hash);
             }
 
             template <typename... T>
-            int sadd(String&& set, const T... vals) {
+            int sadd(const String& set, const T... vals) {
                 Response resp = send("SADD", set, vals...);
                 if (resp) {
                     return (int) resp;
@@ -598,7 +459,7 @@ namespace suil {
             }
 
             template <typename T>
-            auto smembers(String&& set) -> std::vector<T>{
+            auto smembers(const String& set) -> std::vector<T>{
                 Response resp = send("SMEMBERS", set);
                 if (resp) {
                     std::vector<T> vals = resp;
@@ -611,7 +472,7 @@ namespace suil {
             }
 
             template <typename T>
-            auto spop(String&& set) -> T {
+            auto spop(const String& set) -> T {
                 Response resp = send("spop", set);
                 if (!resp) {
                     throw Exception::create("redis spop '", set,
@@ -621,18 +482,27 @@ namespace suil {
             }
 
 
-            inline size_t scard(String&& set) {
+            inline size_t scard(const String& set) {
                 return (size_t) send("SCARD", set);
             }
 
 
             bool info(ServerInfo&);
 
+            virtual void close() {};
+
         protected:
-            BaseClient(SocketAdaptor& adaptor, redisdb_config& config)
-                : adaptor(adaptor),
-                  config(config)
-            {}
+            BaseClient() = default;
+
+            BaseClient(BaseClient&& o) = default;
+
+            BaseClient&operator=(BaseClient&& o) = default;
+
+            BaseClient(const BaseClient&) = delete;
+            BaseClient&operator=(const BaseClient&) = delete;
+
+            virtual  SocketAdaptor& adaptor() = 0;
+            virtual  redisdb_config& config() = 0;
 
             Response dosend(Commmand& cmd, size_t nreply);
 
@@ -657,49 +527,95 @@ namespace suil {
 
             String commit(Response& resp);
 
-            SocketAdaptor&         adaptor;
             std::vector<Commmand*> batched;
-            redisdb_config&       config;
         };
 
         template <typename Sock>
         struct Client : BaseClient {
-            Client(Sock&& insock, redisdb_config& config)
-                : BaseClient(sock, config),
-                  sock(std::move(insock))
+            using CacheId = typename std::list<Client<Sock>>::iterator;
+            using CloseHandler = std::function<void(CacheId, bool)>;
+
+            Client(Sock&& insock, redisdb_config& config, CloseHandler onClose)
+                : sock(std::move(insock)),
+                  closeHandler(onClose),
+                  configRef(config)
             {}
 
-            Client()
-                : BaseClient(sock, config)
-            {}
+            Client() = default;
 
             Client(Client&& o)
-                : BaseClient(sock, o.config),
-                  sock(std::move(o.sock))
-            {}
+                : BaseClient(std::move(o)),
+                  sock(std::move(o.sock)),
+                  closeHandler(o.closeHandler),
+                  cacheId(o.cacheId),
+                  configRef(o.configRef)
+            {
+                o.closeHandler = nullptr;
+                o.cacheId = CacheId{nullptr};
+            }
 
             Client&operator=(Client&& o) {
+                BaseClient::operator=(std::move(o));
                 sock = std::move(o.sock);
-                adaptor = sock;
-                config  = o.config;
+                closeHandler = o.closeHandler;
+                cacheId = o.cacheId;
+                configRef  = o.configRef;
+
+                o.closeHandler = nullptr;
+                o.cacheId = CacheId{nullptr};
+
                 return *this;
             }
 
             Client&operator=(const Client&) = delete;
             Client(const Client&) = delete;
 
+            virtual void close() override {
+                if (closeHandler && (cacheId != CacheId{nullptr})) {
+                    closeHandler(cacheId, false);
+                }
+            }
+
             ~Client() {
                 // reset and close Connection
+                if (closeHandler && (cacheId != CacheId{nullptr})) {
+                    closeHandler(cacheId, true);
+                    closeHandler = nullptr;
+                }
+
                 reset();
                 sock.close();
             }
 
+            virtual SocketAdaptor& adaptor() override  {
+                return sock;
+            }
+
+            virtual redisdb_config& config() override {
+                return configRef;
+            }
+
         private:
-            Sock sock;
+            template <typename T>
+            friend struct RedisDb;
+            Sock         sock;
+            CacheId      cacheId{nullptr};
+            CloseHandler closeHandler{nullptr};
+            redisdb_config& configRef;
         };
 
         template <typename Proto = TcpSock>
         struct RedisDb : LOGGER(REDIS) {
+        private:
+            using ConnectedClients = std::list<Client<Proto>>;
+            struct cache_handle_t final {
+                typename ConnectedClients::iterator it;
+                int64_t           alive{0};
+            };
+            using ClientCache = std::deque<cache_handle_t>;
+
+        public:
+
             template <typename... Args>
             RedisDb(const char *host, int port, Args... args)
                 : addr(ipremote(host, port, 0, utils::after(3000)))
@@ -716,27 +632,17 @@ namespace suil {
                 utils::apply_options(Ego.config, opts);
             }
 
-            Client<Proto> connect(int db = 0) {
+            Client<Proto>& connect(int db = 0) {
                 Proto proto;
-                trace("opening redis Connection");
-                if (!proto.connect(addr, config.timeout)) {
-                    throw Exception::create("connecting to redis server '",
-                            ipstr(addr), "' failed: ", errno_s);
+                auto it = fromCache();
+                if (it == Ego.clients.end()) {
+                    it = newConnection();
                 }
-                trace("connected to redis server");
-                Client<Proto> cli(std::move(proto), config);
 
-                if (!config.passwd.empty()) {
-                    // authenticate
-                    if (!cli.auth(config.passwd.c_str())) {
-                        throw Exception::create("redis - authorizing client failed");
-                    }
-                }
-                else {
-                    // ensure that the server is accepting commands
-                    if (!cli.ping()) {
-                        throw Exception::create("redis - ping Request failed");
-                    }
+                Client<Proto>& cli = *it;
+                // ensure that the server is accepting commands
+                if (!cli.ping()) {
+                    throw Exception::create("redis - ping Request failed");
                 }
 
                 if (db != 0) {
@@ -749,8 +655,7 @@ namespace suil {
                     }
                 }
 
-                idebug("connected to redis server: %s", ipstr(addr));
-                return std::move(cli);
+                return cli;
             }
 
             const ServerInfo& getinfo(Client<Proto>& cli, bool refresh = true) {
@@ -762,11 +667,137 @@ namespace suil {
                 return srvinfo;
             }
 
-        private:
+            ~RedisDb() {
+                if (cleaning) {
+                    /* unschedule the cleaning coroutine */
+                    trace("notifying cleanup routine to exit");
+                    !notify;
+                }
 
+                trace("cleaning up %lu connections", Ego.cache.size());
+                auto it = Ego.cache.begin();
+
+                while (it != Ego.cache.end()) {
+                    Ego.clients.erase(it->it);
+                    Ego.cache.erase(it);
+                    it = Ego.cache.begin();
+                }
+                Ego.clients.clear();
+            }
+
+        private:
+            typename ConnectedClients::iterator fromCache() {
+                if (!Ego.cache.empty()) {
+                    auto handle = Ego.cache.front();
+                    Ego.cache.pop_front();
+                    return handle.it;
+                }
+                return Ego.clients.end();
+            }
+
+            typename ConnectedClients::iterator newConnection() {
+                Proto proto;
+                trace("opening redis Connection");
+                if (!proto.connect(addr, Ego.config.timeout)) {
+                    throw Exception::create("connecting to redis server '",
+                                            ipstr(Ego.addr), "' failed: ", errno_s);
+                }
+                trace("connected to redis server");
+                Client<Proto> cli(
+                        std::move(proto),
+                        Ego.config,
+                        std::bind(&RedisDb::returnConnection,this, std::placeholders::_1, std::placeholders::_2));
+                auto it = Ego.clients.insert(Ego.clients.end(), std::move(cli));
+                it->cacheId =  it;
+
+                if (!config.passwd.empty()) {
+                    // authenticate
+                    if (!it->auth(config.passwd.c_str())) {
+                        throw Exception::create("redis - authorizing client failed");
+                    }
+                }
+
+                trace("connected to redis server: %s", ipstr(addr));
+                return it;
+            }
+
+            void returnConnection(typename ConnectedClients::iterator it, bool dctor) {
+                cache_handle_t entry{it, -1};
+                if (!dctor && (config.keep_alive != 0)) {
+                    entry.alive = mnow() + Ego.config.keep_alive;
+                    cache.push_back(std::move(entry));
+                    if (!Ego.cleaning) {
+                        // schedule cleanup routine
+                        go(cleanup(Ego));
+                    }
+                }
+                else if (it != clients.end()){
+                    // caching not supported, delete client
+                    it->closeHandler = nullptr;
+                    clients.erase(it);
+                }
+            }
+
+            static coroutine void cleanup(RedisDb<Proto>& db) {
+                bool status;
+                int64_t expires = db.config.keep_alive + 5;
+                if (db.cache.empty())
+                    return;
+
+                db.cleaning = true;
+                do {
+                    uint8_t status{0};
+                    if (db.notify[expires] >> status) {
+                        if (status == 1) break;
+                    }
+
+                    /* was not forced to exit */
+                    auto it = db.cache.begin();
+                    /* un-register all expired connections and all that will expire in the
+                     * next 500 ms */
+                    int64_t t = mnow() + 500;
+                    int pruned = 0;
+                    ltrace(&db, "starting prune with %ld connections", db.cache.size());
+                    while (it != db.cache.end()) {
+                        if ((*it).alive <= t) {
+                            if (db.isValid(it->it)) {
+                                it->it->closeHandler = nullptr;
+                                db.clients.erase(it->it);
+                            }
+                            db.cache.erase(it);
+                            it = db.cache.begin();
+                        } else {
+                            /* there is no point in going forward */
+                            break;
+                        }
+
+                        if ((++pruned % 100) == 0) {
+                            /* avoid hogging the CPU */
+                            yield();
+                        }
+                    }
+                    ltrace(&db, "pruned %ld connections", pruned);
+
+                    if (it != db.cache.end()) {
+                        /*ensure that this will run after at least 3 second*/
+                        expires = std::max((*it).alive - t, (int64_t)3000);
+                    }
+                } while (!db.cache.empty());
+
+                db.cleaning = false;
+            }
+
+            inline bool isValid(typename ConnectedClients::iterator& it) {
+                return (it != typename ConnectedClients::iterator{nullptr}) && it != clients.end();
+            }
+
+            ConnectedClients     clients;
+            ClientCache          cache;
             ipaddr         addr;
             redisdb_config config{1500, ""};
-            ServerInfo     srvinfo;
+            ServerInfo    srvinfo;
+            Channel<uint8_t>  notify{1};
+            bool           cleaning{false};
         };
 
         struct Transaction : LOGGER(REDIS) {

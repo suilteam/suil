@@ -60,7 +60,7 @@ set(LIB_SUIL_SOURCES
         ${LIB_SUIL_BASE_SOURCES}
         ${LIB_SUIL_HTTP_SOURCES}
         ${LIB_SUIL_RPC_SOURCES}
-        ${LIB_SUIL_SQL_SOURCES})
+        ${LIB_SUIL_SQL_SOURCES} resourcecache.h)
 
 set_property(GLOBAL PROPERTY prop_SUIL_SOURCES
         ${LIB_SUIL_SOURCES})
