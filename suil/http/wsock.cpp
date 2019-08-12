@@ -379,8 +379,9 @@ namespace suil {
 
         coroutine void WebSock::broadcast(WebSock& ws, WebSockApi &api, void *data, size_t size) {
             strace("WebSock::broadcast data %p size %lu", data, size);
+            auto *msg = (WsockBcastMsg *) data;
             // use the api to broadcast to all connected web sockets
-            api.broadcast(&ws, data, size);
+            api.broadcast(&ws, msg->payload, msg->len);
             // free the allocated memory
             strace("done broadcasting message %p", data);
             free(data);
