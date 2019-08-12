@@ -373,7 +373,7 @@ namespace suil {
                 // the copied buffer now belongs to the go-routine
                 // being scheduled
                 size_t len = sizeof(WsockBcastMsg)+msg->len;
-                go(broadcast(*this, api, msg->payload, msg->len));
+                go(broadcast(*this, api, msg, len));
             }
         }
 
