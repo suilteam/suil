@@ -286,7 +286,7 @@ namespace suil {
 
         struct PGSQLStatement : LOGGER(PGSQL_CONN) {
 
-            PGSQLStatement(PGconn *conn, String stmt, bool async, int64_t timeout = -1)
+            PGSQLStatement(PGconn *conn, String&& stmt, bool async, int64_t timeout = -1)
                 : conn(conn),
                   stmt(std::move(stmt)),
                   async(async),
