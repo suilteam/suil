@@ -71,6 +71,7 @@ namespace suil {
                         return true;
                 }
             }
+            return false;
         }
 
         bool check(const json::Object& rs) const {
@@ -84,7 +85,7 @@ namespace suil {
                 /* check if any of the roles is present */
                 for (const auto [_, role] : rs)
                     /* roles must be strings */
-                    if (((String)rs).compare(r, true))
+                    if (((String)role).compare(r, true))
                         return true;
             };
             return false;
