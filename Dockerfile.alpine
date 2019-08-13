@@ -5,4 +5,4 @@ MAINTAINER "Carter Mbotho <carter@suilteam.com>"
 RUN apk  add --update --no-cache libressl libstdc++ libpq libuuid sqlite-libs
 
 # Copy Binaries
-COPY artifacts/lib/ /usr/lib/
+COPY artifacts/ /usr/
