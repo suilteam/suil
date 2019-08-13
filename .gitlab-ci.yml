@@ -35,6 +35,7 @@ build:dev:
        -DSUIL_BUILD_DOCKER=OFF
        -DSUIL_BUILD_UNIT_TEST=ON
        -DCMAKE_INSTALL_PREFIX=`pwd`/artifacts
+    - rm -rf `pwd`/artifacts
     - make clean install
     - cp -r ../Dockerfile.build.alpine ./Dockerfile
     - cp -r ../suilteam.ddns.net.crt ./suilteam.ddns.net.crt
@@ -76,20 +77,13 @@ build:prod:
        -DCMAKE_BUILD_TYPE=Release
        -DSUIL_BUILD_UNIT_TEST=OFF
        -DCMAKE_INSTALL_PREFIX=`pwd`/artifacts
+    - rm -rf `pwd`/artifacts
     - make clean install
     - cp -r ../Dockerfile.alpine ./Dockerfile
     - cp -r ../suilteam.ddns.net.crt ./suilteam.ddns.net.crt
     - docker build --pull -t suilteam/suil-prod:unstable .
     - docker push suilteam/suil-prod:unstable
     - cd ..
-
-  cache:
-    paths:
-      - ./build$CI_COMMIT_TAG/
-  artifacts:
-    paths:
-      - ./build$CI_COMMIT_TAG/sut
-    expire_in: 30 mins
     
 build:release:dev:alpine:
   stage: build
@@ -118,6 +112,7 @@ build:release:dev:alpine:
        -DSUIL_BUILD_UNIT_TEST=ON
        -DCMAKE_BUILD_TYPE=Release
        -DCMAKE_INSTALL_PREFIX=`pwd`/artifacts
+    - rm -rf `pwd`/artifacts
     - make clean install
     - cp -r ../Dockerfile.build.alpine ./Dockerfile
     - cp -r ../suilteam.ddns.net.crt ./suilteam.ddns.net.crt
@@ -151,6 +146,7 @@ build:release:dev:
        -DSUIL_BUILD_DOCKER=OFF
        -DCMAKE_BUILD_TYPE=Release
        -DCMAKE_INSTALL_PREFIX=`pwd`/artifacts
+    - rm -rf `pwd`/artifacts
     - make clean install package
     # Build debug binaries
     - cmake ..
@@ -165,6 +161,7 @@ build:release:dev:
        -DSUIL_BUILD_UNIT_TEST=OFF
        -DCMAKE_BUILD_TYPE=Debug
        -DCMAKE_INSTALL_PREFIX=`pwd`/artifacts
+    - rm -rf `pwd`/artifacts
     - make clean install package
     - cd ..
 
@@ -201,6 +198,7 @@ build:release:prod:
        -DSUIL_BUILD_DOCKER=OFF
        -DCMAKE_BUILD_TYPE=Release
        -DCMAKE_INSTALL_PREFIX=`pwd`/artifacts
+    - rm -rf `pwd`/artifacts
     - make clean install
     - cp -r ../Dockerfile.alpine ./Dockerfile
     - cp -r ../suilteam.ddns.net.crt ./suilteam.ddns.net.crt
