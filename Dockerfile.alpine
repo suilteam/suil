@@ -2,8 +2,7 @@ FROM alpine:latest
 MAINTAINER "Carter Mbotho <carter@suilteam.com>"
 
 # Install dependencies
-RUN apk update
-RUN apk  add libressl libstdc++ libpq libuuid sqlite-libs bash
+RUN apk  add --update --no-cache libressl libstdc++ libpq libuuid sqlite-libs
 
 # Copy Binaries
 COPY artifacts/ /usr/
