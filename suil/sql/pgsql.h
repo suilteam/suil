@@ -897,7 +897,7 @@ namespace suil {
                 catch (...) {
                     ierror("create_table '%s' failed: %s",
                         name(), Exception::fromCurrent().what());
-                    return false;
+                    throw;
                 }
             }
 

@@ -18,11 +18,12 @@ namespace suil::sql {
 
         /* statement not cached, create new */
         String key(req);
+        tmp = key.peek();
         /* the key will be copied to statement so it won't be delete
          * when the statement is deleted */
         auto ret = stmt_cache.insert(it,
-                                     std::make_pair(key.peek(),
-                                                    PGSQLStatement(conn, std::move(key), async, timeout)));
+                                     std::make_pair(std::move(key),
+                                                    PGSQLStatement(conn, std::move(tmp), async, timeout)));
 
         return ret->second;
     }
