@@ -156,7 +156,7 @@ namespace suil {
             template <typename T>
             T toJson() const {
                 T tmp;
-                iod::json_decode(tmp, Ego.body);
+                json::decode(Ego.body, tmp);
                 return std::move(tmp);
             }
 

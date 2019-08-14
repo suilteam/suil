@@ -365,7 +365,7 @@ namespace suil {
                         hlen += sizeof(uint64_t);
                     }
                 }
-                uint8_t *tmp = msg->payload + hlen;
+                uint8_t *tmp = &msg->payload[hlen];
                 memcpy(tmp, data, sz);
 
                 msg->len = sz + hlen;
@@ -373,15 +373,14 @@ namespace suil {
                 // the copied buffer now belongs to the go-routine
                 // being scheduled
                 size_t len = sizeof(WsockBcastMsg)+msg->len;
-                go(broadcast(*this, api, msg, len));
+                go(broadcast(*this, api, copy, len));
             }
         }
 
         coroutine void WebSock::broadcast(WebSock& ws, WebSockApi &api, void *data, size_t size) {
             strace("WebSock::broadcast data %p size %lu", data, size);
-            auto *msg = (WsockBcastMsg *) data;
             // use the api to broadcast to all connected web sockets
-            api.broadcast(&ws, msg->payload, msg->len);
+            api.broadcast(&ws, data, size);
             // free the allocated memory
             strace("done broadcasting message %p", data);
             free(data);
@@ -416,7 +415,7 @@ namespace suil {
                         WebSock& wsock = ws.second;
                         // there is no need to spawn go-routines if there is only
                         // one other node
-                        if (!wsock.send(msg->payload, msg->len)) {
+                        if (!wsock.bsend(msg->payload, msg->len)) {
                             ltrace(&wsock, "sending web socket message failed");
                         }
                     }
