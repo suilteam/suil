@@ -38,7 +38,7 @@ namespace suil {
             }
 
             friend class Router;
-            route_attributes_t attrs_{false, false, false, false, nullptr};
+            route_attributes_t attrs_{false, false, false, false, nullptr, true};
 
         protected:
             uint32_t methods_{1 << (uint16_t) Method::Get};

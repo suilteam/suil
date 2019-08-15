@@ -253,4 +253,30 @@ namespace suil::sql {
         }
     }
 
+    typedef decltype(iod::D(
+        prop(key(var(PRIMARY_KEY), var(UNIQUE)), String),
+        prop(val, json::Object)
+    )) Setting;
+
+    using SettingsOrm = sql::PgsqlOrm<Setting>;
+}
+
+namespace suil {
+
+    void Settings::setObj(const String &key, json::Object &obj) {
+        if (!conn("INSERT INTO app_settings VALUES($1, $2)")(key, obj).status()) {
+            throw Exception::create("failed to set application setting '", key, "'");
+        }
+    }
+
+    json::Object Settings::operator[](const String &key) {
+        json::Object obj;
+        conn("SELECT val FROM app_settings WHERE key=$1")(key) >> obj;
+        return std::move(obj);
+    }
+
+    void Settings::init() {
+        sql::SettingsOrm orm("app_settings", conn);
+        orm.cifne();
+    }
 }

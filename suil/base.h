@@ -361,9 +361,9 @@ public:                                     \
          * @return and Exception object which can be thrown
          */
         template <typename... Args>
-        static Exception create(int code, Args... args) {
+        static Exception create(int code, Args&... args) {
             std::stringstream ss;
-            create(ss, std::forward<Args>(args)...);
+            create(ss, args...);
             return Exception(ss.str(), code);
         }
 
@@ -375,43 +375,43 @@ public:                                     \
          * @return and Exception object which can be thrown
          */
         template <typename... Args>
-        static inline Exception create(Args... args) {
-            return create(0, std::forward<Args>(args)...);
+        static inline Exception create(const Args&... args) {
+            return create(0, args...);
         }
 
         template <typename... Args>
-        static inline Exception indexOutOfBounds(Args... args) {
-            return create(IndexOutOfBounds, "IndexOutOfBounds: ",std::forward<Args>(args)...);
+        static inline Exception indexOutOfBounds(const Args&... args) {
+            return create(IndexOutOfBounds, "IndexOutOfBounds: ", args...);
         }
 
         template <typename... Args>
-        static inline Exception unsupportedOperation(Args... args) {
-            return create(UnsupportedOperation, "UnsupportedOperation: ",std::forward<Args>(args)...);
+        static inline Exception unsupportedOperation(const Args&... args) {
+            return create(UnsupportedOperation, "UnsupportedOperation: ", args...);
         }
 
         template <typename... Args>
-        static inline Exception accessViolation(Args... args) {
-            return create(AccessViolation, "AccessViolation: ",std::forward<Args>(args)...);
+        static inline Exception accessViolation(const Args&... args) {
+            return create(AccessViolation, "AccessViolation: ",args...);
         }
 
         template <typename... Args>
-        static inline Exception allocationFailure(Args... args) {
-            return create(MemoryAllocationFailure, "MemoryAllocationFailure: ",std::forward<Args>(args)...);
+        static inline Exception allocationFailure(const Args&... args) {
+            return create(MemoryAllocationFailure, "MemoryAllocationFailure: ",args...);
         }
 
         template <typename... Args>
-        static inline Exception outOfRange(Args... args) {
-            return create(OutOfRange, "OutOfRangeError: ",std::forward<Args>(args)...);
+        static inline Exception outOfRange(const Args&... args) {
+            return create(OutOfRange, "OutOfRangeError: ",args...);
         }
 
         template <typename... Args>
-        static inline Exception invalidArguments(Args... args) {
-            return create(InvalidArguments, "InvalidArgumentsError: ",std::forward<Args>(args)...);
+        static inline Exception invalidArguments(const Args&... args) {
+            return create(InvalidArguments, "InvalidArgumentsError: ", args...);
         }
 
         template <typename... Args>
-        static inline Exception keyNotFound(Args... args) {
-            return create(KeyNotFound, "KeyNotFoundError: ", std::forward<Args>(args)...);
+        static inline Exception keyNotFound(const Args&... args) {
+            return create(KeyNotFound, "KeyNotFoundError: ", args...);
         }
 
         /**
@@ -470,10 +470,15 @@ public:                                     \
 
     private:
         template <typename Arg, typename... Args>
-        static void create(std::stringstream& ss, Arg arg, Args... args) {
-            ss << arg;
+        static void create(std::stringstream& ss, const Arg& arg, const Args&... args) {
+            printarg(ss, arg);
             if constexpr (sizeof...(args))
-                create(ss, std::forward<Args>(args)...);
+                create(ss, args...);
+        }
+
+        template <typename Arg>
+        static void printarg(std::stringstream& ss, const Arg& arg) {
+            ss << arg;
         }
     };
 

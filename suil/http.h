@@ -498,9 +498,9 @@ namespace suil {
         namespace Error {
 #define HTTP_ERROR(code, err)                                                      \
             template <typename... Args>                                            \
-            inline Exception err(Args... args) {                                   \
+            inline Exception err(const Args&... args) {                            \
                 if constexpr (sizeof...(args))                                     \
-                return Exception::create((int) code, std::forward<Args>(args)...); \
+                return Exception::create((int) code, args...);                     \
                 else return Exception::create(int (code), "");                     \
             }
 

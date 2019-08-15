@@ -247,7 +247,7 @@ namespace suil::rpc {
             if (resp.error && resp.result) {
                 /* a response can either be an error or a result */
                 throw Exception::create(JRPC_INTERNAL_ERROR,
-                        "Response {id=", resp.id, "} is invalid because its payload has a result and an error");
+                        String{"Response {id="}, *resp.id, "} is invalid because its payload has a result and an error");
             }
 
             if (resp.error) {

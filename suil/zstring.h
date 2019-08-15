@@ -6,6 +6,7 @@
 #define SUIL_ZSTRING_H
 
 #include <vector>
+#include <string_view>
 
 #include <suil/base.h>
 
@@ -437,6 +438,10 @@ namespace suil {
         size_t   m_hash{0};
     };
 
+    template<>
+    inline void Exception::printarg<String>(std::stringstream &ss, const suil::String &arg) {
+        ss << std::string_view(arg.data(), arg.size());
+    }
     /**
      * std string keyed map case sensitive comparator
      */

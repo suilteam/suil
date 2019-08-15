@@ -238,7 +238,7 @@ namespace suil::rpc {
         res >> resp;
         if (resp.error.code) {
             // request failed
-            throw Exception::create(resp.error.message, " - ", resp.error.data);
+            throw Exception::create(0, resp.error.message, " - ", resp.error.data);
         }
 
         return resp;

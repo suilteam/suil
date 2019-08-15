@@ -78,11 +78,17 @@ namespace suil::http::mw {
                 /* pass token to JWT authorization middleware */
                 jwtContext->authorize(std::move(jwt));
                 /* store generated token in database */
-                scoped(conn, redisContext->conn(0));
-                if (!conn.hset(self->hashName.peek(), jwtContext->jwtRef().aud().peek(), jwtContext->token().peek())) {
+                scoped(conn, redisContext->conn(self->sessionDb));
+                if (!conn.set(jwtContext->jwtRef().aud().peek(), jwtContext->token().peek())) {
                     /* saving token fail */
                     jwtContext->authenticate("Creating session failed");
                     return false;
+                }
+
+                auto expires = jwtContext->jwtRef().exp();
+                if (expires > 0) {
+                    // set token to expire
+                    conn.expire(jwtContext->jwtRef().aud().peek(), expires-time(NULL));
                 }
 
                 return true;
@@ -90,7 +96,7 @@ namespace suil::http::mw {
 
             bool authorize(const String& user) {
                 /* fetch token and try authorizing the token */
-                scoped(conn, redisContext->conn(0));
+                scoped(conn, redisContext->conn(self->sessionDb));
                 return authorize(conn, user);
             }
 
@@ -100,23 +106,29 @@ namespace suil::http::mw {
 
             inline void revoke(const String& user) {
                 /* revoke token for given user */
-                scoped(conn, redisContext->conn(0));
+                scoped(conn, redisContext->conn(self->sessionDb));
                 revoke(conn, user);
             }
 
         private:
             void revoke(typename _Redis<Proto>::Connection& conn, const String& user) {
-                conn.hdel(self->hashName.peek(), user.peek());
+                conn.del(user);
+                auto pattern = utils::catstr("*", user);
+                auto keys = conn.keys(pattern);
+                for (auto& key: keys) {
+                    // delete all the other keys
+                    conn.del(key);
+                }
                 jwtContext->logout();
             }
 
             bool authorize(typename _Redis<Proto>::Connection& conn, const String& user) {
-                if (!conn.hexists(self->hashName.peek(), user.peek())) {
+                if (!conn.exists(user.peek())) {
                     /* session does not exist */
                     return false;
                 }
 
-                auto token = conn.template hget<String>(self->hashName.peek(), user.peek());
+                auto token = conn.template get<String>(user.peek());
                 if (!jwtContext->authorize(token)) {
                     /* token invalid, revoke the token */
                     Ego.revoke(conn, user);
@@ -144,15 +156,15 @@ namespace suil::http::mw {
             if (!jwtContext.token().empty()) {
                 /* request has authorization token, ensure that is still valid */
                 auto aud = jwtContext.jwtRef().aud().peek();
-                scoped(conn, redisContext.conn(0));
-                if (!conn.hexists(hashName.peek(), aud.peek())) {
+                scoped(conn, redisContext.conn(Ego.sessionDb));
+                if (!conn.exists(aud.peek())) {
                     /* token does not exist */
                     jwtContext.authenticate("Attempt to access protected resource with invalid token");
                     resp.end();
                     return;
                 }
 
-                auto cachedToken = conn.template hget<String>(hashName.peek(), aud.peek());
+                auto cachedToken = conn.template get<String>(aud.peek());
                 if (cachedToken != jwtContext.token()) {
                     /* Token bad or token has been revoked */
                     jwtContext.authenticate("Attempt to access protected resource with invalid token");
@@ -169,11 +181,46 @@ namespace suil::http::mw {
         }
 
     private:
-        String hashName{"session_tokens"};
+        int sessionDb{1};
     };
 
     using JwtSession    = _JwtSession<TcpSock>;
     using JwtSessionSsl = _JwtSession<SslSock>;
+
+    struct Initializer final {
+        using Handler = std::function<bool(const http::Request&, http::Response&)>;
+        struct Context {
+        };
+
+        void before(http::Request& req, http::Response& resp, Context& ctx);
+
+        void after(http::Request& req, http::Response& resp, Context& ctx);
+
+        template <typename Ep>
+        void setup(Ep& ep, Handler handler, bool form = true) {
+            if (handler == nullptr) {
+                blocked = false;
+                return;
+            }
+
+            if (Ego.handler == nullptr) {
+                initRoute =
+                ep.dynamic("/app-init")
+                ("GET"_method, "POST"_method, "OPTIONS"_method)
+                .attrs(opt(AUTHORIZE, Auth{false}), opt(PARSE_FORM, form))
+                ([&](const http::Request& req, http::Response& resp) { init(req, resp); });
+                blocked =  true;
+                Ego.handler = handler;
+            }
+        }
+
+    private:
+        void init(const http::Request& req, http::Response& resp);
+        bool  blocked{false};
+        bool  unblock{false};
+        int32_t initRoute{0};
+        Handler  handler{nullptr};
+    };
 }
 
 #endif //SUIL_MIDDLEWARES_H

@@ -153,6 +153,11 @@ namespace suil {
                 return *this;
             }
 
+            inline Response&operator<<(const json::Object& obj) {
+                body << json::encode(obj);
+                return *this;
+            }
+
             inline void appendf(const char *fmt, ...) {
                 va_list  args;
                 va_start(args, fmt);
@@ -219,6 +224,10 @@ namespace suil {
 
             inline bool iscompleted() const {
                 return completed;
+            }
+
+            inline bool Ok(http::Status with = http::Status::OK) {
+                return with == status;
             }
 
             void end(ProtocolHandler p);

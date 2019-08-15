@@ -27,7 +27,7 @@ namespace suil {
 
         struct Commmand {
             template <typename... Params>
-            Commmand(const char *cmd, Params... params)
+            Commmand(const char *cmd, const Params&... params)
                 : buffer(32+strlen(cmd))
             {
                 prepare(cmd, params...);
@@ -40,13 +40,13 @@ namespace suil {
             }
 
             template <typename Param>
-            Commmand& operator<<(const Param param) {
+            Commmand& operator<<(const Param& param) {
                 addparam(param);
                 return *this;
             }
 
             template <typename... Params>
-            void addparams(Params&... params) {
+            void addparams(const Params&... params) {
                 addparam(params...);
             }
 
@@ -58,7 +58,7 @@ namespace suil {
             }
 
             template <typename... Params>
-            void prepare(const char *cmd, Params&... params) {
+            void prepare(const char *cmd, const Params&... params) {
                 buffer << SUIL_REDIS_PREFIX_ARRAY << (1+sizeof...(Params)) << SUIL_REDIS_CRLF;
                 addparams(cmd, params...);
             }
@@ -129,7 +129,8 @@ namespace suil {
             }
 
             operator bool() const {
-                return (prefix != SUIL_REDIS_PREFIX_ERROR && !data.empty());
+                if (prefix == SUIL_REDIS_PREFIX_ERROR) return false;
+                return (prefix == SUIL_REDIS_PREFIX_ARRAY || !data.empty());
             }
 
             inline bool status(const char *expect = SUIL_REDIS_STATUS_OK) const {
@@ -197,7 +198,10 @@ namespace suil {
             template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type * = nullptr>
             operator std::vector<T>() const {
                 std::vector<T> tmp;
-                for (int i=0; i < 0; i++) {
+                int i = 0;
+                if (!entries.empty() && entries[0].prefix == SUIL_REDIS_PREFIX_ARRAY)
+                    i = 1;
+                for (i; i < entries.size(); i++) {
                     tmp.push_back(get<T>(i));
                 }
                 return  std::move(tmp);
@@ -206,8 +210,11 @@ namespace suil {
             template <typename T, typename std::enable_if<!std::is_arithmetic<T>::value>::type * = nullptr>
             operator std::vector<T>() const {
                 std::vector<String> tmp;
-                for (int i=0; i < 0; i++) {
-                    tmp.emplace_back(get<String >(i));
+                int i = 0;
+                if (!entries.empty() && entries[0].prefix == SUIL_REDIS_PREFIX_ARRAY)
+                    i = 1;
+                for (i; i < entries.size(); i++) {
+                    tmp.emplace_back(get<String>(i));
                 }
                 return  std::move(tmp);
             }
@@ -285,13 +292,13 @@ namespace suil {
             }
 
             template <typename... Args>
-            Response send(const String& cd, Args... args) {
+            Response send(const String& cd, const Args&... args) {
                 Commmand cmd(cd(), args...);
                 return std::move(send(cmd));
             }
 
             template <typename... Args>
-            Response operator()(String&& cd, Args... args) {
+            Response operator()(const String& cd, const Args&... args) {
                 return send(cd, args...);
             }
 
@@ -646,7 +653,7 @@ namespace suil {
                 }
 
                 if (db != 0) {
-                    idebug("changing database to %d", db);
+                    trace("changing database to %d", db);
                     auto resp = cli("SELECT", 1);
                     if (!resp) {
                         throw Exception::create(

@@ -972,7 +972,10 @@ static void emit_value(iod::encode_stream& out, const JsonNode *node)
 
 void emit_value_indented(iod::encode_stream& out, const JsonNode *node, const char *space, int indent_level)
 {
-	assert(tag_is_valid(node->tag));
+	if (!tag_is_valid(node->tag)) {
+	    throw suil::Exception::create("Attempt to encode an invalid json node");
+	}
+
 	switch (node->tag) {
 		case JSON_NULL:
 			out << "null";

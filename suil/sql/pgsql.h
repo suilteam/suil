@@ -33,6 +33,7 @@ namespace suil {
             INT2OID  = 21,
             INT4OID  = 23,
             TEXTOID  = 25,
+            JSONOID = 114,
             FLOAT4OID = 700,
             FLOAT8OID = 701,
             INT2ARRAYOID   = 1005,
@@ -69,6 +70,8 @@ namespace suil {
             { return TEXTOID; }
             inline Oid type_to_pgsql_oid_type(const iod::json_string&)
             { return JSONBOID; }
+            inline Oid type_to_pgsql_oid_type(const json::Object&)
+            { return JSONOID; }
             template <size_t N>
             inline Oid type_to_pgsql_oid_type(const Blob<N>&)
             { return BYTEAOID; }
@@ -652,6 +655,21 @@ namespace suil {
                 return bind(val, oid, len, bin, norder, *const_cast<iod::json_string*>(&v));
             }
 
+            void* bind(const char*& val, Oid& oid, int& len, int& bin, unsigned long long& norder, json::Object& v) {
+                auto tmp = json::encode(v);
+                OBuffer ob(tmp.size()+1);
+                ob << tmp;
+                val  = ob.data();
+                oid  = JSONOID;
+                len  = (int) ob.size();
+                bin  = 1;
+                return ob.release();
+            }
+
+            void* bind(const char*& val, Oid& oid, int& len, int& bin, unsigned long long& norder, const json::Object& v) {
+                return bind(val, oid, len, bin, norder, *const_cast<json::Object*>(&v));
+            }
+
             template <size_t N>
             void* bind(const char*& val, Oid& oid, int& len, int& bin, unsigned long long& norder, Blob<N>& v) {
                 val = (const char *)v.cbegin();
@@ -744,6 +762,14 @@ namespace suil {
 
                 inline bool read(iod::json_string& v, int col) {
                     return Ego.read(v.str, col);
+                }
+
+                bool read(json::Object& obj, int col) {
+                    std::string str;
+                    if (Ego.read(str, col)) {
+                        return json::trydecode(str, obj);
+                    }
+                    return false;
                 }
 
                 template <size_t N>
@@ -1059,5 +1085,34 @@ namespace suil {
         template <typename T>
         using PgsqlMetaOrm = Orm2<PgSqlConnection, T>;
     }
+
+    struct Settings final {
+        Settings(sql::PgSqlConnection& conn)
+                : conn(conn.get())
+        {}
+
+        Settings(const Settings&) = delete;
+        Settings& operator=(const Settings&) = delete;
+        Settings(Settings&&) = delete;
+        Settings& operator=(Settings&&) = delete;
+
+        void init();
+
+        template <typename V>
+        void set(const String& key, V v) {
+            json::Object obj(std::forward<V>(v));
+            setObj(key, obj);
+        }
+
+        json::Object operator[](const String&);
+
+        ~Settings() {
+            conn.put();
+        }
+
+    private:
+        void setObj(const String& key, json::Object& obj);
+        sql::PgSqlConnection& conn;
+    };
 }
 #endif //SUIL_PGSQL_HPP

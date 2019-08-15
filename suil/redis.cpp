@@ -161,13 +161,8 @@ namespace suil::redis {
                 if (!readlen(len)) {
                     return false;
                 }
-
-                if (len == 0) {
-                    // remove crlf
-                    if (!readline(out)) {
-                        return false;
-                    }
-                } else if (len > 0) {
+                stagging.emplace_back(Reply(SUIL_REDIS_PREFIX_ARRAY, ""));
+                if (len > 0) {
                     int i = 0;
                     for (i; i < len; i++) {
                         if (!recvresp(out, stagging)) {

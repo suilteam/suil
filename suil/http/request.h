@@ -131,8 +131,16 @@ namespace suil {
                 return params;
             }
 
-            uint32_t routeid() const {
+            inline uint32_t routeid() const {
                 return params.route_id;
+            }
+
+            inline bool enabled() const {
+                return route().ENABLED;
+            }
+
+            void enabled(bool val) {
+                params.attrs->ENABLED = val;
             }
 
             template <typename T>

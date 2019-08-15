@@ -110,7 +110,8 @@ namespace suil {
         prop(AUTHORIZE,      Auth),
         prop(PARSE_COOKIES,  bool),
         prop(PARSE_FORM,     bool),
-        prop(REPLY_TYPE,     String)
+        prop(REPLY_TYPE,     String),
+        prop(ENABLED,        bool)
     )) route_attributes_t;
 
     namespace magic {

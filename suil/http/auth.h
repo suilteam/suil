@@ -81,13 +81,13 @@ namespace suil {
                     rs.push(std::forward<R>(r), std::forward<Roles>(roles)...);
             }
 
-            inline json::Object roles() {
+            inline json::Object roles() const {
                 return Ego.payload.claims["roles"];
             }
 
-            inline json::Object& claims() {
+            inline json::Object claims(const String& key) const {
                 // get the claims
-                return payload.claims;
+                return payload.claims[key];
             }
 
             inline const String& typ() const {
@@ -238,7 +238,9 @@ namespace suil {
                 inline void authorize(Jwt&& jwt) {
                     this->jwt = std::move(jwt);
                     Ego.jwt.iat(time(nullptr));
-                    Ego.jwt.exp(time(nullptr) + jwtAuth->expiry);
+                    if (Ego.jwt.exp() == 0) {
+                        Ego.jwt.exp(time(nullptr) + jwtAuth->expiry);
+                    }
                     sendTok = 1;
                     encode = 1;
                     requestAuth = 0;
