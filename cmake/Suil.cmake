@@ -314,7 +314,7 @@ function(SuilApp name)
         set(${name}_ARTIFACTS_DIR ${SUIL_APP_ARTIFACTS_DIR})
         if (NOT SUIL_APP_ARTIFACTS_DIR)
             set(${name}_ARTIFACTS_DIR ${CMAKE_INSTALL_PREFIX})
-        endif ()
+        endif()
 
         # install the files
         if (SUIL_APP_INSTALL_FILES)
@@ -343,7 +343,7 @@ function(SuilApp name)
             set(${name}_INSTALL_INCFLT "*.h(pp)?")
             if (SUIL_APP_INSTALL_INCFLT)
                 set(${name}_INSTALL_INCFLT ${SUIL_APP_INSTALL_INCFLT})
-            endif
+            endif()
             message(STATUS "target '${name} install includes from: ${SUIL_APP_INSTALL_INCDIR}, patterns: ${${name}_INSTALL_INCFLT}")
             install(DIRECTORY ${SUIL_APP_INSTALL_INCDIR}
                     DESTINATION ${${name}_ARTIFACTS_DIR}/include
