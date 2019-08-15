@@ -2,8 +2,10 @@
 # Suil project helper functions
 ##
 
-# Enable building debug project
-option(SUIL_PROJECT_DEBUG "Enable building of debug projects" ON)
+# Enable trace logging on debug builds
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    add_compile_definitions(-DSUIL_DEBUG -DSUIL_TRACE_ENABLED)
+endif()
 
 if (NOT SUIL_BASE_PATH)
     set(SUIL_BASE_PATH /usr)
