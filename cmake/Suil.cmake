@@ -9,8 +9,7 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
 endif()
 
 # Allow attributes on sources
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wattributes")
-set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -Wattributes")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-attributes")
 
 if (NOT SUIL_BASE_PATH)
     set(SUIL_BASE_PATH /usr)
