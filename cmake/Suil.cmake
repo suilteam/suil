@@ -3,8 +3,9 @@
 ##
 
 # Enable trace logging on debug builds
+set(PROJECT_DEFINITIONS)
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    add_compile_definitions(-DSUIL_DEBUG -DSUIL_TRACE_ENABLED)
+    add_definitions(-DSUIL_DEBUG -DSUIL_TRACE_ENABLED)
 endif()
 
 if (NOT SUIL_BASE_PATH)
