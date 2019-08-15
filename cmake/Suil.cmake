@@ -154,6 +154,8 @@ endfunction()
 # @param {LIBRARIES:list} a list of extra libraries
 # @param {INSTALL_FILES:list} a list of files to install (if INSTALL is enabled)
 # @param {INSTALL_DIRS:list}  a list of directories to install (if INSTALL is enabled)
+# @param {INSTALL_INCDIR:list} a list of directories with include files to install (if INSTALL is enabled & building LIBRARY)
+# @param {INTSALL_INCFLT:string} a pattern used to filter in install includes
 # @param {DEPENDS:list} a list of other target that the application depends on
 # @param {INSTALL:ON|OFF} enable install targets, files & directories
 ##
@@ -167,7 +169,8 @@ function(SuilApp name)
     set(options DEBUG)
     set(kvargs  TPSCHEMA SCC_OUTDIR)
     set(kvvargs LIBRARY DEPENDS INSTALL VERSION SOURCES TEST DEFINES SYMBOLS SCC_SOURCES
-                EXTRA_SYMS LIBRARIES INCLUDES INSTALL_FILES INSTALL_DIRS ARTIFACTS_DIR LUA2C)
+                EXTRA_SYMS LIBRARIES INCLUDES INSTALL_FILES INSTALL_DIRS INSTALL_INCDIR
+                INTSALL_INCFLT ARTIFACTS_DIR LUA2C)
     cmake_parse_arguments(SUIL_APP "${options}" "${kvargs}" "${kvvargs}" ${ARGN})
 
     # get the source files
@@ -317,7 +320,7 @@ function(SuilApp name)
         if (SUIL_APP_INSTALL_FILES)
             message(STATUS "target '${name} install files: ${SUIL_APP_INSTALL_FILES}")
             install(FILES ${SUIL_APP_INSTALL_FILES}
-                    DESTINATION share/${${name}_ARTIFACTS_DIR})
+                    DESTINATION ${${name}_ARTIFACTS_DIR}/share/${name})
         endif()
 
         # install targets
@@ -332,7 +335,19 @@ function(SuilApp name)
         if (${name}_INSTALL_DIRS)
             message(STATUS "target '${name} install directories: ${${name}_INSTALL_DIRS}")
             install(DIRECTORY ${${name}_INSTALL_DIRS}
-                    DESTINATION ${${name}_ARTIFACTS_DIR})
+                    DESTINATION ${${name}_ARTIFACTS_DIR}/share/${name})
+        endif()
+
+        # install includes when building a library
+        if (SUIL_APP_LIBRARY AND SUIL_APP_INSTALL_INCDIR)
+            set(${name}_INSTALL_INCFLT "*.h(pp)?")
+            if (SUIL_APP_INSTALL_INCFLT)
+                set(${name}_INSTALL_INCFLT ${SUIL_APP_INSTALL_INCFLT})
+            endif
+            message(STATUS "target '${name} install includes from: ${SUIL_APP_INSTALL_INCDIR}, patterns: ${${name}_INSTALL_INCFLT}")
+            install(DIRECTORY ${SUIL_APP_INSTALL_INCDIR}
+                    DESTINATION ${${name}_ARTIFACTS_DIR}/include
+                    FILES_MATCHING ${${name}_INSTALL_INCFLT})
         endif()
     else()
         message(STATUS "target install disabled, will use default")
