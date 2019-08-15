@@ -8,6 +8,10 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_definitions(-DSUIL_DEBUG -DSUIL_TRACE_ENABLED)
 endif()
 
+# Allow attributes on sources
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wattributes")
+set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -Wattributes")
+
 if (NOT SUIL_BASE_PATH)
     set(SUIL_BASE_PATH /usr)
 endif()
