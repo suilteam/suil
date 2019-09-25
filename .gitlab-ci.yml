@@ -218,10 +218,8 @@ test:devel:
   before_script: *docker_hub_login
   script:
     - docker pull suilteam/suil-dev:latest
-    - docker run --rm -i --name "$CI_COMMIT_REF_SLUG" suilteam/suil-dev:latest /usr/local/bin/sut -r junit | tee test-${CI_COMMIT_REF_SLUG}.xml
+    - docker run --rm -i --name "$CI_COMMIT_REF_SLUG" suilteam/suil-dev:latest /usr/local/bin/sut -r junit -o test-${CI_COMMIT_REF_SLUG}.xml
   artifacts:
-    paths:
-      - test-${CI_COMMIT_REF_SLUG}.xml
     reports:
       junit: test-${CI_COMMIT_REF_SLUG}.xml
 
@@ -237,9 +235,7 @@ test:production:
   before_script: *docker_hub_login
   script:
     - docker pull suilteam/suil-dev:$SUIL_BUILD_VERSION
-    - docker run --rm -i --name "$CI_COMMIT_REF_SLUG" suilteam/suil-dev:$SUIL_VERSION_TAG/usr/local/bin/sut | tee test-${CI_COMMIT_REF_SLUG}.xml
+    - docker run --rm -i --name "$CI_COMMIT_REF_SLUG" suilteam/suil-dev:$SUIL_VERSION_TAG/usr/local/bin/sut -o test-${CI_COMMIT_REF_SLUG}.xml
   artifacts:
-    paths:
-      - test-${CI_COMMIT_REF_SLUG}.xml
     reports:
-      junit: test-${CI_COMMIT_REF_SLUG}.xm
+      junit: test-${CI_COMMIT_REF_SLUG}.xml
