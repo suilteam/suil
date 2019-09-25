@@ -122,6 +122,8 @@ void json_remove_from_parent(JsonNode *node);
  */
 bool json_check(const JsonNode *node, char errmsg[256]);
 
+struct lua_State;
+
 namespace suil {
     namespace json {
         template <typename T>
@@ -501,6 +503,12 @@ namespace suil {
             const_iterator begin() const;
 
             const_iterator end() const { return const_iterator(nullptr); }
+
+            Object weak() {
+                return Object(mNode, true);
+            }
+
+            static Object fromLuaTable(lua_State* L, int index = 0);
 
             ~Object();
 

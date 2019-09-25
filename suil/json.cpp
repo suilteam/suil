@@ -1650,6 +1650,7 @@ namespace suil::json {
 
     Object parseLuaTable(lua_State* L) {
         Object obj(Obj);
+
         lua_pushnil(L);
         bool first{true}, isArray{false};
         while (lua_next(L, -2) != 0) {
@@ -1675,7 +1676,33 @@ namespace suil::json {
             }
             lua_pop(L, 1);
         }
+
         return  std::move(obj);
+    }
+
+    Object Object::fromLuaTable(lua_State *L, int index) {
+        int top = lua_gettop(L);
+        if (index && top != index) // bring value to top of stack
+            lua_pushvalue(L, index);
+
+        Object obj{nullptr};
+        auto _pop = [L,&top]() {
+            auto diff = lua_gettop(L) - top;
+            if (diff > 0) {
+                lua_pop(L, diff);
+            }
+        };
+
+        try {
+            obj = parseLuaValue(L);
+            _pop();
+        }
+        catch (...) {
+            _pop();
+            throw;
+        }
+
+        return std::move(obj);
     }
 
     Object Object::fromLuaString(const suil::String &script) {

@@ -58,7 +58,7 @@ namespace suil {
                     String name;
                     String path;
                     String ctype;
-                    size_t   size{0};
+                    size_t size{0};
                 };
 
                 Form() = default;
@@ -229,7 +229,7 @@ namespace suil {
                     return hdr(tmp);
                 }
 
-                strview hdr(String& name) const {
+                strview hdr(const String& name) const {
                     auto it = headers.find(name);
                     if (it != headers.end()){
                         return it->second;
@@ -401,8 +401,6 @@ namespace suil {
                     handle_t&operator=(const handle_t&) = delete;
 
                     Session& sess;
-                private:
-                    friend struct Session;
                     Request  req;
                 };
 

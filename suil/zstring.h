@@ -310,6 +310,8 @@ namespace suil {
             return Ego.c_str();
         }
 
+        bool endswith(const char* part, bool igc = false) const;
+
         /**
          * get constant pointer to the reference buffer
          * @return

@@ -394,7 +394,9 @@ namespace suil {
             Response Session::perform(handle_t& h, Method m, const char *resource, request_builder_t& builder, ResponseWriter& rd) {
                 Request& req = h.req;
                 Response resp;
-                req.reset(m, resource, false);
+                if (builder == nullptr) {
+                    req.reset(m, resource, false);
+                }
 
                 for(auto& hdr: headers) {
                     String key(hdr.first.data(), hdr.first.size(), false);

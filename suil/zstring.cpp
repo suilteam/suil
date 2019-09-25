@@ -246,6 +246,14 @@ namespace suil {
 
         return std::move(out);
     }
+
+    bool String::endswith(const char *part, bool igc) const {
+        if (part == nullptr) return false;
+        String tmp{part};
+        auto from = size() - tmp.size();
+        if (from < 0) return false;
+        return substr(from) == tmp;
+    }
 }
 
 #ifdef unit_test

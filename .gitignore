@@ -80,6 +80,7 @@ cmake/SuilConfigVersion.cmake
 # Build directories
 .build
 .creator
+cmake-build-*
 
 # IDE files
 .idea
