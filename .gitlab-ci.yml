@@ -220,7 +220,7 @@ test:devel:
     - docker pull suilteam/suil-dev:latest
     - mkdir sut
     - docker run --rm -i --name "$CI_COMMIT_REF_SLUG"
-        -v `pwd`/sut:/tmp/sut sutsuilteam/suil-dev:latest
+        -v `pwd`/sut:/tmp/sut suilteam/suil-dev:latest
         /usr/local/bin/sut -r junit -o /tmp/sut/test-${CI_COMMIT_REF_SLUG}.xml
   artifacts:
     reports:
