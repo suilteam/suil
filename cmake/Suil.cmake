@@ -281,7 +281,7 @@ function(SuilApp name)
     endif()
 
     if (SUIL_APP_TEST)
-        list(APPEND SUIL_APP_DEFINES "-DSUIL_TESTING")
+        list(APPEND SUIL_APP_DEFINES -DSUIL_TESTING -Dunit_test -Dsuil_ut=:public)
         set(${name}_LIBRARIES ${SUIL_PROJECT_LIBRARIES} ${SUIL_APP_LIBRARIES})
     else()
         set(${name}_LIBRARIES ${SUIL_PROJECT_STATIC_LIBRARIES} ${SUIL_APP_LIBRARIES})

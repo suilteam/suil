@@ -153,14 +153,14 @@ namespace suil {
                 iterator operator++();
 
                 bool operator!=(const iterator &other) { return mNode != other.mNode; }
-
+                bool operator==(const iterator &other) { return mNode == other.mNode; }
                 const std::pair<const char *, Object> operator*() const;
 
             private:
                 JsonNode *mNode;
             };
 
-            using const_iterator = const iterator;
+            using const_iterator = iterator;
 
             Object();
 
@@ -495,6 +495,12 @@ namespace suil {
             void operator|(ArrayEnumerator f) const;
 
             void operator|(ObjectEnumerator f) const;
+
+            bool operator==(const Object& other) const;
+
+            inline bool operator!=(const Object& other) const {
+                return !(Ego == other);
+            }
 
             iterator begin();
 

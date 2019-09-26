@@ -339,7 +339,7 @@ namespace suil {
             QueryString qps;
             OBuffer body;
 
-        protected:
+        protected suil_ut:
 
             parser(http_parser_type type = HTTP_REQUEST);
 

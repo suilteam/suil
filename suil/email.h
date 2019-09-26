@@ -317,7 +317,7 @@ namespace suil {
 
             ipaddr addr = ipremote(server.data(), port, 0, utils::after(timeout));
             if (errno != 0) {
-                ierror("server address '%s:%d' could not be resolved: %",
+                ierror("server address '%s:%d' could not be resolved: %s",
                             server.data(), port, errno_s);
                 return false;
             }

@@ -108,7 +108,7 @@ namespace suil {
 
         code = getresponse(5000);
         if (code != 334) {
-            ierror("stmp AUTH LOGIN error: %d - %s\n", code, showerror(code));
+            ierror("stmp AUTH LOGIN error: %d - %s", code, showerror(code));
             goto client_login_do_quit;
         }
 

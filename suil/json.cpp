@@ -1575,6 +1575,43 @@ namespace suil::json {
         }
     }
 
+    bool Object::operator==(const Object &other) const {
+        if (other.type() != Ego.type()) return false;
+        if (other.empty() && Ego.empty()) return true;
+        switch (other.type()) {
+            case JSON_NUMBER:
+                return other.mNode->number_ == Ego.mNode->number_;
+            case JSON_BOOL:
+                return other.mNode->bool_ == Ego.mNode->bool_;
+            case JSON_STRING:
+                return String{other.mNode->string_} == String{Ego.mNode->string_};
+            case JSON_ARRAY: {
+                auto ai = Ego.begin();
+                auto bi = other.end();
+                while (ai != Ego.end()) {
+                    if (bi == other.end()) return  false;
+                    if (!((*ai).second == (*bi).second)) return false;
+                    ++ai;
+                    ++bi;
+                }
+                return bi == other.end();
+                break;
+            }
+            case JSON_OBJECT: {
+                for (auto[key, obj]: Ego) {
+                    auto tmp = other[key];
+                    if (tmp.isNull()) return false;
+                    if (!(obj == tmp)) return false;
+                }
+                return true;
+                break;
+            }
+            default:
+                return false;
+
+        }
+    }
+
     Object::iterator Object::iterator::operator++() {
     	if (mNode)
     		mNode = mNode->next;
