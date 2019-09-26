@@ -127,7 +127,7 @@ namespace suil {
             ierror("stmp AUTH password rejected: %d %s", code, showerror(500));
         } else {
             // logged in to server
-            trace("Successfully logged in to server");
+            idebug("Successfully logged in to server");
             status = true;
             goto client_login_exit;
         }
@@ -152,10 +152,10 @@ namespace suil {
             utils::cast(tmp, code);
             if (resp.size() > 6) {
                 resp.data()[resp.size() - 2] = '\0';
-                trace("smtp_resp: %s", resp.data());
+                idebug("smtp_resp: %s", resp.data());
             }
             else {
-                trace("smtp_resp: %d", code);
+                idebug("smtp_resp: %d", code);
             }
         } else {
             ierror("failed to receive Response from server");
