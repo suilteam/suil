@@ -121,15 +121,6 @@ if (SUIL_BUILD_DEV_PACKAGE)
     install(DIRECTORY deps/catch
             DESTINATION include
             FILES_MATCHING PATTERN "*.hpp")
-    install(DIRECTORY deps/boost
-            DESTINATION include
-            FILES_MATCHING PATTERN "*.h")
-    install(DIRECTORY deps/boost
-            DESTINATION include
-            FILES_MATCHING PATTERN "*.hh")
-    install(DIRECTORY deps/boost
-            DESTINATION include
-            FILES_MATCHING PATTERN "*.hpp")
     install(DIRECTORY suil/
             DESTINATION include/suil
             FILES_MATCHING PATTERN "*.hh")

@@ -6,7 +6,6 @@
 #include <sstream>
 #include <map>
 
-#include "boost/lexical_cast.hpp"
 #include "stringview.hh"
 #include "symbol_definitions.hh"
 #include "grammar.hh"
@@ -104,17 +103,17 @@ namespace iod {
 
     template<typename V>
     void parse_option_value(stringview str, std::vector<V> &v) {
-        v.push_back(boost::lexical_cast<V>(str.str));
+        v.push_back(lexical_cast<V>(str.str));
     }
 
     template<typename V>
     void parse_option_value(stringview str, V &v) {
-        v = boost::lexical_cast<V>(str.str);
+        v = lexical_cast<V>(str.str);
     }
 
     template<typename V>
     void parse_option_value(stringview str, V *v) {
-        *v = boost::lexical_cast<V>(str.str);
+        *v = lexical_cast<V>(str.str);
     }
 
     namespace cl {

@@ -15,7 +15,6 @@
 #include <regex>
 #include <signal.h>
 
-#include <boost/utility/string_view.hpp>
 #include <iod/json.hh>
 #include <iod/parse_command_line.hh>
 
