@@ -400,6 +400,10 @@ namespace suil {
                     handle_t(const handle_t&) = delete;
                     handle_t&operator=(const handle_t&) = delete;
 
+                    operator bool() const {
+                        return req.sock.isopen();
+                    }
+
                     Session& sess;
                     Request  req;
                 };
@@ -439,11 +443,13 @@ namespace suil {
                     return Session::handle_t{*this, sock};
                 }
 
-                handle_t connect(CaseMap<String> hdrs = {}) {
+                handle_t connect(CaseMap<String> hdrs) {
                     handle_t h = handle();
                     connect(h, hdrs);
                     return std::move(h);
                 }
+
+                handle_t connect();
 
                 void connect(handle_t& h, CaseMap<String> hdrs = {});
 

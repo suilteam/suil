@@ -435,6 +435,18 @@ namespace suil {
                 h.req.cleanup();
             }
 
+            Session::handle_t Session::connect() {
+                auto h = handle();
+                auto& req = h.req;
+                if (!req.sock.isopen()) {
+                    /* open a new socket for the Request */
+                    if (!req.sock.connect(addr, timeout)) {
+                        idebug("connecting to '%s' failed - %s", host(), errno_s);
+                    }
+                }
+                return std::move(h);
+            }
+
             Response Session::head(handle_t &h, const char *resource, CaseMap<String> /* @TODO implement headers */) {
                 Response resp = std::move(perform(h, Method::Connect, resource));
                 return std::move(resp);
