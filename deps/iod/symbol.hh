@@ -8,6 +8,25 @@
 
 namespace iod
 {
+  template <typename R, typename T>
+  R lexical_cast(const T& t) {
+      if constexpr (std::is_same_v<R,std::string>) {
+          if constexpr (std::is_arithmetic_v<T>) {
+            char buf[128];
+            sprintf(buf, "%0.0f", t);
+            return std::string{buf};
+          }
+          else {
+              return std::string{t};
+          }
+      }
+      else  {
+          R tmp{};
+          std::stringstream ss; ss << t;
+          ss >> tmp;
+          return tmp;
+      }
+  }
 
   template <typename E>
   struct symbol : public array_subscriptable<E>, public callable<E>,

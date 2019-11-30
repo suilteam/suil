@@ -9,9 +9,10 @@
 #include <sstream>
 #include <stdexcept>
 #include <map>
+#include <string_view>
+#include <sstream>
+#include <type_traits>
 
-#include "boost/lexical_cast.hpp"
-#include "boost/utility/string_ref.hpp"
 #include <iod/sio.hh>
 #include <iod/foreach.hh>
 #include <iod/symbols.hh>
@@ -19,6 +20,7 @@
 #include <iod/stringview.hh>
 
 namespace iod {
+
     template <typename Obj>
     struct Nullable {
         using value_type = Obj;
@@ -222,7 +224,7 @@ namespace iod {
                 return *this;
             }
 
-            inline my_ostringstream &operator<<(const boost::string_ref &t) {
+            inline my_ostringstream &operator<<(const std::string_view &t) {
                 (*this) << stringview(&t[0], t.size());
                 return *this;
             }
@@ -230,7 +232,7 @@ namespace iod {
 
             template<typename T>
             my_ostringstream &operator<<(const T &t) {
-                std::string s = boost::lexical_cast<std::string>(t);
+                std::string s = lexical_cast<std::string>(t);
                 (*this) << stringview(s.c_str(), s.size());
                 return *this;
             }
@@ -294,7 +296,7 @@ namespace iod {
         }
 
         template<typename S>
-        inline void json_encode_(const boost::string_ref &s, S &ss) {
+        inline void json_encode_(const std::string_view &s, S &ss) {
             ss << '"';
             ss << s;
             ss << '"';
@@ -795,7 +797,7 @@ namespace iod {
 
                 int end = pos;
                 while (end != str.size() and str[end] != ',' and str[end] != '}' and str[end] != ']') end++;
-                t = boost::lexical_cast<std::remove_reference_t<T>>(str.data() + pos, end - pos);
+                t = lexical_cast<std::remove_reference_t<T>>(std::string_view{str.data() + pos, end - pos});
                 pos = end;
                 return *this;
             }
