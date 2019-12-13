@@ -75,6 +75,10 @@ add_library(suil SHARED
 
 target_link_libraries(suil ${SUIL_LIBRARIES}   mill_s snappy lua)
 
+if (SUIL_BUILDSAWTOOTH)
+    add_subdirectory(sawtooth)
+endif()
+
 # generate all symbols used in suil project
 suil_iod_symbols(suil
         BINARY  ${CMAKE_BINARY_DIR}/deps/iod/iodsyms

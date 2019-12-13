@@ -23,6 +23,7 @@ option(SUIL_BUILD_UNIT_TEST    "Enable unit testing" ON)
 option(SUIL_BUILD_EXAMPLES     "Enable building examples" ON)
 option(SUIL_BUILD_APPS         "Enable building applications" ON)
 option(SUIL_BUILD_DEV_PACKAGE  "Produce a development package" OFF)
+option(SUIL_BUILD_SAWTOOTH     "Enable building sawtooth SDK library" ON)
 option(SUIL_BUILD_DOCKER       "Include docker API build" OFF)
 option(SUIL_BUILD_LXC          "Include LXC API build" OFF)
 
