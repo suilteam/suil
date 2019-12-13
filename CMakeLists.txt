@@ -67,14 +67,14 @@ endif()
 
 find_package(PostgreSQL ${SUIL_PGSQL_VERSION} REQUIRED)
 
-pkg_check_modules(_ZeroMQ QUIET zmq)
-find_path(ZeroMQ_INCLUDE_DIR
-        NAMES zmq.hpp
-        PATHS ${_ZeroMQ_INCLUDE_DIRS})
+pkg_check_modules(ZeroMQ QUIET zmq)
+if (NOT ZeroMQ_FOUND)
+    pkg_check_modules(ZeroMQ QUIET libzmq)
+endif()
 
-find_library(ZeroMQ_LIBRARY
-        NAMES zmq
-        PATHS ${_ZeroMQ_LIBRARY_DIRS})
+if (NOT ZeroMQ_FOUND)
+   message(FATAL_ERROR "ZMQ development libraries required")
+endif()
 
 set(SUIL_LIBRARIES
         ssl crypto uuid sqlite3 pq zmq)
@@ -98,7 +98,7 @@ add_subdirectory(deps/iod)
 add_subdirectory(deps/snappy)
 add_subdirectory(deps/lua)
 
-include_directories(deps ${ZeroMQ_INCLUDE_DIR})
+include_directories(deps)
 
 if (SUIL_BUILD_DEV_PACKAGE)
     configure_file(buildapp.sh ${CMAKE_BINARY_DIR}/buildapp COPYONLY)

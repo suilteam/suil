@@ -97,11 +97,13 @@ namespace suil::zmq {
     }
 
 
-    Socket::Socket(Context &context, void *sock)
+    Socket::Socket(Context &context, int type)
         : ctx{context},
-          sock{sock}
+          sock{zmq_socket(context, type)}
     {
-        resolveSocket();
+        if (sock == nullptr) {
+            throw Exception::create("failed to create a new zmq socket: ", zmq_strerror(zmq_errno()));
+        }
     }
 
     Socket::Socket(suil::zmq::Socket &&other)
@@ -120,16 +122,15 @@ namespace suil::zmq {
         return Ego;
     }
 
-    void Socket::resolveSocket()
+    bool Socket::resolveSocket()
     {
-        if (sock == nullptr) {
-            throw Exception::create("Cannot create a socket with a null zmq socket");
-        }
         size_t sz{sizeof(Ego.fd)};
         if (zmq_getsockopt(sock, ZMQ_FD, &Ego.fd, &sz)) {
-            throw Exception::create("Cannot access zmq socket descriptor: ", errno_s);
+            ierror("Cannot access zmq socket descriptor: %s", zmq_strerror(zmq_errno()));
+            return false;
         }
         idebug("%p has  zmq socket %d", this, Ego.fd);
+        return true;
     }
 
     Message Socket::receive(int64_t to)
@@ -141,16 +142,15 @@ namespace suil::zmq {
         Message msg;
         auto dd = to < 0? -1: mnow() + to;
         do {
-            if (!zmq_msg_recv(msg, Ego.sock, ZMQ_NOBLOCK)) {
+            if (zmq_msg_recv(msg, Ego.sock, ZMQ_DONTWAIT) == -1) {
                 if (zmq_errno() == EAGAIN) {
-                    // wait for socket to be writable
                     int ev = fdwait(Ego.fd, FDW_OUT, dd);
                     if (ev & FDW_ERR) {
-                        // error while waiting for file to be writable
-                        ierror("error while wait for zmq socket (%d) to writable: %s", Ego.fd, errno_s);
+                        ierror("error while wait for zmq socket (%d) to readable: %s", Ego.fd, errno_s);
                         return {};
                     }
                     continue;
+                    msg = Message{};
                 }
                 ierror("zmq_msg_recv(%d) error: %s", Ego.fd, zmq_strerror(zmq_errno()));
                 return {};
@@ -170,10 +170,11 @@ namespace suil::zmq {
             throw Exception::create("cannot send to a non-existent zmq socket");
         }
 
+        auto dd = to < 0? -1: mnow() + to;
         do {
-            if (zmq_msg_send(msg, Ego.sock, ZMQ_NOBLOCK)) {
+            if (zmq_msg_send(msg, Ego.sock, ZMQ_DONTWAIT) == -1) {
                 if (zmq_errno() == EAGAIN) {
-                    int ev = fdwait(Ego.fd, FDW_OUT, to);
+                    int ev = fdwait(Ego.fd, FDW_OUT, dd);
                     if (ev&FDW_ERR) {
                         // error while waiting for file to be writable
                         ierror("error while wait for zmq socket (%d) to readable: %s", Ego.fd, errno_s);
@@ -181,6 +182,8 @@ namespace suil::zmq {
                     }
                     continue;
                 }
+                ierror("zmq_msg_send(%d) error: %s", Ego.fd, zmq_strerror(zmq_errno()));
+                return {};
             }
             else {
                 idebug("sent %d bytes to zmq socket (%d)", msg.size(), Ego.fd);
@@ -191,11 +194,77 @@ namespace suil::zmq {
         return true;
     }
 
-    Socket::~Socket() {
+    void Socket::close() {
         if (sock) {
             zmq_close(sock);
             sock = nullptr;
             fd = -1;
         }
+    }
+
+    Socket::~Socket() {
+        Ego.close();
+    }
+
+    Requestor::Requestor(Context& context)
+        : Socket(context, ZMQ_REQ)
+    {}
+
+    Requestor::Requestor(Requestor&& other)
+        : Socket(std::move(other))
+    {}
+
+    Requestor& Requestor::operator=(Requestor&& other)
+    {
+        Socket::operator=(std::move(other));
+        return Ego;
+    }
+
+    bool Requestor::connect(const char* endpoint)
+    {
+        if (Ego.sock == nullptr) {
+            Ego.sock = zmq_socket(Ego.ctx, ZMQ_REQ);
+            if (Ego.sock == nullptr) {
+                throw Exception::create("failed to create a new ZMQ_REQ socket: ", zmq_strerror(zmq_errno()));
+            }
+        }
+
+        if (zmq_connect(Ego.sock, endpoint)) {
+            ierror("failed to connect to zmq endpoint '%s': %s", endpoint, zmq_strerror(zmq_errno()));
+            return false;
+        }
+        idebug("Connected to zmq endpoint %s", endpoint);
+        return resolveSocket();
+    }
+
+    Responder::Responder(Context& context)
+        : Socket(context, ZMQ_REP)
+    {}
+
+    Responder::Responder(Responder&& other)
+        : Socket(std::move(other))
+    {}
+
+    Responder& Responder::operator=(Responder&& other)
+    {
+        Socket::operator=(std::move(other));
+        return Ego;
+    }
+
+    bool Responder::bind(const char* endpoint)
+    {
+        if (Ego.sock == nullptr) {
+            Ego.sock = zmq_socket(Ego.ctx, ZMQ_REP);
+            if (Ego.sock == nullptr) {
+                throw Exception::create("failed to create a new ZMQ_REP socket: ", zmq_strerror(zmq_errno()));
+            }
+        }
+
+        if (zmq_bind(Ego.sock, endpoint)) {
+            ierror("failed to bind to zmq endpoint '%s': %s", endpoint, zmq_strerror(zmq_errno()));
+            return false;
+        }
+        idebug("Bound to zmq endpoint %s", endpoint);
+        return resolveSocket();
     }
 }

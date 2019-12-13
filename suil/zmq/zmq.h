@@ -7,6 +7,8 @@
 
 #include <suil/logging.h>
 #include <suil/buffer.h>
+#include <suil/result.h>
+
 #include <zmq.h>
 
 namespace suil::zmq {
@@ -61,6 +63,10 @@ namespace suil::zmq {
             return Ego.empty();
         }
 
+        inline operator suil::String() {
+            return suil::String{static_cast<const char*>(Ego.data()), Ego.size(), false};
+        }
+
         ~Message();
 
     private:
@@ -71,7 +77,7 @@ namespace suil::zmq {
 
     struct Socket : LOGGER(ZMQ) {
 
-        Socket(Context& context, void* sock);
+        Socket(Context& context, int type);
         Socket(Socket&& other);
         Socket&operator=(Socket&& other);
 
@@ -99,14 +105,40 @@ namespace suil::zmq {
             return send(data.data(), data.size(), to);
         }
 
+        void close();
+
         virtual ~Socket();
 
     protected:
-        void resolveSocket();
+        bool resolveSocket();
         void* sock{nullptr};
+        Context& ctx;
     private:
         int  fd{-1};
-        Context& ctx;
+    };
+
+    struct Requestor: public Socket {
+        Requestor(Context& context);
+
+        Requestor(Requestor&& other);
+        Requestor&operator=(Requestor&& other);
+
+        Requestor(const Requestor& other) = delete;
+        Requestor&operator=(const Requestor& other) = delete;
+
+        bool connect(const char* endpoint);
+    };
+
+    struct Responder: public Socket {
+        Responder(Context& context);
+
+        Responder(Responder&& other);
+        Responder&operator=(Responder&& other);
+
+        Responder(const Responder& other) = delete;
+        Responder&operator=(const Responder& other) = delete;
+
+        bool bind(const char* endoint);
     };
 }
 #endif //SUIL_ZMQ_H
