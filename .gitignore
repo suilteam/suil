@@ -84,6 +84,7 @@ cmake-build-*
 
 # IDE files
 .idea
+.vscode
 
 # Application projects
 apps
