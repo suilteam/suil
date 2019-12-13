@@ -215,3 +215,4 @@ JsonRPC:
 SuilRPC:
   _extensions
   _methods
+  _stream

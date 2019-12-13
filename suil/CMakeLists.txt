@@ -48,6 +48,9 @@ set(LIB_SUIL_RPC_SOURCES
         rpc/jsonrpc.cpp
         rpc/suilrpc.cpp)
 
+set(LIB_SUIL_ZMQ_SOURCES
+        zmq/zmq.cpp)
+
 set(LIB_SUIL_TMSP_SOURCES
         tmsp/client.cpp
         tmsp/server.cpp
@@ -60,7 +63,8 @@ set(LIB_SUIL_SOURCES
         ${LIB_SUIL_BASE_SOURCES}
         ${LIB_SUIL_HTTP_SOURCES}
         ${LIB_SUIL_RPC_SOURCES}
-        ${LIB_SUIL_SQL_SOURCES})
+        ${LIB_SUIL_SQL_SOURCES}
+        ${LIB_SUIL_ZMQ_SOURCES})
 
 set_property(GLOBAL PROPERTY prop_SUIL_SOURCES
         ${LIB_SUIL_SOURCES})

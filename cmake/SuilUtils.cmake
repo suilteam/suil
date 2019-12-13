@@ -266,9 +266,9 @@ function(SuilCheckLibrary name)
 
     find_path(${name}_INCLUDE_DIR
             NAMES ${SUIL_CHECK_INCLUDE})
-    find_path(${name}_LIBRARY
-            NAMES ${SUIL_CHECK_LIBRARY}
-            HINTS /usr/lib/x86_64-linux-gnu/)
+    find_library(${name}_LIBRARY
+            NAMES ${name}
+            PATHS ${SUIL_CHECK_LIBRARY})
 
     message(STATUS
             "library '${name}' inc: ${${name}_INCLUDE_DIR}, lib:${${name}_LIBRARY}")

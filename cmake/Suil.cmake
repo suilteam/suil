@@ -30,6 +30,11 @@ SuilCheckLibrary(uuid
 SuilCheckLibrary(sqlite3
         LIBRARY sqlite3 libsqlite3)
 
+pkg_check_modules(_ZeroMQ QUIET zmq)
+SuilCheckLibrary(zmq
+        INCLUDE zmq.h
+        LIBRARY zmq)
+
 ##
 # @brief Initialize a new suil project
 #
