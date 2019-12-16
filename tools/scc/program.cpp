@@ -179,7 +179,7 @@ namespace suil::scc {
             appendCtors(svc.Ctors);
             appendMethods(svc.Methods);
             out << spaces(4) << "};\n\n";
-            auto both = (svc.Kind == "service");
+            auto both = (svc.Kind == "srvc");
             // start with with client
             if (both || (svc.Kind == "srpc"))
                 generateForSuil(svc);
@@ -462,7 +462,7 @@ namespace suil::scc {
         // implement client methods
         for (auto& svc: Ego.Services) {
 
-            auto both = (svc.Kind == "service");
+            auto both = (svc.Kind == "srvc");
             if (both || (svc.Kind == "jrpc")) {
                 // generate json rpc
                 generateJsonRpcSources(sf, svc);

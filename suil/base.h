@@ -128,7 +128,7 @@ inline unsigned operator ""_hr(unsigned long long s) { return (unsigned) (s * 60
 
 #define jrpc       struct
 #define srpc       struct
-#define service    struct
+#define srvc       struct
 
 
 namespace suil {

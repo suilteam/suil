@@ -38,9 +38,12 @@ set(SAWTOOTH_PROTOS
 
 protobuf_generate_cpp(SAWTOOTH_PROTO_SRCS SAWTOOTH_PROTO_HDRS ${SAWTOOTH_PROTOS})
 
-set(SAWTOOTH_SOURCES sdk.cpp)
+set(SAWTOOTH_SOURCES
+    sdk.cpp
+    priv/stream.cpp)
 
 include_directories(PROTOBUF_INCLUDE_DIR)
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 add_library(sawtooth SHARED ${SAWTOOTH_PROTO_SRCS} ${SAWTOOTH_SOURCES})
 target_link_libraries(sawtooth protobuf)

@@ -26,7 +26,7 @@ method      : <comments>? <attribs>? <generic> <ident> '(' <params>? ')' ;
 ctor        : <comments>* <attribs>? <ident> '(' <params>? ')' ;
 methods     : ((<ctor>|<method>) ';')+ ;
 meta        : <comments>? "meta" <attribs>? <ident> (':' <generic>)? '{' <fields> '}' ;
-rpc         : <comments>? ("service"|"srpc"|"jrpc")  <attribs>? <ident> (':' <generic>)? '{' <methods> '}' ;
+rpc         : <comments>? ("srvc"|"srpc"|"jrpc")  <attribs>? <ident> (':' <generic>)? '{' <methods> '}' ;
 types       : ((<meta>|<rpc>) ';')+ ;
 namespace   : "namespace" <scoped> '{' <types> '}' ;
 symbol      : <comments>? "symbol" '(' <ident> ')' ;

@@ -18,6 +18,7 @@ syntax = "proto3";
 option java_multiple_files = true;
 option java_package = "sawtooth.sdk.protobuf";
 option go_package = "client_batch_submit_pb2";
+package sawtooth.protos;
 
 import "batch.proto";
 

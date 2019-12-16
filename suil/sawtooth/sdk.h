@@ -105,6 +105,7 @@ namespace suil::sawtooth {
     };
 
     struct TransactionProcessor {
+        virtual void registerHandler(TransactionHandler::UPtr&& handler)
     };
 }
 #endif //SUIL_SDK_H
