@@ -75,7 +75,7 @@ add_library(suil SHARED
 
 target_link_libraries(suil ${SUIL_LIBRARIES}   mill_s snappy lua)
 
-if (SUIL_BUILDSAWTOOTH)
+if (SUIL_BUILD_SAWTOOTH)
     add_subdirectory(sawtooth)
 endif()
 
