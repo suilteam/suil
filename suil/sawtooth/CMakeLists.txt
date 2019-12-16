@@ -43,7 +43,7 @@ set(SAWTOOTH_SOURCES sdk.cpp)
 include_directories(PROTOBUF_INCLUDE_DIR)
 
 add_library(sawtooth SHARED ${SAWTOOTH_PROTO_SRCS} ${SAWTOOTH_SOURCES})
-target_link_libraries(sawtooth protobuf::libprotobuf)
+target_link_libraries(sawtooth protobuf)
 
 set(sawtooth_INSTALL_TARGETS sawtooth)
 
