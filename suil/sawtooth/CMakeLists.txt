@@ -50,7 +50,7 @@ include_directories(PROTOBUF_INCLUDE_DIR)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 add_library(sawtooth SHARED ${SAWTOOTH_PROTO_SRCS} ${SAWTOOTH_SOURCES})
-target_link_libraries(sawtooth protobuf suil)
+target_link_libraries(sawtooth protobuf::libprotobuf suil)
 
 set(sawtooth_INSTALL_TARGETS sawtooth)
 
