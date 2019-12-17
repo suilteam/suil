@@ -83,6 +83,18 @@ namespace suil {
         : Data((void *)nullptr, 0)
     {}
 
+    Data::Data(size_t size)
+        : Data()
+    {
+        if (size) {
+            m_data = (uint8_t *)calloc(1, size);
+            if (m_data != nullptr) {
+                m_size = static_cast<uint32_t>(size);
+                m_own = true;
+            }
+        }
+    }
+
     Data::Data(void *data, size_t size, bool own)
         : m_data((uint8_t*) data),
           m_size((uint32_t)(size)),

@@ -36,6 +36,7 @@ namespace suil::zmq {
 
         Message();
         Message(size_t size);
+        Message(const suil::Data& data);
         Message(void *data, size_t size, bool own = false);
 
         Message(Message&& other);
@@ -88,6 +89,8 @@ namespace suil::zmq {
 
         bool send(const Message& msg, int64_t to = -1);
 
+        bool monitor(const suil::String& endpoint, int events);
+
         inline bool send(const void* buf, size_t sz, int64_t to = -1) {
             Message msg(const_cast<void*>(buf), sz);
             return send(msg, to);
@@ -105,6 +108,14 @@ namespace suil::zmq {
             return send(data.data(), data.size(), to);
         }
 
+        inline void* raw() { return sock; }
+
+        bool bind(const suil::String& endoint);
+
+        bool connect(const suil::String& endpoint);
+
+        bool isConnected() const;
+
         void close();
 
         virtual ~Socket();
@@ -118,15 +129,13 @@ namespace suil::zmq {
     };
 
     struct Requestor: public Socket {
-        Requestor(Context& context);
+        Requestor(Context& context, int type = ZMQ_REQ);
 
         Requestor(Requestor&& other);
         Requestor&operator=(Requestor&& other);
 
         Requestor(const Requestor& other) = delete;
         Requestor&operator=(const Requestor& other) = delete;
-
-        bool connect(const char* endpoint);
     };
 
     struct Responder: public Socket {
@@ -137,8 +146,24 @@ namespace suil::zmq {
 
         Responder(const Responder& other) = delete;
         Responder&operator=(const Responder& other) = delete;
+    };
 
-        bool bind(const char* endoint);
+    struct Dealer: public Socket {
+        Dealer(Context& context);
+        Dealer(Dealer&& other);
+        Dealer&operator=(Dealer&& other);
+
+        Dealer(const Dealer& other) = delete;
+        Dealer&operator=(const Dealer& other) = delete;
+    };
+
+    struct Pair: public Socket {
+        Pair(Context& context);
+        Pair(Pair&& other);
+        Pair&operator=(Pair&& other);
+
+        Pair(const Pair& other) = delete;
+        Pair&operator=(const Pair& other) = delete;
     };
 }
 #endif //SUIL_ZMQ_H

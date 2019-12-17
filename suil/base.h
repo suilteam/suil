@@ -626,6 +626,8 @@ public:                                     \
 
         Data();
 
+        Data(size_t size);
+
         Data(void *data, size_t size, bool own = true);
 
         Data(const void *data, size_t size, bool own = true);
@@ -638,7 +640,7 @@ public:                                     \
 
         Data& operator=(Data&& d) noexcept;
 
-        inline Data peek() {
+        inline Data peek() const {
             Data d{Ego.m_data, Ego.m_size, false};
             return std::move(d);
         }

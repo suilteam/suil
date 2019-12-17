@@ -44,6 +44,9 @@ namespace suil::zmq {
         }
         initialized = true;
     }
+    Message::Message(const suil::Data &data)
+        : Message(const_cast<void*>(data.cdata()), data.size(), false)
+    {}
 
     Message::Message(void *data, size_t size, bool own)
     {
@@ -194,6 +197,13 @@ namespace suil::zmq {
         return true;
     }
 
+    bool Socket::monitor(const suil::String& endpoint, int events) {
+        if (!Ego.sock) {
+            throw Exception::create("Cannot monitor a null socket");
+        }
+        return zmq_socket_monitor(Ego.sock, endpoint.c_str(), events) == 0;
+    }
+
     void Socket::close() {
         if (sock) {
             zmq_close(sock);
@@ -206,8 +216,8 @@ namespace suil::zmq {
         Ego.close();
     }
 
-    Requestor::Requestor(Context& context)
-        : Socket(context, ZMQ_REQ)
+    Requestor::Requestor(Context& context, int type)
+        : Socket(context, type)
     {}
 
     Requestor::Requestor(Requestor&& other)
@@ -220,7 +230,13 @@ namespace suil::zmq {
         return Ego;
     }
 
-    bool Requestor::connect(const char* endpoint)
+    bool Socket::isConnected() const {
+        int _fd{-1};
+        size_t sz{sizeof(_fd)};
+        return (Ego.sock != nullptr) && (zmq_getsockopt(sock, ZMQ_FD, &_fd, &sz) == 0);
+    }
+
+    bool Socket::connect(const suil::String& endpoint)
     {
         if (Ego.sock == nullptr) {
             Ego.sock = zmq_socket(Ego.ctx, ZMQ_REQ);
@@ -229,7 +245,7 @@ namespace suil::zmq {
             }
         }
 
-        if (zmq_connect(Ego.sock, endpoint)) {
+        if (zmq_connect(Ego.sock, endpoint.c_str())) {
             ierror("failed to connect to zmq endpoint '%s': %s", endpoint, zmq_strerror(zmq_errno()));
             return false;
         }
@@ -251,7 +267,7 @@ namespace suil::zmq {
         return Ego;
     }
 
-    bool Responder::bind(const char* endpoint)
+    bool Socket::bind(const suil::String& endpoint)
     {
         if (Ego.sock == nullptr) {
             Ego.sock = zmq_socket(Ego.ctx, ZMQ_REP);
@@ -260,11 +276,37 @@ namespace suil::zmq {
             }
         }
 
-        if (zmq_bind(Ego.sock, endpoint)) {
+        if (zmq_bind(Ego.sock, endpoint.c_str())) {
             ierror("failed to bind to zmq endpoint '%s': %s", endpoint, zmq_strerror(zmq_errno()));
             return false;
         }
         idebug("Bound to zmq endpoint %s", endpoint);
         return resolveSocket();
+    }
+
+    Dealer::Dealer(Context& context)
+        : Socket(context, ZMQ_DEALER)
+    {}
+
+    Dealer::Dealer(Dealer&& other)
+        : Socket(std::move(other))
+    {}
+
+    Dealer& Dealer::operator=(Dealer&& other) {
+        Socket::operator=(std::move(other));
+        return Ego;
+    }
+
+    Pair::Pair(Context& context)
+        : Socket(context, ZMQ_PAIR)
+    {}
+
+    Pair::Pair(Pair&& other)
+        : Socket(std::move(other))
+    {}
+
+    Pair& Pair::operator=(Pair&& other) {
+        Socket::operator=(std::move(other));
+        return Ego;
     }
 }

@@ -410,6 +410,10 @@ namespace suil {
 
         const_iterator end() const { return const_iterator(Ego, m_len); }
 
+        inline operator std::string() const {
+            return std::string{c_str(), size()};
+        }
+
     private suil_ut:
         /**
          * serialization into a wire operator

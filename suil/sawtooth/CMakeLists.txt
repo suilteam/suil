@@ -40,7 +40,10 @@ protobuf_generate_cpp(SAWTOOTH_PROTO_SRCS SAWTOOTH_PROTO_HDRS ${SAWTOOTH_PROTOS}
 
 set(SAWTOOTH_SOURCES
     sdk.cpp
-    priv/stream.cpp)
+        src/dispatcher.cpp
+        src/gstate.cpp
+        src/tp.cpp
+        src/stream.cpp)
 
 include_directories(PROTOBUF_INCLUDE_DIR)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})

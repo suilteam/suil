@@ -6,8 +6,13 @@
 #define SUIL_SDK_H
 
 #include <suil/base.h>
+#include <suil/utils.h>
 
-namespace suil::sawtooth {
+namespace sawtooth::protos {
+    class TransactionHeader;
+};
+
+namespace suil::sawsdk {
 
     struct TransactionHeader {
         enum Field {
@@ -22,16 +27,27 @@ namespace suil::sawtooth {
             SignerPublicKey
         };
 
-        virtual int getCount(Field field) = 0;
-        virtual const suil::Data& getValue(Field field) = 0;
+        TransactionHeader(sawtooth::protos::TransactionHeader* proto);
+        TransactionHeader(TransactionHeader&& other) noexcept;
+        TransactionHeader& operator=(TransactionHeader&& other) noexcept ;
+
+        TransactionHeader(const TransactionHeader&) = delete;
+        TransactionHeader& operator=(const TransactionHeader&) = delete;
+
+        virtual int getCount(Field field);
+        virtual suil::Data getValue(Field field, int index = 0);
+
+        virtual ~TransactionHeader();
+
+    private:
+        sawtooth::protos::TransactionHeader* mHeader{nullptr};
     };
 
-    template <typename T>
     struct Transaction final {
-        Transaction(T&& header, suil::Data&& payload, suil::Data&& signature)
+        Transaction(TransactionHeader&& header, std::string* payload, std::string* signature)
             : mHeader(std::move(header)),
-              mPayload(std::move(payload)),
-              mSignature(std::move(signature))
+              mPayload(payload),
+              mSignature(signature)
         {}
 
         Transaction(Transaction&& other)
@@ -51,26 +67,36 @@ namespace suil::sawtooth {
         Transaction&operator=(const Transaction&) = delete;
 
         const TransactionHeader& header() const { return mHeader; }
-        const suil::Data& payload() const { return mPayload; }
-        const suil::Data& signature() const { return mSignature; }
+
+        suil::Data payload() const {
+            return suil::Data{mPayload->data(), mPayload->size(), false};
+        }
+
+        suil::Data signature() const {
+            return suil::Data{mSignature->data(), mSignature->size(), false};
+        }
 
     private:
         TransactionHeader mHeader;
-        suil::Data mPayload{};
-        suil::Data mSignature{};
+        std::unique_ptr<std::string> mPayload{};
+        std::unique_ptr<std::string> mSignature{};
     };
+
+    struct Stream;
 
     struct GlobalState {
         using KeyValue = std::tuple<suil::String, suil::Data>;
         sptr(GlobalState);
 
-        virtual const suil::Data& getState(const suil::String& address) const;
+        GlobalState(Stream& stream, const suil::String& contextId);
 
-        virtual Map<suil::Data> getState(const std::vector<suil::String>& addresses) const;
+        virtual const suil::Data getState(const suil::String& address) const;
+
+        virtual void getState(Map<suil::Data>& data, const std::vector<suil::String>& addresses) const;
 
         virtual void setState(const suil::String& address, const suil::Data& value) const;
 
-        virtual void setState(const KeyValue& data) const;
+        virtual void setState(const std::vector<KeyValue>& data) const;
 
         virtual void deleteState(const suil::String& address) const;
 
@@ -80,6 +106,10 @@ namespace suil::sawtooth {
                 const suil::String& eventType,
                 const std::vector<KeyValue>& values,
                 const suil::Data& data);
+
+    private:
+        Stream& mStream;
+        suil::String mContextId{};
     };
 
     struct Transactor {
@@ -98,14 +128,41 @@ namespace suil::sawtooth {
     };
 
     struct TransactionHandler {
-        virtual suil::String getFamilyName() const = 0;
-        virtual std::vector<suil::String> getVersions() const = 0;
-        virtual std::vector<suil::String> getNamespaces() const = 0;
-        virtual Transactor::Ptr getTransactor(Transaction&& txn, GlobalState::UPtr&& state) = 0;
+        sptr(TransactionHandler);
+        virtual suil::String getFamilyName() const;
+        virtual std::vector<suil::String> getVersions() const;
+        virtual std::vector<suil::String> getNamespaces() const;
+        virtual Transactor::Ptr getTransactor(Transaction&& txn, GlobalState::UPtr&& state);
     };
 
+    struct TpContext;
     struct TransactionProcessor {
-        virtual void registerHandler(TransactionHandler::UPtr&& handler)
+        sptr(TransactionProcessor);
+
+        TransactionProcessor(suil::String&& connString);
+
+        TransactionProcessor(TransactionProcessor&&) = delete;
+        TransactionProcessor(const TransactionProcessor&) = delete;
+        TransactionProcessor&operator=(TransactionProcessor&&) = delete;
+        TransactionProcessor&operator=(const TransactionProcessor&) = delete;
+
+        virtual void registerHandler(TransactionHandler::UPtr&& handler);
+        virtual void run();
+
+    private:
+        TpContext* mContext{nullptr};
     };
+
+    suil::Data fromStdString(const std::string& str);
+
+    template <typename T>
+    void setValue(T& to, void(T::*func)(const char*, size_t), const suil::Data& data) {
+        (to.*func)(reinterpret_cast<const char *>(data.cdata()), data.size());
+    }
+
+    template <typename T>
+    void setValue(T& to, void(T::*func)(const char*, size_t), const suil::String& data) {
+        (to.*func)(data.c_str(), data.size());
+    }
 }
 #endif //SUIL_SDK_H

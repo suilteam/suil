@@ -9,14 +9,14 @@ namespace suil::sawsdk {
         : mCorrelationId(std::move(id))
     {}
 
-    OnAirMessage::OnAirMessage(OnAirMessage&& other)
+    OnAirMessage::OnAirMessage(OnAirMessage&& other) noexcept
         : mCorrelationId(std::move(other.mCorrelationId)),
-            mSync(std::move(other.mSync)),
-            mMessage(std::move(other.mMessage)),
-            mWaiting(other.mWaiting)
+          mSync(std::move(other.mSync)),
+          mMessage(std::move(other.mMessage)),
+          mWaiting(other.mWaiting)
     {}
 
-    OnAirMessage& OnAirMessage::operator=(OnAirMessage&& other) {
+    OnAirMessage& OnAirMessage::operator=(OnAirMessage&& other) noexcept {
         mCorrelationId = std::move(other.mCorrelationId);
         mSync = std::move(other.mSync);
         mMessage = std::move(other.mMessage);
@@ -60,5 +60,36 @@ namespace suil::sawsdk {
             // notify waiter
             mSync << true;
         }
+    }
+
+    Stream::Stream(suil::zmq::Context &ctx, suil::Map<OnAirMessage::Ptr> &msgs)
+        : mContext{ctx},
+          mOnAirMsgs{msgs},
+          mSocket{mContext}
+    {}
+
+    void Stream::send(Message::Type type, const suil::Data &data, const suil::String &correlationId)
+    {
+        if (!Ego.mSocket.isConnected()) {
+            if (!Ego.mSocket.connect("inproc://send_queue")) {
+                throw Exception::create("Failed to connect to send queue: ", zmq_strerror(zmq_errno()));
+            }
+        }
+
+        ::sawtooth::protos::Message msg;
+        msg.set_message_type(type);
+        msg.set_correlation_id(correlationId.data(), correlationId.size());
+        msg.set_content(data.cdata(), data.size());
+        suil::Data out{msg.ByteSizeLong()};
+
+        zmq::Message zmsg(out);
+
+        Ego.mSocket.send(zmsg);
+    }
+
+    suil::String Stream::getCorrelationId() {
+        OBuffer ob;
+        ob << (++Ego.mCorrelationCounter);
+        return String{ob};
     }
 }
