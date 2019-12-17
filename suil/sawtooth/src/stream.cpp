@@ -5,6 +5,9 @@
 #include "stream.h"
 
 namespace suil::sawsdk {
+
+    uint32_t Stream::mCorrelationCounter{0};
+
     OnAirMessage::OnAirMessage(const suil::String id)
         : mCorrelationId(std::move(id))
     {}
@@ -63,10 +66,21 @@ namespace suil::sawsdk {
     }
 
     Stream::Stream(suil::zmq::Context &ctx, suil::Map<OnAirMessage::Ptr> &msgs)
-        : mContext{ctx},
-          mOnAirMsgs{msgs},
-          mSocket{mContext}
+        : mOnAirMsgs{msgs},
+          mSocket{ctx}
     {}
+
+    Stream::Stream(Stream&& other) noexcept
+        : mOnAirMsgs(other.mOnAirMsgs),
+          mSocket(std::move(other.mSocket))
+    {}
+
+    Stream& Stream::operator=(suil::sawsdk::Stream &&other) noexcept
+    {
+        Ego.mOnAirMsgs = other.mOnAirMsgs;
+        Ego.mSocket = std::move(other.mSocket);
+        return Ego;
+    }
 
     void Stream::send(Message::Type type, const suil::Data &data, const suil::String &correlationId)
     {

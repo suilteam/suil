@@ -354,6 +354,11 @@ namespace suil {
 
             static Object decode(const char *str, size_t &sz);
 
+            static Object decode(const suil::Data& data) {
+                size_t sz{data.size()};
+                return Object::decode(reinterpret_cast<const char *>(data.cdata()), sz);
+            }
+
             static Object fromLuaString(const String& script);
 
             static Object fromLuaFile(const String& file);

@@ -640,6 +640,16 @@ namespace suil {
             return utils::sha256((const uint8_t *) data.data(), data.size(), b64);
         }
 
+        String SHA512(const uint8_t *data, size_t len, bool b64 = false);
+
+        static inline String SHA512(const String &data, bool b64 = false) {
+            return utils::SHA512((const uint8_t *) data.data(), data.size(), b64);
+        }
+
+        static inline String SHA512(const OBuffer &data, bool b64 = false) {
+            return utils::SHA512((const uint8_t *) data.data(), data.size(), b64);
+        }
+
         String AES_Encrypt(String &key, const uint8_t *buf, size_t size, bool b64 = true);
 
         template<typename __C, typename __Opts>

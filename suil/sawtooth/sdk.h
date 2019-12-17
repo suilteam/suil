@@ -13,7 +13,9 @@ namespace sawtooth::protos {
 };
 
 namespace suil::sawsdk {
-
+    struct Errors final {
+        static constexpr int InvalidTransaction = 0xFF00;
+    };
     struct TransactionHeader {
         enum Field {
             BatcherPublicKey = 1,
@@ -82,61 +84,68 @@ namespace suil::sawsdk {
         std::unique_ptr<std::string> mSignature{};
     };
 
-    struct Stream;
+    struct GlobalStateContext;
 
     struct GlobalState {
         using KeyValue = std::tuple<suil::String, suil::Data>;
         sptr(GlobalState);
 
-        GlobalState(Stream& stream, const suil::String& contextId);
+        GlobalState(GlobalState&& other);
+        GlobalState&operator=(GlobalState&& other);
 
-        virtual const suil::Data getState(const suil::String& address) const;
+        GlobalState(const GlobalState&) = delete;
+        GlobalState&operator=(const GlobalState&) = delete;
 
-        virtual void getState(Map<suil::Data>& data, const std::vector<suil::String>& addresses) const;
+        const suil::Data getState(const suil::String& address);
 
-        virtual void setState(const suil::String& address, const suil::Data& value) const;
+        void getState(Map<suil::Data>& data, const std::vector<suil::String>& addresses);
 
-        virtual void setState(const std::vector<KeyValue>& data) const;
+        void setState(const suil::String& address, const suil::Data& value);
 
-        virtual void deleteState(const suil::String& address) const;
+        void setState(const std::vector<KeyValue>& data);
 
-        virtual void deleteState(const std::vector<suil::String>& addresses) const;
+        void deleteState(const suil::String& address);
 
-        virtual void addEvent(
+        void deleteState(const std::vector<suil::String>& addresses);
+
+        void addEvent(
                 const suil::String& eventType,
                 const std::vector<KeyValue>& values,
                 const suil::Data& data);
 
+        ~GlobalState();
+
     private:
-        Stream& mStream;
-        suil::String mContextId{};
+        friend struct TpContext;
+        GlobalState(GlobalStateContext* ctx);
+        GlobalStateContext *mContext{nullptr};
     };
 
     struct Transactor {
         sptr(Transactor);
 
-        Transactor(Transaction&& txn, GlobalState::UPtr&& state)
-            : mTransaction(std::move(txn)),
+        Transactor(Transaction&& txn, GlobalState&& state)
+            : mTxn(std::move(txn)),
               mState(std::move(state))
         {}
 
         virtual void apply() = 0;
 
-    private:
-        Transaction mTransaction;
-        GlobalState::UPtr mState;
+    protected:
+        Transaction mTxn;
+        GlobalState mState;
     };
 
     struct TransactionHandler {
         sptr(TransactionHandler);
-        virtual suil::String getFamilyName() const;
-        virtual std::vector<suil::String> getVersions() const;
-        virtual std::vector<suil::String> getNamespaces() const;
-        virtual Transactor::Ptr getTransactor(Transaction&& txn, GlobalState::UPtr&& state);
+        virtual suil::String getFamilyName() const = 0;
+        virtual std::vector<suil::String> getVersions() const = 0;
+        virtual std::vector<suil::String> getNamespaces() const = 0;
+        virtual Transactor::Ptr getTransactor(Transaction&& txn, GlobalState&& state) = 0;
     };
 
     struct TpContext;
-    struct TransactionProcessor {
+    struct TransactionProcessor final {
         sptr(TransactionProcessor);
 
         TransactionProcessor(suil::String&& connString);
@@ -149,11 +158,15 @@ namespace suil::sawsdk {
         virtual void registerHandler(TransactionHandler::UPtr&& handler);
         virtual void run();
 
+        ~TransactionProcessor();
+
     private:
         TpContext* mContext{nullptr};
     };
 
-    suil::Data fromStdString(const std::string& str);
+    inline suil::Data fromStdString(const std::string& str) {
+        return suil::Data{str.data(), str.size(), false};
+    }
 
     template <typename T>
     void setValue(T& to, void(T::*func)(const char*, size_t), const suil::Data& data) {

@@ -10,6 +10,7 @@ namespace suil::sawsdk {
 
     const suil::String Dispatcher::DISPATCH_THREAD_ENDPOINT{"inproc://dispatch_thread"};
     const suil::String Dispatcher::SERVER_MONITOR_ENDPOINT{"inproc://server_monitor"};
+    const suil::String Dispatcher::EXIT_MESSAGE{"Exit"};
 
     Dispatcher::Dispatcher(zmq::Context& ctx)
         : mContext{ctx},

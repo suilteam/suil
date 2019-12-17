@@ -43,13 +43,14 @@ set(SAWTOOTH_SOURCES
         src/dispatcher.cpp
         src/gstate.cpp
         src/tp.cpp
+        src/transaction.cpp
         src/stream.cpp)
 
 include_directories(PROTOBUF_INCLUDE_DIR)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 add_library(sawtooth SHARED ${SAWTOOTH_PROTO_SRCS} ${SAWTOOTH_SOURCES})
-target_link_libraries(sawtooth protobuf)
+target_link_libraries(sawtooth protobuf suil)
 
 set(sawtooth_INSTALL_TARGETS sawtooth)
 

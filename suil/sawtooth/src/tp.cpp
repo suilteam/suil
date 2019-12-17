@@ -2,8 +2,8 @@
 // Created by dc on 2019-12-16.
 //
 
+#include "gstate.h"
 #include "processor.pb.h"
-#include "transaction.pb.h"
 
 #include "tp.h"
 
@@ -23,7 +23,7 @@ namespace suil::sawsdk {
     TpContext::TpContext(suil::String &&connString)
         : mConnString(connString.dup()),
           mDispatcher{mContext},
-          mRespStream{mContext, mDispatcher.mOnAirMessages}
+          mRespStream{mDispatcher.createStream()}
     {}
 
     void TpContext::registerHandler(sawsdk::TransactionHandler::UPtr &&handler)
@@ -81,10 +81,111 @@ namespace suil::sawsdk {
             req.ParseFromArray(msg.cdata(), static_cast<int>(msg.size()));
             sp::TransactionHeader* txnHeader{req.release_header()};
             suil::String fn{txnHeader->family_name()};
-            Transaction txn(TransactionHeader{txnHeader}, req.release_payload(), req.release_signature());
-        }
-        catch (suil::Exception& ex) {
 
+            auto it = Ego.mHandlers.find(fn);
+            if (it != Ego.mHandlers.end()) {
+                try {
+                    Transaction txn(TransactionHeader{txnHeader}, req.release_payload(), req.release_signature());
+                    GlobalState gs(new GlobalStateContext(mDispatcher.createStream(), String{req.context_id()}.dup()));
+                    auto applicator = it->second->getTransactor(std::move(txn), std::move(gs));
+                    try {
+                        applicator->apply();
+                    }
+                    catch (...) {
+                        auto ex = Exception::fromCurrent();
+                        ierror("Transaction apply error: %s", ex.what());
+                        if (ex.Code == Errors::InvalidTransaction) {
+                            resp.set_status(sp::TpProcessResponse::INVALID_TRANSACTION);
+                        } else {
+                            resp.set_status(sp::TpProcessResponse::INTERNAL_ERROR);
+                        }
+                    }
+                }
+                catch (...) {
+                    auto ex = Exception::fromCurrent();
+                    ierror("Transaction apply error: %s", ex.what());
+                    resp.set_status(sp::TpProcessResponse::INTERNAL_ERROR);
+                }
+            }
+            else {
+                resp.set_status(sp::TpProcessResponse::INVALID_TRANSACTION);
+            }
+        }
+        catch (...) {
+            auto ex = Exception::fromCurrent();
+            ierror("Transaction process error: %s", ex.what());
+            resp.set_status(sp::TpProcessResponse::INTERNAL_ERROR);
+        }
+
+        Ego.mRespStream.sendMessage(sp::Message::TP_PROCESS_RESPONSE, resp);
+    }
+
+    void TpContext::run() {
+        try {
+            zmq::Dealer dealer(Ego.mContext);
+            dealer.connect("inproc://request_queue");
+            Ego.mDispatcher.connect(Ego.mConnString);
+
+            bool isServerConnected{false};
+            Ego.mRunning = true;
+            while (Ego.mRunning) {
+                auto msg = dealer.receive();
+                sp::Message validatorMsg;
+                validatorMsg.ParseFromArray(msg.data(), static_cast<int>(msg.size()));
+
+                switch (validatorMsg.message_type()) {
+                    case sp::Message::TP_PROCESS_REQUEST: {
+                        Ego.handleRequest(msg, String{validatorMsg.correlation_id()});
+                        break;
+                    }
+
+                    case Dispatcher::SERVER_CONNECT_EVENT: {
+                        if (!isServerConnected) {
+                            idebug("Server connected");
+                            Ego.registerAll();
+                        }
+                        isServerConnected = true;
+                        break;
+                    }
+
+                    case Dispatcher::SERVER_DISCONNECT_EVENT: {
+                        idebug("Server disconnected");
+                        isServerConnected = false;
+                        break;
+                    }
+                    default: {
+                        idebug("Unknown message in transaction processor");
+                        break;
+                    }
+                }
+            }
+        }
+        catch (...) {
+            auto ex = Exception::fromCurrent();
+            ierror("Unexpected error while running TP: %s", ex.what());
+        }
+
+        idebug("TP done, unregistering");
+        Ego.unRegisterAll();
+        Ego.mDispatcher.close();
+    }
+
+    TransactionProcessor::TransactionProcessor(suil::String &&connString)
+        : mContext(new TpContext(std::move(connString)))
+    {}
+
+    void TransactionProcessor::registerHandler(TransactionHandler::UPtr &&handler) {
+        mContext->registerHandler(std::move(handler));
+    }
+
+    void TransactionProcessor::run() {
+        mContext->run();
+    }
+
+    TransactionProcessor::~TransactionProcessor() {
+        if (mContext != nullptr) {
+            delete  mContext;
+            mContext = nullptr;
         }
     }
 

@@ -36,6 +36,7 @@ namespace suil::sawsdk {
         Dispatcher mDispatcher;
         Stream mRespStream;
         suil::Map<TransactionHandler::UPtr> mHandlers;
+        bool mRunning{false};
     };
 }
 #endif //SUIL_TP_H

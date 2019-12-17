@@ -45,7 +45,7 @@ namespace suil::zmq {
         initialized = true;
     }
     Message::Message(const suil::Data &data)
-        : Message(const_cast<void*>(data.cdata()), data.size(), false)
+        : Message(const_cast<void*>(static_cast<const void*>(data.cdata())), data.size(), false)
     {}
 
     Message::Message(void *data, size_t size, bool own)

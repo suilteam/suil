@@ -1,8 +1,8 @@
 
 #include "../sdk.h"
-#include "stream.h"
+#include "gstate.h"
 #include "state_context.pb.h"
-#include "events.pb.h"
+
 
 namespace sp {
     using sawtooth::protos::Message;
@@ -22,12 +22,24 @@ namespace sp {
 
 namespace suil::sawsdk {
 
-    GlobalState::GlobalState(Stream &stream, const suil::String &contextId)
-        : mStream{stream},
-          mContextId{contextId}
+    GlobalStateContext::GlobalStateContext(Stream &&stream, const suil::String &contextId)
+        : mStream{std::move(stream)},
+          mContextId{contextId.dup()}
     {}
 
-    const suil::Data GlobalState::getState(const suil::String &address) const
+    GlobalStateContext::GlobalStateContext(GlobalStateContext &&other)
+        :  mStream(std::move(other.mStream)),
+           mContextId(std::move(other.mContextId))
+    {}
+
+    GlobalStateContext& GlobalStateContext::operator=(GlobalStateContext &&other)
+    {
+        Ego.mStream = std::move(other.mStream);
+        Ego.mContextId = std::move(other.mContextId);
+        return Ego;
+    }
+
+    suil::Data GlobalStateContext::getState(const suil::String &address)
     {
         std::vector<suil::String> addresses = {address.peek()};
         suil::Map<suil::Data> out{};
@@ -39,7 +51,7 @@ namespace suil::sawsdk {
 
     }
 
-    void GlobalState::getState(Map<suil::Data>& data, const std::vector<suil::String> &addresses) const
+    void GlobalStateContext::getState(Map<suil::Data>& data, const std::vector<suil::String> &addresses)
     {
         data.clear();
 
@@ -64,13 +76,13 @@ namespace suil::sawsdk {
         }
     }
 
-    void GlobalState::setState(const suil::String &address, const suil::Data &value) const
+    void GlobalStateContext::setState(const suil::String &address, const suil::Data &value)
     {
         std::vector<GlobalState::KeyValue> data = {{address.peek(), value.peek()}};
         Ego.setState(data);
     }
 
-    void GlobalState::setState(const std::vector<GlobalState::KeyValue> &data) const
+    void GlobalStateContext::setState(const std::vector<GlobalState::KeyValue> &data)
     {
         sp::TpStateSetRequest req;
         sp::TpStateSetResponse resp;
@@ -89,13 +101,13 @@ namespace suil::sawsdk {
         }
     }
 
-    void GlobalState::deleteState(const suil::String &address) const
+    void GlobalStateContext::deleteState(const suil::String &address)
     {
         std::vector<suil::String> addresses{address.peek()};
         Ego.deleteState(addresses);
     }
 
-    void GlobalState::deleteState(const std::vector<suil::String> &addresses) const
+    void GlobalStateContext::deleteState(const std::vector<suil::String> &addresses)
     {
         sp::TpStateDeleteRequest req;
         sp::TpStateDeleteResponse resp;
@@ -113,9 +125,9 @@ namespace suil::sawsdk {
         }
     }
 
-    void GlobalState::addEvent(
+    void GlobalStateContext::addEvent(
             const suil::String &eventType,
-            const std::vector<KeyValue> &values,
+            const std::vector<GlobalState::KeyValue> &values,
             const suil::Data &data)
     {
         sp::Event *event{new sp::Event};
@@ -138,5 +150,61 @@ namespace suil::sawsdk {
         if (resp.status() == sp::TpEventAddResponse::ERROR) {
             throw Exception::create("failed to add event {type: ", eventType, "}");
         }
+    }
+
+    GlobalState::GlobalState(GlobalStateContext *ctx)
+        : mContext(ctx)
+    {}
+
+    GlobalState& GlobalState::operator=(suil::sawsdk::GlobalState &&other)
+    {
+        Ego.mContext = other.mContext;
+        other.mContext = nullptr;
+        return Ego;
+    }
+
+    GlobalState::GlobalState(GlobalState &&other)
+        : mContext{other.mContext}
+    {
+        other.mContext = nullptr;
+    }
+
+    GlobalState::~GlobalState() {
+        if (mContext) {
+            delete mContext;
+            mContext = nullptr;
+        }
+    }
+
+    const suil::Data GlobalState::getState(const suil::String &address) {
+        return mContext->getState(address);
+    }
+
+    void GlobalState::getState(suil::Map<suil::Data> &data, const std::vector<suil::String> &addresses) {
+        return mContext->getState(data, addresses);
+    }
+
+    void GlobalState::setState(const suil::String &address, const suil::Data &value) {
+        mContext->setState(address, value);
+    }
+
+    void GlobalState::setState(const std::vector<KeyValue> &data) {
+        mContext->setState(data);
+    }
+
+    void GlobalState::deleteState(const suil::String &address) {
+        mContext->deleteState(address);
+    }
+
+    void GlobalState::deleteState(const std::vector<suil::String> &addresses) {
+        mContext->deleteState(addresses);
+    }
+
+    void GlobalState::addEvent(
+            const suil::String &eventType,
+            const std::vector<KeyValue> &values,
+            const suil::Data &data)
+    {
+        mContext->addEvent(eventType, values, data);
     }
 }

@@ -62,6 +62,12 @@ namespace suil::sawsdk {
     struct Stream {
         sptr(Stream);
 
+        Stream(Stream&& other) noexcept;
+        Stream&operator=(Stream&& other) noexcept;
+
+        Stream(const Stream&) = delete;
+        Stream&operator=(const Stream&) = delete;
+
         template <typename T>
         OnAirMessage::Ptr sendMessage(Message::Type type, const T& msg) {
             suil::Data data{msg.ByteSizeLong()};
@@ -91,9 +97,8 @@ namespace suil::sawsdk {
                 const suil::Data& data,
                 const suil::String& correlationId);
 
-        zmq::Context& mContext;
         zmq::Dealer mSocket;
-        uint32_t mCorrelationCounter;
+        static uint32_t mCorrelationCounter;
         suil::Map<OnAirMessage::Ptr>& mOnAirMsgs;
     };
 }
