@@ -10,6 +10,7 @@ set(LIB_SUIL_BASE_SOURCES
         compress.cpp
         config.cpp
         console.cpp
+        crypto.cpp
         email.cpp
         file.cpp
         init.cpp

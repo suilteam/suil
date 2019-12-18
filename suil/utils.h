@@ -606,6 +606,8 @@ namespace suil {
 
         void   bytes(const String &str, uint8_t *out, size_t olen);
 
+        void reverse(void *data, size_t len);
+
         String SHA_HMAC256(String &, const uint8_t *, size_t, bool b64 = false);
 
         static inline String SHA_HMAC256(String &secret, String &msg, bool b64 = false) {

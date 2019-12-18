@@ -12,175 +12,101 @@
 #include <suil/utils.h>
 #include <suil/blob.h>
 
-#define BASE58_ADDR_MAX_LEN     36
-#define BASE58_KEY_MAX_LEN      53
-#define SUIL_PUBKEY_LEN         33
-#define SUIL_CHECKSUM_LEN       4
-#define SUIL_VERSION_LEN        1
-#define SUIL_BINARY_KEYLEN      (SUIL_PUBKEY_LEN+SUIL_CHECKSUM_LEN+SUIL_VERSION_LEN)
+namespace suil::crypto {
 
-namespace suil {
+    struct SHA256Digest final : Blob<SHA256_DIGEST_LENGTH> {
+        using Blob<SHA256_DIGEST_LENGTH>::Blob;
 
-    typedef suil::Blob<SUIL_PUBKEY_LEN>         PubkeyBlob;
-    typedef suil::Blob<32>                      PrivkeyBlob;
-    typedef suil::Blob<SHA256_DIGEST_LENGTH>    SHA256Blob;
-    typedef suil::Blob<BASE58_ADDR_MAX_LEN>     Base58Blob;
-    typedef suil::Blob<64>                      ECDSASigBlob;
-    typedef suil::Blob<RIPEMD160_DIGEST_LENGTH> RIPEMD160Blob;
-    typedef SHA256Blob Hash;
+        suil::String toString() const;
+        static bool fromString(SHA256Digest& digest, const suil::String& data);
+    };
 
-    namespace crypto {
-        typedef suil::Blob<1 + RIPEMD160_DIGEST_LENGTH + SUIL_CHECKSUM_LEN> AddressBLOB;
-        typedef suil::Blob<SUIL_BINARY_KEYLEN>   NetAddrBlob;
-        typedef suil::Blob<SHA_DIGEST_LENGTH>    Address;
+    struct SHA512Digest final : Blob<SHA512_DIGEST_LENGTH> {
+        using Blob<SHA512_DIGEST_LENGTH>::Blob;
 
-        typedef decltype(iod::D(
-                prop(pubkey,         PubkeyBlob),
-                prop(privkey,        PrivkeyBlob)
-        )) KeyPair;
+        suil::String toString() const;
+        static bool fromString(SHA512Digest& digest, const suil::String& data);
+    };
 
-        struct address_bin;
-        struct netaddr_bin;
+    struct RIPEMD160Digest final : Blob<RIPEMD160_DIGEST_LENGTH> {
+        using Blob<RIPEMD160_DIGEST_LENGTH>::Blob;
 
-        struct pubkey_bin : PubkeyBlob {
-            inline uint8_t *key() { return &Ego.bin(); }
-            inline uint8_t &compressed() { return Ego.bin<SUIL_PUBKEY_LEN-1>(); }
-            inline const uint8_t *ckey() const { return &Ego.cbin(); }
-            inline const uint8_t &ccompressed() const { return Ego.cbin<SUIL_PUBKEY_LEN-1>(); }
-            bool address(address_bin &) const;
-            bool address(Address&) const;
-        } __attribute__((aligned(1)));
+        suil::String toString() const;
+        static bool fromString(RIPEMD160Digest& digest, const suil::String& data);
+    };
 
-        struct privkey_bin : PrivkeyBlob {
-            inline uint8_t *key()              { return Ego.begin(); }
-            inline const uint8_t *ckey() const { return Ego.cbegin(); }
-            bool  pub(pubkey_bin&) const;
-            bool  pub(Address&) const;
-        } __attribute__((aligned(1)));
+    using Hash = SHA256Digest;
+    using HASH160Digest = RIPEMD160Digest;
 
-        struct sha256_bin : SHA256Blob {
-            inline uint8_t *sha()              { return Ego.begin(); };
-            inline const uint8_t *csha() const { return Ego.cbegin(); };
-        } __attribute__((aligned(1)));
+    void SHA256(SHA256Digest& digest, const void* data, size_t len);
 
-        struct address_bin : AddressBLOB {
-            inline uint8_t &ver()  { return Ego.bin(); }
-            inline Address &addr() { return (Address &)Ego.bin<1>(); }
-            inline uint8_t *csum() { return &Ego.bin<1 + RIPEMD160_DIGEST_LENGTH>(); }
-            inline const uint8_t &cver()  const { return Ego.cbin(); }
-            inline const Address &caddr() const { return (Address &) Ego.cbin<1>(); }
-            inline const uint8_t *ccsum() const { return &Ego.cbin<1 + RIPEMD160_DIGEST_LENGTH>(); }
-        } __attribute__((aligned(1)));
-
-        struct netaddr_bin: NetAddrBlob{
-            inline uint8_t&     ver()  { return Ego.bin(); }
-            inline pubkey_bin&  pub()  { return (pubkey_bin &) Ego.bin<1>(); }
-            inline uint8_t*     csum() { return &Ego.bin<1+sizeof(pubkey_bin)>(); }
-            inline const uint8_t&     cver()  const { return Ego.cbin(); }
-            inline const pubkey_bin&  cpub()  const { return (pubkey_bin &) Ego.cbin<1>(); }
-            inline const uint8_t*     ccsum() const { return &Ego.cbin<1+sizeof(pubkey_bin)>(); }
-        } __attribute__((aligned(1)));
-
-        struct base58_bin : Base58Blob {
-            inline uint8_t *b58() { return Ego.begin(); }
-            inline const uint8_t *cb58() const { return Ego.cbegin(); }
-        };
-
-        void doubleSHA256(sha256_bin &sha, const void *p, size_t len);
-        void ripemd160(RIPEMD160Blob &ripemd, const void *p, size_t len);
-        inline suil::String doubleSHA256(const void *p, size_t len) {
-            sha256_bin sha;
-            doubleSHA256(sha, p, len);
-            return suil::utils::hexstr(sha.data(), sha.size());
-        }
-
-        bool gen_PrivKey(privkey_bin& priv);
-
-        bool gen_KeyPair(KeyPair& kp);
-
-        namespace base58 {
-            bool decode(const uint8_t in[], size_t sin, uint8_t out[], size_t& sout);
-
-            inline bool decode(const suil::String& b58, uint8_t out[], size_t& sout) {
-                return decode((uint8_t *)b58.data(), b58.size(), out, sout);
-            }
-            char* encode(const uint8_t in[], size_t sin, uint8_t out[], size_t& nout);
-
-            bool decode(const suil::String &b58, privkey_bin& priv, pubkey_bin &pub);
-            bool decode(const suil::String &b58, pubkey_bin &pub);
-            bool decode(const suil::String &b58, privkey_bin &priv);
-            bool decode(const suil::String &b58, Address& addr);
-            bool decode(const suil::String& b58, address_bin& addr, bool vcs = false);
-            suil::String encode(const address_bin& addr);
-            suil::String encode(const netaddr_bin& addr);
-            suil::String encode(const privkey_bin& key);
-            suil::String encode(const pubkey_bin& key);
-        }
-
-        namespace ecdsa {
-
-            struct signature_bin : ECDSASigBlob {
-                inline uint8_t *r()   { return &Ego.bin<0>();  }
-                inline uint8_t *s()   { return &Ego.bin<32>(); }
-                inline const uint8_t *cr()   const { return &Ego.cbin<0>();  }
-                inline const uint8_t *cs()   const { return &Ego.cbin<32>(); }
-            };
-
-            bool sign(const uint8_t msg[], size_t len, const privkey_bin &key, signature_bin &sig);
-
-            inline bool sign(const suil::String &msg, const privkey_bin &key, signature_bin &sig) {
-                    return sign((uint8_t *) msg.data(), msg.size(), key, sig);
-            }
-
-            inline bool sign(const suil::OBuffer &msg, const privkey_bin &key, signature_bin &sig) {
-                    return sign((uint8_t *) msg.data(), msg.size(), key, sig);
-            }
-
-            template<size_t N>
-            inline bool sign(const suil::Blob<N> &msg, const privkey_bin &key, signature_bin &sig) {
-                    return sign(msg.begin(), msg.size(), key, sig);
-            }
-
-            bool check(const uint8_t msg[], size_t len, const pubkey_bin& key, signature_bin &sig);
-
-            inline bool check(const suil::String &msg, const pubkey_bin &key, signature_bin &sig) {
-                    return check((uint8_t *) msg.data(), msg.size(), key, sig);
-            }
-
-            inline bool check(const suil::OBuffer &msg, const pubkey_bin &key, signature_bin &sig) {
-                    return check((uint8_t *) msg.data(), msg.size(), key, sig);
-            }
-
-            template<size_t N>
-            inline bool check(const suil::Blob<N> &msg, const pubkey_bin &key, signature_bin &sig) {
-                    return check(msg.begin(), msg.size(), key, sig);
-            }
-        }
+    template <typename T>
+    void SHA256(SHA256Digest& digest, const T& data) {
+        crypto::SHA256(digest, data.data(), data.size());
     }
 
-    namespace utils {
-        template <typename V>
-        void hash(Breadboard& bb, const V& v, Hash& out) {
-            crypto::sha256_bin& sha = (crypto::sha256_bin &) out;
-            bb << v;
-            auto d = bb.raw();
-            crypto::doubleSHA256(sha, d.data(), d.size());
-        }
+    void SHA512(SHA512Digest& digest, const void* data, size_t len);
 
-        template <typename V>
-        void hash(const V& v, Hash& out) {
-            Stackboard<1024> sb;
-            utils::hash(sb, v, out);
-        }
-
-        void hashpair(Hash& out, const Hash& h1, const Hash& h2) {
-            Blob<(SHA256_DIGEST_LENGTH<<1)> tmp(false);
-            tmp.copy<0>(h1);
-            tmp.copy<SHA256_DIGEST_LENGTH>(h2);
-            crypto::sha256_bin& sha = (crypto::sha256_bin &) out;
-            crypto::doubleSHA256(sha, &tmp.cbin(), tmp.size());
-        }
+    template <typename T>
+    void SHA512(SHA512Digest& digest, const T& data) {
+        crypto::SHA512(digest, data.data(), data.size());
     }
+
+    void RIPEMD160(RIPEMD160Digest& digest, const void* data, size_t len);
+
+    template <typename T>
+    void RIPEMD160(RIPEMD160Digest& digest, const T& data) {
+        crypto::RIPEMD160(digest, data.data(), data.size());
+    }
+
+    void Hash256(Hash& hash, const void* data, size_t len);
+
+    template <typename T>
+    void Hash256(Hash& hash, const T& data) {
+        crypto::Hash256(hash, data.data(), data.size());
+    }
+
+    void Hash160(HASH160Digest& hash, const void* data, size_t len);
+
+    template <typename T>
+    void Hash160(HASH160Digest& hash, const T& data) {
+        crypto::Hash160(hash, data.data(), data.size());
+    }
+
+    suil::String toBase58(const void* data, size_t len, bool csum = false);
+
+    template <typename T>
+    suil::String toBase58(const T& data, bool csum = false) {
+        return crypto::toBase58(data.data(), data.size());
+    }
+
+    struct PublicKey final : Blob<32> {
+        using Blob<32>::Blob;
+    };
+    struct PrivateKey final: Blob<32> {
+        using Blob<32>::Blob;
+    };
+
+    struct ECKey {
+        static ECKey generate();
+        static ECKey fromKey(const PrivateKey& key);
+
+        const PrivateKey& getPrivateKey() const;
+        const PublicKey& getPublicKey();
+
+        bool isValid() const;
+
+        operator bool() const {return isValid(); }
+
+        void readPrivateKey(PrivateKey& dst);
+        void readPublicKey(PublicKey& dst);
+
+    private:
+        void generatePublicKey();
+        EC_KEY     *ecKey{nullptr};
+        PrivateKey  privKey;
+        PublicKey   pubKey;
+    };
 }
 
 #endif //SUIL_ALGS_HPP

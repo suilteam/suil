@@ -80,6 +80,19 @@ namespace suil {
         }
     }
 
+    void utils::reverse(void *data, size_t len) {
+        auto bytes = static_cast<uint8_t *>(data);
+        size_t i;
+        const size_t stop = len >> 1;
+        for (i = 0; i < stop; ++i) {
+            uint8_t *left = bytes + i;
+            uint8_t *right = bytes + len - i - 1;
+            const uint8_t tmp = *left;
+            *left = *right;
+            *right = tmp;
+        }
+    }
+
     String utils::urlencode(const String &str) {
         auto *buf((uint8_t *) malloc(str.size()*3));
         const char *src = str.data(), *end = src + str.size();
