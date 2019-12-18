@@ -17,22 +17,46 @@ namespace suil::sawsdk {
           mServerSock{mContext},
           mMsgSock{mContext},
           mRequestSock{mContext},
-          mDispatchSock{mContext},
-          mMonitorSock{mContext}
+          mDispatchSock{mContext}
     {
         Ego.mMsgSock.bind("inproc://send_queue");
         Ego.mRequestSock.bind("inproc://request_queue");
         Ego.mDispatchSock.bind(DISPATCH_THREAD_ENDPOINT);
 
-        if (Ego.mServerSock.monitor(SERVER_MONITOR_ENDPOINT, ZMQ_EVENT_CONNECTED | ZMQ_EVENT_DISCONNECTED)) {
-            throw Exception::create("Failed to monitor server socket: ", zmq_strerror(zmq_errno()));
+        go(sendMessages(Ego));
+        go(exitMonitor(Ego));
+    }
+
+    Stream Dispatcher::createStream() {
+        return Stream{Ego.mContext, Ego.mOnAirMessages};
+    }
+
+    void Dispatcher::connect(const suil::String &connString) {
+        iinfo("Dispatcher connecting to %s", connString());
+        bool status{true};
+        try {
+            status = Ego.mServerSock.connect(connString);
+        }
+        catch (...) {
+            auto ex = Exception::fromCurrent();
+            ierror("Connecting to server failed: %s", ex.what());
+            throw;
         }
 
-        Ego.mMonitorSock.connect(SERVER_MONITOR_ENDPOINT);
+        if (!status) {
+            ierror("Connecting to server failed: %s", zmq_strerror(zmq_errno()));
+            throw Exception::create("Connecting to server failed: ", zmq_strerror(zmq_errno()));
+        }
+
+        if (!Ego.mServerSock.monitor(SERVER_MONITOR_ENDPOINT, ZMQ_EVENT_CONNECTED|ZMQ_EVENT_DISCONNECTED)) {
+            throw Exception::create("Failed to monitor server socket: ", zmq_strerror(zmq_errno()));
+        }
         go(receiveMessages(Ego));
-        go(sendMessages(Ego));
-        go(monitorConnections(Ego));
-        go(exitMonitor(Ego));
+    }
+
+    void Dispatcher::close() {
+        iinfo("Disconnecting server socket");
+        Ego.mServerSock.close();
     }
 
     void Dispatcher::receiveMessages(Dispatcher &Self)
@@ -64,10 +88,9 @@ namespace suil::sawsdk {
                     msg.set_correlation_id(proto->correlation_id());
                     msg.set_message_type(sawtooth::protos::Message_MessageType_PING_RESPONSE);
                     msg.set_content(data.cdata(), data.size());
-
                     suil::Data rdata{msg.ByteSizeLong()};
-                    zmq::Message rmsg(rdata);
-                    Self.mServerSock.send(rmsg);
+                    msg.SerializeToArray(data.data(), static_cast<int>(data.size()));
+                    Self.mServerSock.send(rdata);
                     break;
                 }
                 default: {
@@ -84,37 +107,6 @@ namespace suil::sawsdk {
             }
         }
         ldebug(&Self, "receive messages coroutine exit");
-    }
-
-    void Dispatcher::monitorConnections(Dispatcher& Self)
-    {
-        ldebug(&Self, "starting monitorConnections coroutine");
-        while (!Self.mExiting) {
-            auto zmsg = Self.mMonitorSock.receive();
-            if (zmsg.empty()) {
-                ldebug(&Self, "monitorConnections - ignoring empty message");
-                continue;
-            }
-
-            auto event = *reinterpret_cast<uint16_t*>(zmsg.data());
-            if ((Self.mServerConnected && (event & ZMQ_EVENT_DISCONNECTED))||
-                (!Self.mServerConnected && (event & ZMQ_EVENT_CONNECTED)))
-            {
-                Self.mServerConnected = (event & ZMQ_EVENT_CONNECTED) == ZMQ_EVENT_CONNECTED;
-                ldebug(&Self, "Server connection state changed to %s",
-                        (Self.mServerConnected? "Connected": "Disconnected"));
-                sawtooth::protos::Message msg;
-                msg.set_message_type((ZMQ_EVENT_CONNECTED & event) == ZMQ_EVENT_CONNECTED ?
-                                     SERVER_CONNECT_EVENT : SERVER_DISCONNECT_EVENT);
-                suil::Data data{msg.ByteSizeLong()};
-                msg.SerializeToArray(data.data(), static_cast<int>(data.size()));
-                zmq::Message resp{data};
-                Self.mRequestSock.send(resp);
-            }
-        }
-        Self.mMonitorSock.close();
-        zmq_socket_monitor(Self.mMonitorSock.raw(), nullptr, ZMQ_EVENT_ALL);
-        ldebug(&Self, "Exiting monitorConnections coroutine");
     }
 
     void Dispatcher::sendMessages(Dispatcher &Self)
@@ -143,7 +135,6 @@ namespace suil::sawsdk {
             if (msg == EXIT_MESSAGE) {
                 Self.mExiting = true;
                 Self.mServerSock.close();
-                Self.mMonitorSock.close();
                 Self.mMsgSock.close();
             }
         }

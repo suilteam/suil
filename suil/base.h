@@ -673,6 +673,8 @@ public:                                     \
                    (memcmp(Ego.m_data, other.m_data, Ego.m_size) != 0);
         }
 
+        inline bool owns() const { return m_own; }
+
         Data copy() const;
         void clear();
 

@@ -35,9 +35,6 @@ namespace suil::zmq {
     struct Message {
 
         Message();
-        Message(size_t size);
-        Message(const suil::Data& data);
-        Message(void *data, size_t size, bool own = false);
 
         Message(Message&& other);
         Message&operator=(Message&& other);
@@ -51,6 +48,8 @@ namespace suil::zmq {
         inline bool empty() const {
             return Ego.size() == 0;
         }
+
+        const void* cdata() const;
 
         operator suil::Data() {
             return suil::Data{Ego.data(), Ego.size(), false};
@@ -68,9 +67,11 @@ namespace suil::zmq {
             return suil::String{static_cast<const char*>(Ego.data()), Ego.size(), false};
         }
 
+        void release() { initialized = false; }
         ~Message();
 
     private:
+        friend struct Socket;
         static void destroy(void *data, void *hint);
         zmq_msg_t msg;
         bool      initialized{false};
@@ -87,14 +88,11 @@ namespace suil::zmq {
 
         Message receive(int64_t to = -1);
 
-        bool send(const Message& msg, int64_t to = -1);
+        bool send(Message& msg, int64_t to = -1);
 
         bool monitor(const suil::String& endpoint, int events);
 
-        inline bool send(const void* buf, size_t sz, int64_t to = -1) {
-            Message msg(const_cast<void*>(buf), sz);
-            return send(msg, to);
-        }
+        bool send(const void* buf, size_t sz, int64_t to = -1);
 
         inline bool send(const suil::Data& data, int64_t to = -1) {
             return send(data.cdata(), data.size());
@@ -124,6 +122,7 @@ namespace suil::zmq {
         bool resolveSocket();
         void* sock{nullptr};
         Context& ctx;
+        suil::String id{};
     private:
         int  fd{-1};
     };

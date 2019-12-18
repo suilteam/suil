@@ -23,7 +23,8 @@ namespace suil::sawsdk {
     TpContext::TpContext(suil::String &&connString)
         : mConnString(connString.dup()),
           mDispatcher{mContext},
-          mRespStream{mDispatcher.createStream()}
+          mRespStream{mDispatcher.createStream()},
+          mConnMonitor{mContext}
     {}
 
     void TpContext::registerHandler(sawsdk::TransactionHandler::UPtr &&handler)
@@ -53,6 +54,7 @@ namespace suil::sawsdk {
                     throw Exception::create("failed to register handler {name: ",
                             fn, ", version: ", version, "}");
                 }
+                idebug("registerAll - handler successfully registered");
             }
         }
     }
@@ -117,44 +119,65 @@ namespace suil::sawsdk {
             resp.set_status(sp::TpProcessResponse::INTERNAL_ERROR);
         }
 
-        Ego.mRespStream.sendMessage(sp::Message::TP_PROCESS_RESPONSE, resp);
+        Ego.mRespStream.sendResponse(sp::Message::TP_PROCESS_RESPONSE, resp, cid);
+    }
+
+    void TpContext::connectionMonitor(suil::sawsdk::TpContext &Self)
+    {
+        ldebug(&Self, "Starting connectionMonitor coroutine");
+        Self.mConnMonitor.connect(Dispatcher::SERVER_MONITOR_ENDPOINT);
+        while (Self.mRunning) {
+            auto msg = Self.mConnMonitor.receive();
+            if (msg.empty()) {
+                lwarn(&Self, "connectionMonitor received an empty message, ignoring");
+                continue;
+            }
+
+            auto events = *reinterpret_cast<uint16_t *>(msg.data());
+            ldebug(&Self, "connectionMonitor received events %02X", events);
+            if (events & ZMQ_EVENT_CONNECTED) {
+                ldebug(&Self, "Server connected event");
+                if (!Self.mIsSeverConnected) {
+                    Self.registerAll();
+                }
+                Self.mIsSeverConnected = true;
+            }
+            else if (events & ZMQ_EVENT_DISCONNECTED) {
+                ldebug(&Self, "Server disconnected event");
+                Self.mIsSeverConnected = false;
+            }
+            else {
+                ldebug(&Self, "connectionMonitor ignoring connection events %02X", events);
+            }
+        }
+        ldebug(&Self, "connectionMonitor coroutine exiting");
+        Self.mConnMonitor.close();
     }
 
     void TpContext::run() {
         try {
-            zmq::Dealer dealer(Ego.mContext);
-            dealer.connect("inproc://request_queue");
+            zmq::Dealer sock(Ego.mContext);
+            sock.connect("inproc://request_queue");
             Ego.mDispatcher.connect(Ego.mConnString);
 
-            bool isServerConnected{false};
             Ego.mRunning = true;
+            go(connectionMonitor(Ego));
+
+            bool isServerConnected{false};
+
             while (Ego.mRunning) {
-                auto msg = dealer.receive();
+                auto msg = sock.receive();
                 sp::Message validatorMsg;
                 validatorMsg.ParseFromArray(msg.data(), static_cast<int>(msg.size()));
 
                 switch (validatorMsg.message_type()) {
                     case sp::Message::TP_PROCESS_REQUEST: {
-                        Ego.handleRequest(msg, String{validatorMsg.correlation_id()});
-                        break;
-                    }
 
-                    case Dispatcher::SERVER_CONNECT_EVENT: {
-                        if (!isServerConnected) {
-                            idebug("Server connected");
-                            Ego.registerAll();
-                        }
-                        isServerConnected = true;
-                        break;
-                    }
-
-                    case Dispatcher::SERVER_DISCONNECT_EVENT: {
-                        idebug("Server disconnected");
-                        isServerConnected = false;
+                        Ego.handleRequest(fromStdString(validatorMsg.content()), String{validatorMsg.correlation_id()});
                         break;
                     }
                     default: {
-                        idebug("Unknown message in transaction processor");
+                        idebug("Unknown message in transaction processor: %08X", validatorMsg.message_type());
                         break;
                     }
                 }

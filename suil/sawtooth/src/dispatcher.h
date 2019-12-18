@@ -31,7 +31,6 @@ namespace suil::sawsdk {
 
         static void receiveMessages(Dispatcher& self);
         static void sendMessages(Dispatcher& self);
-        static void monitorConnections(Dispatcher& self);
         static void exitMonitor(Dispatcher& Self);
 
         zmq::Context& mContext;
@@ -39,7 +38,6 @@ namespace suil::sawsdk {
         zmq::Dealer mMsgSock;
         zmq::Dealer mRequestSock;
         zmq::Pair mDispatchSock;
-        zmq::Pair mMonitorSock;
         suil::Map<OnAirMessage::Ptr> mOnAirMessages;
         bool mExiting{false};
         bool mServerConnected{false};

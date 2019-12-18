@@ -92,7 +92,7 @@ message AuthorizationChallengeSubmit {
   string public_key = 1;
 
   // signature derived from signing the challenge payload
-  string signature = 3;
+  bytes signature = 3;
 
   // A set of requested Roles
   repeated RoleType roles = 4;

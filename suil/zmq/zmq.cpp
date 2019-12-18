@@ -36,39 +36,18 @@ namespace suil::zmq {
         initialized = true;
     }
 
-    Message::Message(size_t size)
-    {
-        if (zmq_msg_init_size(&msg, size)) {
-            throw Exception::create("failed to create zmq message of size ",
-                    size, " : ", zmq_strerror(zmq_errno()));
-        }
-        initialized = true;
-    }
-    Message::Message(const suil::Data &data)
-        : Message(const_cast<void*>(static_cast<const void*>(data.cdata())), data.size(), false)
-    {}
-
-    Message::Message(void *data, size_t size, bool own)
-    {
-        if (zmq_msg_init_data(&msg, data, size, (own? destroy: nullptr), nullptr)) {
-            throw Exception::create("failed to initilize zmq message with buffer of size ", size,
-                    " : ", zmq_strerror(zmq_errno()));
-        }
-        initialized = true;
-    }
-
     Message::Message(suil::zmq::Message &&other)
         : msg{other.msg},
           initialized{other.initialized}
     {
-        memset(&other.msg, 0, sizeof(msg));
+        //memset(&other.msg, 0, sizeof(msg));
         other.initialized = false;
     }
 
     Message& Message::operator=(suil::zmq::Message &&other) {
         Ego.msg = other.msg;
         Ego.initialized = false;
-        memset(&other.msg, 0, sizeof(msg));
+        //memset(&other.msg, 0, sizeof(msg));
         other.initialized = false;
         return Ego;
     }
@@ -86,6 +65,12 @@ namespace suil::zmq {
         return nullptr;
     }
 
+    const void* Message::cdata() const {
+        if (Ego.initialized)
+            return zmq_msg_data(const_cast<zmq_msg_t *>(&Ego.msg));
+        return nullptr;
+    }
+
     size_t Message::size() const {
         if (Ego.initialized)
             return zmq_msg_size(&Ego.msg);
@@ -95,6 +80,7 @@ namespace suil::zmq {
     void Message::destroy(void *data, void *hint)
     {
         if (data) {
+            sdebug("DESTROYING");
             ::free(data);
         }
     }
@@ -107,11 +93,14 @@ namespace suil::zmq {
         if (sock == nullptr) {
             throw Exception::create("failed to create a new zmq socket: ", zmq_strerror(zmq_errno()));
         }
+        id = utils::randbytes(4);
+        zmq_setsockopt(Ego.sock, ZMQ_IDENTITY, Ego.id(), Ego.id.size());
     }
 
     Socket::Socket(suil::zmq::Socket &&other)
         : sock{sock},
-          ctx{other.ctx}
+          ctx{other.ctx},
+          id{std::move(other.id)}
     {
         other.sock = nullptr;
         other.fd = -1;
@@ -120,6 +109,7 @@ namespace suil::zmq {
     Socket& Socket::operator=(suil::zmq::Socket &&other) {
         Ego.sock = other.sock;
         Ego.fd = other.fd;
+        Ego.id = std::move(other.id);
         other.sock = nullptr;
         other.fd = -1;
         return Ego;
@@ -132,7 +122,7 @@ namespace suil::zmq {
             ierror("Cannot access zmq socket descriptor: %s", zmq_strerror(zmq_errno()));
             return false;
         }
-        idebug("%p has  zmq socket %d", this, Ego.fd);
+        idebug("%s has  zmq socket %d", Ego.id(), Ego.fd);
         return true;
     }
 
@@ -147,19 +137,18 @@ namespace suil::zmq {
         do {
             if (zmq_msg_recv(msg, Ego.sock, ZMQ_DONTWAIT) == -1) {
                 if (zmq_errno() == EAGAIN) {
-                    int ev = fdwait(Ego.fd, FDW_OUT, dd);
+                    int ev = fdwait(Ego.fd, FDW_IN, dd);
                     if (ev & FDW_ERR) {
-                        ierror("error while wait for zmq socket (%d) to readable: %s", Ego.fd, errno_s);
+                        ierror("error while wait for zmq socket (%s) to readable: %s", Ego.id(), errno_s);
                         return {};
                     }
                     continue;
-                    msg = Message{};
                 }
-                ierror("zmq_msg_recv(%d) error: %s", Ego.fd, zmq_strerror(zmq_errno()));
+                ierror("zmq_msg_recv(%s) error: %s", Ego.id(), zmq_strerror(zmq_errno()));
                 return {};
             }
             else {
-                idebug("received zmq msg {fd:%d, size:%zu}", Ego.fd, msg.size());
+                idebug("received zmq msg {id:%s, size:%zu}", Ego.id(), msg.size());
                 break;
             }
         } while (true);
@@ -167,7 +156,7 @@ namespace suil::zmq {
         return msg;
     }
 
-    bool Socket::send(const Message &msg, int64_t to)
+    bool Socket::send(const void* buf, size_t sz, int64_t to)
     {
         if (sock == nullptr) {
             throw Exception::create("cannot send to a non-existent zmq socket");
@@ -175,21 +164,53 @@ namespace suil::zmq {
 
         auto dd = to < 0? -1: mnow() + to;
         do {
-            if (zmq_msg_send(msg, Ego.sock, ZMQ_DONTWAIT) == -1) {
+            auto sent = zmq_send(Ego.sock, buf, sz, ZMQ_DONTWAIT);
+            if (sent == -1) {
                 if (zmq_errno() == EAGAIN) {
                     int ev = fdwait(Ego.fd, FDW_OUT, dd);
                     if (ev&FDW_ERR) {
                         // error while waiting for file to be writable
-                        ierror("error while wait for zmq socket (%d) to readable: %s", Ego.fd, errno_s);
+                        ierror("error while wait for zmq socket (%s) to readable: %s", Ego.id(), errno_s);
                         return {};
                     }
                     continue;
                 }
-                ierror("zmq_msg_send(%d) error: %s", Ego.fd, zmq_strerror(zmq_errno()));
+                ierror("zmq_send(%s) error: %s", Ego.id(), zmq_strerror(zmq_errno()));
                 return {};
             }
             else {
-                idebug("sent %d bytes to zmq socket (%d)", msg.size(), Ego.fd);
+                idebug("sent %d bytes to zmq socket (%s)", sent, Ego.id());
+                break;
+            }
+        } while (true);
+
+        return true;
+    }
+
+    bool Socket::send(Message& msg, int64_t to)
+    {
+        if (sock == nullptr) {
+            throw Exception::create("cannot send to a non-existent zmq socket");
+        }
+
+        auto dd = to < 0? -1: mnow() + to;
+        do {
+            auto sent = zmq_msg_send(msg, Ego.sock, ZMQ_DONTWAIT);
+            if (sent == -1) {
+                if (zmq_errno() == EAGAIN) {
+                    int ev = fdwait(Ego.fd, FDW_OUT, dd);
+                    if (ev&FDW_ERR) {
+                        // error while waiting for file to be writable
+                        ierror("error while wait for zmq socket (%s) to readable: %s", Ego.id(), errno_s);
+                        return {};
+                    }
+                    continue;
+                }
+                ierror("zmq_msg_send(%s) error: %s", Ego.id(), zmq_strerror(zmq_errno()));
+                return {};
+            }
+            else {
+                idebug("sent %d bytes to zmq socket (%s)", sent, Ego.id());
                 break;
             }
         } while (true);
@@ -206,6 +227,7 @@ namespace suil::zmq {
 
     void Socket::close() {
         if (sock) {
+            idebug("Closing socket %s", Ego.id());
             zmq_close(sock);
             sock = nullptr;
             fd = -1;
@@ -231,9 +253,7 @@ namespace suil::zmq {
     }
 
     bool Socket::isConnected() const {
-        int _fd{-1};
-        size_t sz{sizeof(_fd)};
-        return (Ego.sock != nullptr) && (zmq_getsockopt(sock, ZMQ_FD, &_fd, &sz) == 0);
+        return Ego.fd != -1;
     }
 
     bool Socket::connect(const suil::String& endpoint)
@@ -246,10 +266,10 @@ namespace suil::zmq {
         }
 
         if (zmq_connect(Ego.sock, endpoint.c_str())) {
-            ierror("failed to connect to zmq endpoint '%s': %s", endpoint, zmq_strerror(zmq_errno()));
+            ierror("failed to connect to zmq endpoint '%s': %s", endpoint(), zmq_strerror(zmq_errno()));
             return false;
         }
-        idebug("Connected to zmq endpoint %s", endpoint);
+        idebug("Connected to zmq endpoint %s", endpoint());
         return resolveSocket();
     }
 
@@ -280,7 +300,7 @@ namespace suil::zmq {
             ierror("failed to bind to zmq endpoint '%s': %s", endpoint, zmq_strerror(zmq_errno()));
             return false;
         }
-        idebug("Bound to zmq endpoint %s", endpoint);
+        idebug("Bound to zmq endpoint %s", endpoint());
         return resolveSocket();
     }
 

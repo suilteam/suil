@@ -83,7 +83,7 @@ message TpUnregisterResponse {
 message TpProcessRequest {
     TransactionHeader header = 1;  // The transaction header
     bytes payload = 2;  // The transaction payload
-    string signature = 3;  // The transaction header_signature
+    bytes signature = 3;  // The transaction header_signature
     string context_id = 4; // The context_id for state requests.
 }
 

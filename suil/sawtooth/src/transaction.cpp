@@ -12,14 +12,14 @@ namespace suil::sawsdk {
     {}
 
     TransactionHeader::TransactionHeader(suil::sawsdk::TransactionHeader &&other) noexcept
-        : mHeader(std::move(other.mHeader))
+        : mHeader(other.mHeader)
     {
         other.mHeader = nullptr;
     }
 
     TransactionHeader& TransactionHeader::operator=(suil::sawsdk::TransactionHeader &&other) noexcept
     {
-        Ego.mHeader = std::move(other.mHeader);
+        Ego.mHeader = other.mHeader;
         other.mHeader = nullptr;
         return Ego;
     }

@@ -95,10 +95,9 @@ namespace suil::sawsdk {
         msg.set_correlation_id(correlationId.data(), correlationId.size());
         msg.set_content(data.cdata(), data.size());
         suil::Data out{msg.ByteSizeLong()};
+        msg.SerializeToArray(out.data(), static_cast<int>(out.size()));
 
-        zmq::Message zmsg(out);
-
-        Ego.mSocket.send(zmsg);
+        Ego.mSocket.send(out);
     }
 
     suil::String Stream::getCorrelationId() {

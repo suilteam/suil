@@ -30,13 +30,15 @@ namespace suil::sawsdk {
         void registerAll();
         void unRegisterAll();
         void handleRequest(const suil::Data& msg, const suil::String& cid);
-
+        static void connectionMonitor(TpContext& Self);
         zmq::Context mContext;
+        zmq::Pair  mConnMonitor;
         suil::String mConnString{};
         Dispatcher mDispatcher;
         Stream mRespStream;
         suil::Map<TransactionHandler::UPtr> mHandlers;
         bool mRunning{false};
+        bool mIsSeverConnected{false};
     };
 }
 #endif //SUIL_TP_H

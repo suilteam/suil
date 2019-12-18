@@ -213,7 +213,7 @@ namespace suil {
     }
 
     String utils::sha256(const uint8_t *data, size_t len, bool b64) {
-        if (data == nullptr || len < SHA512_DIGEST_LENGTH)
+        if (data == nullptr)
             return String{nullptr};
 
         uint8_t *result = SHA256(data, len, nullptr);
@@ -226,7 +226,7 @@ namespace suil {
     }
 
     String utils::SHA512(const uint8_t *data, size_t len, bool b64) {
-        if (data == nullptr || len < SHA512_DIGEST_LENGTH)
+        if (data == nullptr)
             return String{nullptr};
 
         uint8_t *result = ::SHA512(data, len, nullptr);
