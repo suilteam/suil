@@ -107,6 +107,8 @@ namespace suil::crypto {
             fromString(key, str);
             return key;
         }
+
+        static EC_KEY* pub2key(const PublicKey& pub);
     };
     struct PrivateKey final: Binary<EC_PRIVATE_KEY_SIZE> {
         using Binary<EC_PRIVATE_KEY_SIZE>::Blob;
@@ -121,6 +123,9 @@ namespace suil::crypto {
 
     struct ECKey final {
         using Conversion = point_conversion_form_t;
+
+        ECKey() = default;
+
         ECKey(ECKey&& other) noexcept;
         ECKey&operator=(ECKey&& other) noexcept;
 
@@ -139,7 +144,6 @@ namespace suil::crypto {
 
         operator EC_KEY*() const { return ecKey; }
     private:
-        ECKey() = default;
         ECKey(EC_KEY *key);
         EC_KEY     *ecKey{nullptr};
         PrivateKey  privKey;

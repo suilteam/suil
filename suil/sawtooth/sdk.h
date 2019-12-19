@@ -5,6 +5,8 @@
 #ifndef SUIL_SDK_H
 #define SUIL_SDK_H
 
+#include  <type_traits>
+
 #include <suil/base.h>
 #include <suil/utils.h>
 
@@ -13,6 +15,7 @@ namespace sawtooth::protos {
 };
 
 namespace suil::sawsdk {
+
     struct Errors final {
         static constexpr int InvalidTransaction = 0xFF00;
     };
@@ -169,16 +172,35 @@ namespace suil::sawsdk {
     }
 
     template <typename T>
-    void setValue(T& to, void(T::*func)(const char*, size_t), const suil::Data& data) {
+    inline void setValue(T& to, void(T::*func)(const char*, size_t), const suil::Data& data) {
         (to.*func)(reinterpret_cast<const char *>(data.cdata()), data.size());
     }
 
     template <typename T>
-    void setValue(T& to, void(T::*func)(const char*, size_t), const suil::String& data) {
+    inline void setValue(T& to, void(T::*func)(const char*, size_t), const suil::String& data) {
         (to.*func)(data.c_str(), data.size());
     }
 
-    namespace Client {
+    template <typename T>
+    inline void setValue(T& to, void(T::*func)(const void*, size_t), const suil::Data& data) {
+        (to.*func)(data.cdata(), data.size());
     }
+
+    template <typename T>
+    inline void setValue(T& to, void(T::*func)(const void*, size_t), const suil::String& data) {
+        (to.*func)(data.c_str(), data.size());
+    }
+
+    template <typename T>
+    inline suil::Data protoSerialize(const T& proto) {
+        suil::Data data{proto.ByteSizeLong()};
+        proto.SerializeToArray(data.data(), static_cast<int>(data.size()));
+        return data;
+    }
+
+    #define protoSet(obj, prop, val) \
+        setValue(obj, &std::remove_reference_t<decltype(obj)>::set_##prop, val)
+    #define protoAdd(obj, prop, val) \
+        setValue(obj, &std::remove_reference_t<decltype(obj)>::add_##prop, val)
 }
 #endif //SUIL_SDK_H

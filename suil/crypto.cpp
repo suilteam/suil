@@ -238,6 +238,21 @@ namespace suil::crypto {
         return Ego.pubKey;
     }
 
+    EC_KEY* PublicKey::pub2key(const PublicKey& pub)
+    {
+        EC_KEY *key = EC_KEY_new_by_curve_name(NID_secp256k1);
+        if (key == nullptr) {
+            return nullptr;
+        }
+        EC_KEY_set_conv_form(key, POINT_CONVERSION_COMPRESSED);
+        auto bin = &pub.cbin();
+        if (o2i_ECPublicKey(&key, &bin, pub.size()) == nullptr) {
+            EC_KEY_free(key);
+            return nullptr;
+        }
+        return key;
+    }
+
     ECKey ECKey::fromKey(const suil::crypto::PrivateKey &priv)
     {
         auto key = EC_KEY_new_by_curve_name(NID_secp256k1);
@@ -436,24 +451,9 @@ namespace suil::crypto {
         return true;
     }
 
-    static EC_KEY* pub2key(const PublicKey& pub)
-    {
-        EC_KEY *key = EC_KEY_new_by_curve_name(NID_secp256k1);
-        if (key == nullptr) {
-            return nullptr;
-        }
-        EC_KEY_set_conv_form(key, POINT_CONVERSION_COMPRESSED);
-        auto bin = &pub.cbin();
-        if (o2i_ECPublicKey(&key, &bin, pub.size()) == nullptr) {
-            EC_KEY_free(key);
-            return nullptr;
-        }
-        return key;
-    }
-
     bool ECDSAVerify(const void *data, size_t len, const ECDSASignature &sig, const PublicKey &pub)
     {
-        auto key = pub2key(pub);
+        auto key = PublicKey::pub2key(pub);
         if (key == nullptr) {
             serror("verifying signature failed: %d %d", __LINE__, ERR_get_error());
             return false;
@@ -479,3 +479,43 @@ namespace suil::crypto {
         return verified == 1;
     }
 }
+
+#ifdef unit_test
+#include <catch/catch.hpp>
+
+using namespace suil;
+
+TEST_CASE("suil::crypto", "[crypto]")
+{
+    const suil::String priv1Str{"365c872f42c8dfe487c543ec2142d36d843ba31c4cc1152b72ac4052b0792c04"};
+    const suil::String pub1Str{"022f931cbec33d538734f926ca7895b16e3ba21a2635fa5481bb50de408723a457"};
+
+    SECTION("Generating/loading key pairs") {
+        auto key1 = crypto::ECKey::generate();
+        REQUIRE(key1.isValid());
+
+        auto priv1 = key1.getPrivateKey();
+        auto key2 = crypto::ECKey::fromKey(priv1);
+        REQUIRE(key2.isValid());
+
+        REQUIRE(key2.getPrivateKey() == key1.getPrivateKey());
+        REQUIRE(key2.getPublicKey() == key1.getPublicKey());
+
+        WHEN("Loading keys from string") {
+            auto priv2 = crypto::PrivateKey::fromString(priv1Str);
+            REQUIRE_FALSE(priv2.nil());
+            auto pub2 = crypto::PublicKey::fromString(pub1Str);
+            REQUIRE_FALSE(priv2.nil());
+
+            auto key3 = crypto::ECKey::fromKey(priv2);
+            REQUIRE(key3.isValid());
+            printf("Pub: %s\n", key3.getPublicKey().toString()());
+            REQUIRE(key3.getPublicKey() == pub2);
+            REQUIRE(key3.getPrivateKey() == priv2);
+            REQUIRE(pub2.toString() == pub1Str);
+            REQUIRE(priv2.toString() == priv1Str());
+        }
+    }
+}
+
+#endif

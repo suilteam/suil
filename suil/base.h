@@ -657,6 +657,10 @@ public:                                     \
             return Ego.m_data;
         }
 
+        inline const uint8_t* data() const {
+            return Ego.m_data;
+        }
+
         inline const uint8_t* cdata() const {
             return Ego.m_cdata;
         }
