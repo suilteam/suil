@@ -177,5 +177,8 @@ namespace suil::sawsdk {
     void setValue(T& to, void(T::*func)(const char*, size_t), const suil::String& data) {
         (to.*func)(data.c_str(), data.size());
     }
+
+    namespace Client {
+    }
 }
 #endif //SUIL_SDK_H

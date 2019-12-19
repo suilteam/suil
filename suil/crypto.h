@@ -11,28 +11,41 @@
 
 #include <suil/utils.h>
 #include <suil/blob.h>
+#include <suil/zstring.h>
 
 namespace suil::crypto {
 
-    struct SHA256Digest final : Blob<SHA256_DIGEST_LENGTH> {
-        using Blob<SHA256_DIGEST_LENGTH>::Blob;
+    constexpr int ECDSA_SIGNATURE_SIZE{72};
+    constexpr int ECDSA_COMPACT_SIGNATURE_SIZE{64};
+    constexpr int EC_PRIVATE_KEY_SIZE{32};
+    constexpr int EC_COMPRESSED_PUBLIC_KEY_SIZE{33};
 
-        suil::String toString() const;
-        static bool fromString(SHA256Digest& digest, const suil::String& data);
+    template <size_t N>
+    struct Binary : public Blob<N> {
+        using Blob<N>::Blob;
+        virtual suil::String toString() const {
+            return utils::hexstr(&Ego.cbin(), Ego.size());
+        }
+
+        virtual bool loadString(const suil::String& str) {
+            if (str.size()/2 != N) {
+                return false;
+            }
+            utils::bytes(str, &Ego.bin(), Ego.size());
+            return true;
+        }
     };
 
-    struct SHA512Digest final : Blob<SHA512_DIGEST_LENGTH> {
-        using Blob<SHA512_DIGEST_LENGTH>::Blob;
-
-        suil::String toString() const;
-        static bool fromString(SHA512Digest& digest, const suil::String& data);
+    struct SHA256Digest final : Binary<SHA256_DIGEST_LENGTH> {
+        using Binary<SHA256_DIGEST_LENGTH>::Blob;
     };
 
-    struct RIPEMD160Digest final : Blob<RIPEMD160_DIGEST_LENGTH> {
-        using Blob<RIPEMD160_DIGEST_LENGTH>::Blob;
+    struct SHA512Digest final : Binary<SHA512_DIGEST_LENGTH> {
+        using Binary<SHA512_DIGEST_LENGTH>::Blob;
+    };
 
-        suil::String toString() const;
-        static bool fromString(RIPEMD160Digest& digest, const suil::String& data);
+    struct RIPEMD160Digest final : Binary<RIPEMD160_DIGEST_LENGTH> {
+        using Binary<RIPEMD160_DIGEST_LENGTH>::Blob;
     };
 
     using Hash = SHA256Digest;
@@ -80,33 +93,89 @@ namespace suil::crypto {
         return crypto::toBase58(data.data(), data.size());
     }
 
-    struct PublicKey final : Blob<32> {
-        using Blob<32>::Blob;
+    template <size_t N>
+    static void str2bin(Binary<N>& bin, const suil::String& data) {
+        utils::bytes(data, &bin.bin(), bin.size());
+    }
+
+    struct PublicKey final : Binary<EC_COMPRESSED_PUBLIC_KEY_SIZE> {
+        using Binary<EC_COMPRESSED_PUBLIC_KEY_SIZE>::Blob;
+
+        static bool fromString(PublicKey& key, const String& str);
+        static PublicKey fromString(const String& str) {
+            PublicKey key;
+            fromString(key, str);
+            return key;
+        }
     };
-    struct PrivateKey final: Blob<32> {
-        using Blob<32>::Blob;
+    struct PrivateKey final: Binary<EC_PRIVATE_KEY_SIZE> {
+        using Binary<EC_PRIVATE_KEY_SIZE>::Blob;
+
+        static bool fromString(PrivateKey& key, const String& str);
+        static PrivateKey fromString(const String& str) {
+            PrivateKey key;
+            fromString(key, str);
+            return key;
+        }
     };
 
-    struct ECKey {
+    struct ECKey final {
+        using Conversion = point_conversion_form_t;
+        ECKey(ECKey&& other) noexcept;
+        ECKey&operator=(ECKey&& other) noexcept;
+
+        ECKey(const ECKey&) = delete;
+        ECKey&operator=(const ECKey&) = delete;
+
         static ECKey generate();
         static ECKey fromKey(const PrivateKey& key);
 
         const PrivateKey& getPrivateKey() const;
-        const PublicKey& getPublicKey();
+        const PublicKey& getPublicKey() const;
 
         bool isValid() const;
 
         operator bool() const {return isValid(); }
 
-        void readPrivateKey(PrivateKey& dst);
-        void readPublicKey(PublicKey& dst);
-
+        operator EC_KEY*() const { return ecKey; }
     private:
-        void generatePublicKey();
+        ECKey() = default;
+        ECKey(EC_KEY *key);
         EC_KEY     *ecKey{nullptr};
         PrivateKey  privKey;
         PublicKey   pubKey;
     };
+
+    struct ECDSASignature : public Binary<ECDSA_SIGNATURE_SIZE> {
+        using Binary<ECDSA_SIGNATURE_SIZE>::Blob;
+        suil::String toCompactForm(bool base64 = true) const;
+        static ECDSASignature fromCompactForm(const suil::String& sig, bool b64 = true);
+    };
+
+    bool ECDSASign(ECDSASignature& sig, const PrivateKey& key, const void* data, size_t len);
+
+    template <typename T>
+    inline bool ECDSASign(ECDSASignature& sig, const PrivateKey& key, const T& data) {
+        return ECDSASign(sig, key, data.data(), data.size());
+    }
+
+    inline ECDSASignature ECDSASign(const PrivateKey& key, const void* data, size_t len) {
+        ECDSASignature sig;
+        ECDSASign(sig, key, data, len);
+        return sig;
+    }
+
+    template <typename T>
+    inline ECDSASignature ECDSASign(const PrivateKey& key, const T& data) {
+        return ECDSASign(key, data.data(), data.size());
+    }
+
+    bool ECDSAVerify(const void* data, size_t len, const ECDSASignature& sig, const PublicKey& key);
+
+    template <typename T>
+    inline bool ECDSAVerify(const T& data, const ECDSASignature& sig, const PublicKey& key) {
+        return ECDSAVerify(data.data(), data.size(), sig, key);
+    }
 }
 
 #endif //SUIL_ALGS_HPP

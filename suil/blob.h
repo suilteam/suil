@@ -55,7 +55,7 @@ namespace suil {
         }
 
         template <size_t S, size_t NN>
-        inline void copy(const Blob<NN> bb) {
+        inline void copy(const Blob<NN>& bb) {
             Ego.copy<S>(bb.begin(), bb.size());;
         };
 
