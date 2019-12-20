@@ -405,7 +405,7 @@ namespace suil {
  * @param fmt
  * @param ...
  */
-#define trace(fmt, ...)  ltrace(this, fmt, ##__VA_ARGS__)
+#define itrace(fmt, ...)  ltrace(this, fmt, ##__VA_ARGS__)
 /**
  * log a trace message using system tag (SYSTEM)
  * @param fmt
@@ -416,7 +416,7 @@ namespace suil {
 #else
 
 #define ltrace(l, fmt, ...)
-#define trace(fmt, ...)
+#define itrace(fmt, ...)
 #define strace(fmt, ...)
 
 #endif

@@ -15,7 +15,7 @@ namespace suil::rpc {
             size_t _{sizeof(size)};
             if (!sock.receive(&size, _, -1)) {
                 /* failed to receive size */
-                trace("RPC server failed to receive request size: %s", errno_s);
+                itrace("RPC server failed to receive request size: %s", errno_s);
                 return false;
             }
 
@@ -39,7 +39,7 @@ namespace suil::rpc {
                 nread = rxb.capacity();
                 if (!sock.read(&rxb[tread], nread, timeout) ||(nread == 0 && tread == 0)) {
                     /* reading failed*/
-                    trace("reading request failed: %s", errno_s);
+                    itrace("reading request failed: %s", errno_s);
                     return errno == ETIMEDOUT? !rxb.empty() : false;
                 }
                 tread += nread;

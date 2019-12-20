@@ -171,24 +171,14 @@ namespace suil::sawsdk {
         return suil::Data{str.data(), str.size(), false};
     }
 
-    template <typename T>
-    inline void setValue(T& to, void(T::*func)(const char*, size_t), const suil::Data& data) {
-        (to.*func)(reinterpret_cast<const char *>(data.cdata()), data.size());
+    template <typename T, typename V>
+    inline void setValue(T& to, void(T::*func)(const char*, size_t), const V& data) {
+        (to.*func)(reinterpret_cast<const char *>(data.data()), data.size());
     }
 
-    template <typename T>
-    inline void setValue(T& to, void(T::*func)(const char*, size_t), const suil::String& data) {
-        (to.*func)(data.c_str(), data.size());
-    }
-
-    template <typename T>
-    inline void setValue(T& to, void(T::*func)(const void*, size_t), const suil::Data& data) {
-        (to.*func)(data.cdata(), data.size());
-    }
-
-    template <typename T>
-    inline void setValue(T& to, void(T::*func)(const void*, size_t), const suil::String& data) {
-        (to.*func)(data.c_str(), data.size());
+    template <typename T, typename V>
+    inline void setValue(T& to, void(T::*func)(const void*, size_t), const V& data) {
+        (to.*func)(data.data(), data.size());
     }
 
     template <typename T>

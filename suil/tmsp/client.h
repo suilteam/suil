@@ -64,7 +64,7 @@ namespace suil::tmsp {
       {}
 
       Result connect() {
-          trace("connecting application at %s", ipstr(appaddr));
+          itrace("connecting application at %s", ipstr(appaddr));
           Result res;
           if (!sock.connect(appaddr, 3000)) {
               // Connection to application failed
@@ -85,7 +85,7 @@ namespace suil::tmsp {
       }
 
       void disconnect() {
-          trace("disconnecting client...");
+          itrace("disconnecting client...");
           // close socket will disconnect the client
           sock.close();
       }

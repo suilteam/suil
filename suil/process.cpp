@@ -190,7 +190,7 @@ namespace suil {
         }
         if ((ret == Ego.pid) && WIFEXITED(status)) {
             // process exited
-            trace("process{pid=%ld} exited status=%d", Ego.pid, WEXITSTATUS(status));
+            itrace("process{pid=%ld} exited status=%d", Ego.pid, WEXITSTATUS(status));
             Ego.pid = -1;
             return true;
         }
@@ -218,7 +218,7 @@ namespace suil {
                     break;
                 }
             }
-            trace("error while waiting for process to exit: %s", errno_s);
+            itrace("error while waiting for process to exit: %s", errno_s);
             break;
 
         } while (!Ego.isExited());
@@ -228,7 +228,7 @@ namespace suil {
 
     void Process::terminate()
     {
-        trace("terminate process{pid=%ld} requested", Ego.pid);
+        itrace("terminate process{pid=%ld} requested", Ego.pid);
         if (!Ego.isExited()) {
             pid_t  tmp{Ego.pid};
             Ego.stopIO();
@@ -236,7 +236,7 @@ namespace suil {
 
         } else {
             // attempting to terminate an already exited process
-            trace("attempting to terminate an already exited process");
+            itrace("attempting to terminate an already exited process");
             Ego.stopIO();
         }
         fdclear(Ego.notifChan[0]);

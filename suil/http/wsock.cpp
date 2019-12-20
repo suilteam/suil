@@ -84,7 +84,7 @@ namespace suil {
             size_t  nbytes = WS_FRAME_HDR;
 
             if (!sock.receive(&h.u16All, nbytes, api.timeout)) {
-                trace("%s - receiving op code failed: %s", sock.id(), errno_s);
+                itrace("%s - receiving op code failed: %s", sock.id(), errno_s);
                 return false;
             }
 
@@ -136,7 +136,7 @@ namespace suil {
                 buf[0] = (uint8_t) h.len;
                 size_t read = (size_t ) (extra_bytes-1);
                 if (!sock.receive(&buf[1], read, api.timeout)) {
-                    trace("%s - receiving length failed: %s", sock.id(), errno_s);
+                    itrace("%s - receiving length failed: %s", sock.id(), errno_s);
                     return false;
                 }
                 if (h.len == WS_PAYLOAD_EXTEND_1) {
@@ -170,7 +170,7 @@ namespace suil {
             b.reserve(h.payload_size+2);
             uint8_t *buf = (uint8_t *)(void *)b;
             if (!sock.receive(buf, len, api.timeout) || len != h.payload_size) {
-                trace("%s - receiving web socket frame failed: %s", sock.id(), errno_s);
+                itrace("%s - receiving web socket frame failed: %s", sock.id(), errno_s);
                 return false;
             }
 
@@ -187,7 +187,7 @@ namespace suil {
             if (api.onConnect) {
                 if (!api.onConnect(*this)) {
                     // Connection rejected
-                    trace("%s - websocket Connection rejected", sock.id());
+                    itrace("%s - websocket Connection rejected", sock.id());
                     return;
                 }
             }
@@ -206,7 +206,7 @@ namespace suil {
                 // while the adaptor is still open
                 if (!receive_frame(h, b)) {
                     // receiving frame failed, abort Connection
-                    trace("%s - receive frame failed", ipstr(sock.addr()));
+                    itrace("%s - receive frame failed", ipstr(sock.addr()));
                     end_session = true;
                 }
                 else {
@@ -235,7 +235,7 @@ namespace suil {
                             send(b, WsOp::PONG);
                             break;
                         default:
-                            trace("%s - unknown web socket op %02X",
+                            itrace("%s - unknown web socket op %02X",
                                   sock.id(), h.opcode);
                             end_session = true;
                     }
@@ -246,7 +246,7 @@ namespace suil {
             api.websocks.erase(Ego.uuid);
             api.nsocks--;
 
-            trace("%s - done handling web socket %hhu", Ego.uuid(), api.nsocks);
+            itrace("%s - done handling web socket %hhu", Ego.uuid(), api.nsocks);
 
             // definitely disconnecting
             if (api.onDisconnect) {
@@ -260,7 +260,7 @@ namespace suil {
             uint8_t hlen = WS_FRAME_HDR;
 
             if (end_session) {
-                trace("%s - sending while Session is closing is not allow",
+                itrace("%s - sending while Session is closing is not allow",
                       sock.id());
                 return false;
             }
@@ -292,14 +292,14 @@ namespace suil {
 
             // send header
             if (sock.send(hbuf, hlen, api.timeout) != hlen) {
-                trace("%s - sending header of length %hhu failed: %s",
+                itrace("%s - sending header of length %hhu failed: %s",
                       sock.id(), hlen, errno_s);
                 return false;
             }
 
             // send the reset of the message
             if (sock.send(data, size, api.timeout) != size) {
-                trace("%s - sending data of length %lu failed: %s",
+                itrace("%s - sending data of length %lu failed: %s",
                       sock.id(), size, errno_s);
                 return false;
             }
@@ -317,7 +317,7 @@ namespace suil {
             do {
                 nsent = sock.send(data, len, api.timeout);
                 if (!nsent) {
-                    trace("sending websocket data failed: %s", errno_s);
+                    itrace("sending websocket data failed: %s", errno_s);
                     return false;
                 }
 
@@ -329,11 +329,11 @@ namespace suil {
         }
 
         void WebSock::broadcast(const void *data, size_t sz, WsOp op) {
-            trace("WebSock::broadcast data %p, sz %lu, op 0x%02X", data, sz, op);
+            itrace("WebSock::broadcast data %p, sz %lu, op 0x%02X", data, sz, op);
 
             // only broadcast when there are other web socket clients
             if (api.nsocks > 0) {
-                trace("broadcasting %lu web sockets", api.nsocks);
+                itrace("broadcasting %lu web sockets", api.nsocks);
                 auto *copy = (uint8_t *) malloc(
                                      sizeof(WsockBcastMsg) + sz +16);
                 auto *msg = (WsockBcastMsg *)copy;

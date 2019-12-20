@@ -59,7 +59,7 @@ namespace suil {
             for(auto& it : cookies) {
                 Cookie& ck = it.second;
                 if (!ck || !ck.value()) {
-                    trace("ignoring invalid cookie in Response");
+                    itrace("ignoring invalid cookie in Response");
                     continue;
                 }
 

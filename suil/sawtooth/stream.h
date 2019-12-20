@@ -8,7 +8,7 @@
 #include <suil/channel.h>
 #include <suil/zmq/zmq.h>
 
-#include "validator.pb.h"
+#include <suil/sawtooth/protos.h>
 
 namespace suil::sawsdk {
 

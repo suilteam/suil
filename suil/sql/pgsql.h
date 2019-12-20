@@ -347,7 +347,7 @@ namespace suil {
 
                     bool wait = true, err = false;
                     while (!err && PQflush(conn)) {
-                        trace("ASYNC QUERY: %s wait write %ld", stmt(), timeout);
+                        itrace("ASYNC QUERY: %s wait write %ld", stmt(), timeout);
                         if (wait_write()) {
                             ierror("ASYNC QUERY: % wait write failed: %s", stmt(), errno_s);
                             err  = true;
@@ -357,7 +357,7 @@ namespace suil {
 
                     while (wait && !err) {
                         if (PQisBusy(conn)) {
-                            trace("ASYNC QUERY: %s wait read %ld", stmt.data(), timeout);
+                            itrace("ASYNC QUERY: %s wait read %ld", stmt.data(), timeout);
                             if (wait_read()) {
                                 ierror("ASYNC QUERY: %s wait read failed: %s", stmt.data(), errno_s);
                                 err = true;
@@ -387,7 +387,7 @@ namespace suil {
                                 PQclear(result);
                                 break;
                             case PGRES_COMMAND_OK:
-                                trace("ASYNC QUERY: continue waiting for results");
+                                itrace("ASYNC QUERY: continue waiting for results");
                                 PQclear(result);
                                 break;
                             case PGRES_TUPLES_OK:
@@ -410,7 +410,7 @@ namespace suil {
                         throw Exception::create("query failed: ", PQerrorMessage(conn));
                     }
 
-                    trace("ASYNC QUERY: received %d results", results.results.size());
+                    itrace("ASYNC QUERY: received %d results", results.results.size());
                 }
                 else {
                     PGresult *result = PQexecParams(

@@ -58,7 +58,7 @@ namespace suil::http::mw {
 
     private:
         inline Connection& conn(int db = 0) {
-            trace("connecting to database %d", db);
+            itrace("connecting to database %d", db);
             return database.connect(db);
         }
 

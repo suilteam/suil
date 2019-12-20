@@ -230,7 +230,7 @@ namespace suil {
                 // create temporary zero copy str, does
                 // not own buffer
                 String tmp(req, false);
-                trace("%s", (char *)req);
+                itrace("%s", (char *)req);
 
                 auto it = m_stmtCache->find(tmp);
                 if (it != m_stmtCache->end()) {
@@ -258,7 +258,7 @@ namespace suil {
                 // create temporary zero copy str, does
                 // not own buffer
                 String tmp(req);
-                trace("%s", req);
+                itrace("%s", req);
 
                 auto it = m_stmtCache->find(tmp);
                 if (it != m_stmtCache->end()) {
@@ -347,10 +347,10 @@ namespace suil {
                         qb << "PRAGMA synchronous = " << opts.get(sym(SYNCHRONOUS), 2);
                         conn(qb);
                     }
-                    trace("SQLite: `%s` Connection initialized", path);
+                    itrace("SQLite: `%s` Connection initialized", path);
                 }
                 else {
-                    trace("SQLite: %s already initialized", path);
+                    itrace("SQLite: %s already initialized", path);
                 }
             }
 

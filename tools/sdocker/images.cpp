@@ -9,7 +9,7 @@ namespace suil::docker {
 
     json::Object Images::ls(const ImagesFilter &filters, bool all, bool digests) {
         auto resource = utils::catstr(ref.apiBase, "/images/json");
-        trace("requesting resource at %s", resource());
+        itrace("requesting resource at %s", resource());
         auto resp = http::client::get(ref.httpSession, resource(), [&](http::client::Request &req) {
             // build custom request
             Docker::arg(req, "all", all);
@@ -18,7 +18,7 @@ namespace suil::docker {
             return true;
         });
 
-        trace("request resource status %d", resp.status());
+        itrace("request resource status %d", resp.status());
         if (resp.status() != http::Status::OK) {
             // request failed
             Docker::reportFailure(resp);
@@ -39,7 +39,7 @@ namespace suil::docker {
         }
 
         auto resource = utils::catstr(ref.apiBase, "/build");
-        trace("requesting resource at %s", resource());
+        itrace("requesting resource at %s", resource());
         auto resp = http::client::post(ref.httpSession, resource(), [&](http::client::Request &req) {
             // build custom request
             req.hdr("Content-type", contentType());
@@ -51,7 +51,7 @@ namespace suil::docker {
             return true;
         });
 
-        trace("request resource status %d", resp.status());
+        itrace("request resource status %d", resp.status());
         if (resp.status() != http::Status::OK) {
             // request failed
             Docker::reportFailure(resp);
@@ -62,9 +62,9 @@ namespace suil::docker {
     {
         auto resource = utils::catstr(ref.apiBase, "/build/prune");
 
-        trace("requesting resource at %s", resource());
+        itrace("requesting resource at %s", resource());
         auto resp = http::client::post(ref.httpSession, resource());
-        trace("request resource status %d", resp.status());
+        itrace("request resource status %d", resp.status());
 
         if (resp.status() != http::Status::OK) {
             // request failed
@@ -80,7 +80,7 @@ namespace suil::docker {
     {
         auto resource = utils::catstr(ref.apiBase, "/images/create");
 
-        trace("requesting resource at %s", resource());
+        itrace("requesting resource at %s", resource());
         auto resp = http::client::post(ref.httpSession, resource(), [&](http::client::Request &req) {
             if (!params.fromSrc.empty() && utils::fs::exists(params.fromSrc())) {
                 // fromSrc parameter is a local file with the image content
@@ -90,7 +90,7 @@ namespace suil::docker {
             Docker::pack(req, params);
             return true;
         });
-        trace("request resource status %d", resp.status());
+        itrace("request resource status %d", resp.status());
 
         if (resp.status() != http::Status::OK) {
             // request failed
@@ -102,9 +102,9 @@ namespace suil::docker {
     {
         auto resource = utils::catstr(ref.apiBase, "/images/", name, "/json");
 
-        trace("requesting resource at %s", resource());
+        itrace("requesting resource at %s", resource());
         auto resp = http::client::get(ref.httpSession, resource());
-        trace("request resource status %d", resp.status());
+        itrace("request resource status %d", resp.status());
 
         if (resp.status() != http::Status::OK) {
             // request failed
@@ -120,9 +120,9 @@ namespace suil::docker {
     {
         auto resource = utils::catstr(ref.apiBase, "/images/", name, "/history");
 
-        trace("requesting resource at %s", resource());
+        itrace("requesting resource at %s", resource());
         auto resp = http::client::get(ref.httpSession, resource());
-        trace("request resource status %d", resp.status());
+        itrace("request resource status %d", resp.status());
 
         if (resp.status() != http::Status::OK) {
             // request failed
@@ -138,12 +138,12 @@ namespace suil::docker {
     {
         auto resource = utils::catstr(ref.apiBase, "/images/", name, "/push");
 
-        trace("requesting resource at %s", resource());
+        itrace("requesting resource at %s", resource());
         auto resp = http::client::post(ref.httpSession, resource(), [&](http::client::Request &req) {
             Docker::arg(req, "tag", tag);
             return true;
         });
-        trace("request resource status %d", resp.status());
+        itrace("request resource status %d", resp.status());
 
         if (resp.status() != http::Status::OK) {
             // request failed
@@ -155,12 +155,12 @@ namespace suil::docker {
     {
         auto resource = utils::catstr(ref.apiBase, "/images/", name, "/tag");
 
-        trace("requesting resource at %s", resource());
+        itrace("requesting resource at %s", resource());
         auto resp = http::client::post(ref.httpSession, resource(), [&](http::client::Request &req) {
             Docker::pack(req, params);
             return true;
         });
-        trace("request resource status %d", resp.status());
+        itrace("request resource status %d", resp.status());
 
         if (resp.status() != http::Status::OK) {
             // request failed
@@ -172,12 +172,12 @@ namespace suil::docker {
     {
         auto resource = utils::catstr(ref.apiBase, "/images/", name);
 
-        trace("requesting resource at %s", resource());
+        itrace("requesting resource at %s", resource());
         auto resp = http::client::del(ref.httpSession, resource(), [&](http::client::Request &req) {
             Docker::pack(req, params);
             return true;
         });
-        trace("request resource status %d", resp.status());
+        itrace("request resource status %d", resp.status());
 
         if (resp.status() != http::Status::OK) {
             // request failed
@@ -193,12 +193,12 @@ namespace suil::docker {
     {
         auto resource = utils::catstr(ref.apiBase, "/images/search");
 
-        trace("requesting resource at %s", resource());
+        itrace("requesting resource at %s", resource());
         auto resp = http::client::get(ref.httpSession, resource(), [&](http::client::Request &req) {
             Docker::pack(req, params);
             return true;
         });
-        trace("request resource status %d", resp.status());
+        itrace("request resource status %d", resp.status());
 
         if (resp.status() != http::Status::OK) {
             // request failed
@@ -214,12 +214,12 @@ namespace suil::docker {
     {
         auto resource = utils::catstr(ref.apiBase, "/images/prune");
 
-        trace("requesting resource at %s", resource());
+        itrace("requesting resource at %s", resource());
         auto resp = http::client::post(ref.httpSession, resource(), [&](http::client::Request &req) {
             Docker::arg(req, "filters", json::encode(filters));
             return true;
         });
-        trace("request resource status %d", resp.status());
+        itrace("request resource status %d", resp.status());
 
         if (resp.status() != http::Status::OK) {
             // request failed
@@ -235,13 +235,13 @@ namespace suil::docker {
     {
         auto resource = utils::catstr(ref.apiBase, "/commit");
 
-        trace("requesting resource at %s", resource());
+        itrace("requesting resource at %s", resource());
         auto resp = http::client::post(ref.httpSession, resource(), [&](http::client::Request &req) {
             Docker::pack(req, params);
             req << container;
             return true;
         });
-        trace("request resource status %d", resp.status());
+        itrace("request resource status %d", resp.status());
 
         if (resp.status() != http::Status::OK) {
             // request failed
@@ -257,7 +257,7 @@ namespace suil::docker {
     {
         auto resource = utils::catstr(ref.apiBase, "/images/", name, "/get");
 
-        trace("requesting resource at %s", resource());
+        itrace("requesting resource at %s", resource());
         if (utils::fs::exists(output)) {
             // cannot override existing file
             throw Exception::create("file '", output, "' already exists");
@@ -265,7 +265,7 @@ namespace suil::docker {
 
         http::client::FileOffload offload(output);
         auto resp = http::client::get(offload, ref.httpSession, resource());
-        trace("request resource status %d", resp.status());
+        itrace("request resource status %d", resp.status());
 
         if (resp.status() != http::Status::OK) {
             // request failed
@@ -277,7 +277,7 @@ namespace suil::docker {
     {
         auto resource = utils::catstr(ref.apiBase, "/images/get");
 
-        trace("requesting resource at %s", resource());
+        itrace("requesting resource at %s", resource());
         if (utils::fs::exists(output)) {
             // cannot override existing file
             throw Exception::create("file '", output, "' already exists");
@@ -296,7 +296,7 @@ namespace suil::docker {
             Docker::arg(req, "names", param);
             return true;
         });
-        trace("request resource status %d", resp.status());
+        itrace("request resource status %d", resp.status());
 
         if (resp.status() != http::Status::OK) {
             // request failed
@@ -313,13 +313,13 @@ namespace suil::docker {
 
         auto resource = utils::catstr(ref.apiBase, "/images/load");
 
-        trace("requesting resource at %s", resource());
+        itrace("requesting resource at %s", resource());
         auto resp = http::client::post(ref.httpSession, resource(), [&](http::client::Request &req) {
             Docker::arg(req, "quiet", quiet);
             req << File(input, O_RDONLY, 0666);
             return true;
         });
-        trace("request resource status %d", resp.status());
+        itrace("request resource status %d", resp.status());
 
         if (resp.status() != http::Status::OK) {
             // request failed

@@ -6,7 +6,7 @@
 #define SUIL_GSTATE_H
 
 #include "../sdk.h"
-#include "stream.h"
+#include "suil/sawtooth/stream.h"
 
 namespace suil::sawsdk {
 

@@ -1,14 +1,10 @@
 
 #include "../sdk.h"
 #include "../client.h"
-#include "transaction.pb.h"
-//#include "batch.pb.h"
+#include "dispatcher.h"
 
 namespace sp {
-    using sawtooth::protos::Transaction;
-    using sawtooth::protos::TransactionHeader;
-    using sawtooth::protos::Batch;
-    //using suil::sawtooth::protos::BatchList;
+    using namespace sawtooth::protos;
 }
 
 namespace suil::sawsdk::Client {
@@ -60,7 +56,7 @@ namespace suil::sawsdk::Client {
         return Ego.mKey.getPrivateKey();
     }
 
-    const crypto::PublicKey Signer::getPublicKey() const {
+    const crypto::PublicKey& Signer::getPublicKey() const {
         return Ego.mKey.getPublicKey();
     }
 
@@ -97,6 +93,46 @@ namespace suil::sawsdk::Client {
         return *mSelf;
     }
 
+    sawtooth::protos::Transaction& Transaction::operator*() {
+        return *mSelf;
+    }
+
+    sawtooth::protos::Transaction* Transaction::operator->() {
+        return Ego.mSelf.get();
+    }
+
+    const sawtooth::protos::Transaction& Transaction::operator*() const {
+        return *mSelf;
+    }
+
+    const sawtooth::protos::Transaction* Transaction::operator->() const {
+        return Ego.mSelf.get();
+    }
+
+    Batch::Batch()
+        : mSelf(new sp::Batch)
+    {}
+
+    sawtooth::protos::Batch& Batch::get() {
+        return *mSelf;
+    }
+
+    sawtooth::protos::Batch* Batch::operator->() {
+        return Ego.mSelf.get();
+    }
+
+    sawtooth::protos::Batch& Batch::operator*() {
+        return *mSelf;
+    }
+
+    const sawtooth::protos::Batch* Batch::operator->() const {
+        return Ego.mSelf.get();
+    }
+
+    const sawtooth::protos::Batch& Batch::operator*() const {
+        return *mSelf;
+    }
+
     Encoder::Encoder(const suil::String& family, const suil::String& familyVersion, const suil::String& privateKey)
         : mSigner{Signer::load(privateKey)},
           mFamily(family.dup()),
@@ -105,7 +141,7 @@ namespace suil::sawsdk::Client {
           mSignerPublicKey(mSigner.getPublicKey().toString())
     {}
 
-    Transaction Encoder::createTransaction(const suil::Data& payload, const Inputs& inputs, const Outputs& outputs) const
+    Transaction Encoder::operator()(const suil::Data& payload, const Inputs& inputs, const Outputs& outputs) const
     {
         crypto::SHA512Digest sha512;
         crypto::SHA512(sha512, payload);
@@ -132,5 +168,39 @@ namespace suil::sawsdk::Client {
         protoSet(*txn, header_signature, signature);
 
         return txn;
+    }
+
+    Batch Encoder::operator()(const std::vector<Transaction> &txns) const
+    {
+        sp::BatchHeader header;
+        Batch batch;
+        for (const auto& txn: txns) {
+            protoAdd(header, transaction_ids, txn->header_signature());
+            auto it = batch->add_transactions();
+            it->CopyFrom(*txn);
+        }
+        protoSet(header, signer_public_key, Ego.mSigner.getPublicKey().toString());
+
+        auto headerBytes = protoSerialize(header);
+        auto signature = mSigner.sign(headerBytes);
+
+        protoSet(*batch, header, headerBytes);
+        protoSet(*batch, header_signature, signature);
+
+        return batch;
+    }
+
+    suil::Data Encoder::operator()(const std::vector<Batch> &batches) const {
+        sp::BatchList list;
+        for (const auto& batch: batches) {
+            list.add_batches()->CopyFrom(*batch);
+        }
+        return protoSerialize(list);
+    }
+
+    suil::Data Encoder::encode(const suil::Data &payload, const Inputs &inputs, const Outputs &outputs)
+    {
+        auto txn = Ego(payload, inputs, outputs);
+        return Ego(Ego(txn));
     }
 }

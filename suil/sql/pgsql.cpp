@@ -9,7 +9,7 @@ namespace suil::sql {
     PGSQLStatement PgSqlConnection::operator()(OBuffer& req) {
         /* temporary zero copy string */
         String tmp(req, false);
-        trace("%s", tmp());
+        itrace("%s", tmp());
 
         auto it = stmt_cache.find(tmp);
         if (it != stmt_cache.end()) {
@@ -31,7 +31,7 @@ namespace suil::sql {
     PGSQLStatement PgSqlConnection::operator()(const char *req) {
         /* temporary zero copy string */
         String tmp(req);
-        trace("%s", tmp());
+        itrace("%s", tmp());
 
         auto it = stmt_cache.find(tmp);
         if (it != stmt_cache.end()) {
@@ -49,7 +49,7 @@ namespace suil::sql {
             return;
         }
 
-        trace("destroying Connection dctor %d %d", dctor, refs);
+        itrace("destroying Connection dctor %d %d", dctor, refs);
         if (async) {
             PGresult *res;
             while ((res = PQgetResult(conn)) != nullptr)
@@ -115,11 +115,11 @@ namespace suil::sql {
     PgSqlDb::~PgSqlDb() {
         if (cleaning) {
             /* unschedule the cleaning coroutine */
-            trace("notifying cleanup routine to exit");
+            itrace("notifying cleanup routine to exit");
             !notify;
         }
 
-        trace("cleaning up %lu connections", conns.size());
+        itrace("cleaning up %lu connections", conns.size());
         auto it = conns.begin();
         while (it != conns.end()) {
             (*it).cleanup();
@@ -167,7 +167,7 @@ namespace suil::sql {
         PGconn *conn;
         conn = PQconnectdb(conn_str.data());
         if (conn == nullptr || (PQstatus(conn) != CONNECTION_OK)) {
-            trace("CONNECT: %s", PQerrorMessage(conn));
+            itrace("CONNECT: %s", PQerrorMessage(conn));
             if (conn) PQfinish(conn);
             return nullptr;
         }

@@ -25,7 +25,7 @@ namespace suil {
                 auto tmp = ch;
                 while(isspace(*ch) && *ch != '\0') ch++;
                 if (*ch == '\0')  {
-                    trace("invalid cookie in header %s", tmp);
+                    itrace("invalid cookie in header %s", tmp);
                 }
 
                 char *name = ch;
@@ -53,7 +53,7 @@ namespace suil {
 
         bool Request::parseForm() {
             if (formed) {
-                trace("form parse already attempted");
+                itrace("form parse already attempted");
                 return true;
             }
 
@@ -61,24 +61,24 @@ namespace suil {
             formed = true;
 
             if (!any_method(Method::Post, Method::Put)) {
-                trace("parsing form in unexpected method %u", method);
+                itrace("parsing form in unexpected method %u", method);
                 return false;
             }
 
             auto ctype = header("Content-Type");
             if (ctype.empty()) {
-                trace("only posts with content type are supported");
+                itrace("only posts with content type are supported");
                 return false;
             }
 
             if (ctype == "application/x-www-form-urlencoded") {
-                trace("parsing url encoded form");
+                itrace("parsing url encoded form");
                 return parse_url_encoded_form();
             }
 
             size_t len = std::min(sizeofcstr("multipart/form-data"), ctype.size());
             if (strncasecmp(ctype.data(), "multipart/form-data", len) == 0) {
-                trace("parsing url encoded form");
+                itrace("parsing url encoded form");
                 const char *boundary = strchr(ctype.data(), '=');
                 if (boundary == nullptr) {
                     idebug("multipart/form-data without boundary: %", ctype.data());
@@ -147,7 +147,7 @@ namespace suil {
         bool Request::parse_multipart_form(const String& boundary) {
             OBuffer rb((uint32_t) content_length+2);
             if (read_body(rb.data(), content_length) <= 0) {
-                trace("error: reading body failed");
+                itrace("error: reading body failed");
                 return false;
             }
 
@@ -162,16 +162,16 @@ namespace suil {
             char *p = rb.data(), *end = p + content_length;
             char *name = nullptr, *filename = nullptr, *data = nullptr, *dend = nullptr;
             bool cap{false};
-            trace("start parse multipart form %d", mnow());
+            itrace("start parse multipart form %d", mnow());
             while (cap || (p != end)) {
                 switch (next_state) {
                     case state_begin:
-                        trace("multipart/form-data state_begin");
+                        itrace("multipart/form-data state_begin");
                         /* fall through */
                         state = state_error;
                         next_state = state_is_boundary;
                     case state_is_boundary:
-                        trace("multipart/form-data state_is_boundary");
+                        itrace("multipart/form-data state_is_boundary");
                         if (*p == '-' && *++p == '-') {
                             state = state_is_boundary;
                             next_state = state_boundary;
@@ -183,10 +183,10 @@ namespace suil {
 
                     case state_boundary:
                         state = state_is_boundary;
-                        trace("multipart/form-data state_boundary");
+                        itrace("multipart/form-data state_boundary");
                         if (strncmp(p, boundary.data(), boundary.size()) != 0) {
                             /* invalid boundary */
-                            trace("error: multipart/form-data invalid boundary");
+                            itrace("error: multipart/form-data invalid boundary");
                             next_state = state_error;
                         }
                         else {
@@ -209,14 +209,14 @@ namespace suil {
                                     next_state = state_end;
                             }
                             else {
-                                trace("error: multipart/form-data invalid state %d %d", el, eb);
+                                itrace("error: multipart/form-data invalid state %d %d", el, eb);
                                 next_state = state_error;
                             }
                         }
                         break;
 
                     case state_save_file: {
-                        trace("multipart/form-data state_save_file");
+                        itrace("multipart/form-data state_save_file");
                         *dend-- = '\0';
                         UploadedFile f;
                         String tmp(filename);
@@ -234,7 +234,7 @@ namespace suil {
                     }
 
                     case state_save_data: {
-                        trace("multipart/form-data state_save_data");
+                        itrace("multipart/form-data state_save_data");
                         *--dend = '\0';
                         String tmp(name);
                         String tmp_data(data, dend - data, false);
@@ -247,7 +247,7 @@ namespace suil {
                     }
 
                     case state_content:
-                        trace("multipart/form-data state_content");
+                        itrace("multipart/form-data state_content");
                         char *disp, *val;
                         state = state_content;
                         next_state = state_error;
@@ -255,10 +255,10 @@ namespace suil {
                             strcasecmp(disp, "Content-Disposition") == 0)
                         {
                             *(++p-2) = '\0';
-                            trace("multipart/form-data content disposition: %s", val);
+                            itrace("multipart/form-data content disposition: %s", val);
                             if (strncasecmp(val, "form-data", 9)) {
                                 /* unsupported disposition */
-                                trace("error: multipart/form-data not content disposition: %s",
+                                itrace("error: multipart/form-data not content disposition: %s",
                                       val);
                                 continue;
                             }
@@ -267,20 +267,20 @@ namespace suil {
                             eat_space(val);
                             if (_get_disposition(val, end, name, filename)) {
                                 /* successfully go disposition */
-                                trace("multipart/form-data name: %s, filename %s",
+                                itrace("multipart/form-data name: %s, filename %s",
                                 name, filename);
                                 next_state = state_header;
                             } else {
-                                trace("error: multipart/form-data invalid disposition: %s", val);
+                                itrace("error: multipart/form-data invalid disposition: %s", val);
                             }
                         } else {
-                            trace("error: multipart/form-data missing disposition");
+                            itrace("error: multipart/form-data missing disposition");
                         }
                         break;
 
                     case state_header:
                         state = state_header;
-                        trace("multipart/form-data state_header\n%s", p);
+                        itrace("multipart/form-data state_header\n%s", p);
                         char *field, *value;
                         if (*p == '\r' && *++p == '\n') {
                             data = ++p;
@@ -288,18 +288,18 @@ namespace suil {
                         }
                         else if (_get_header(p, end, field, value)) {
                             *(++p-2) = '\0';
-                            trace("multipart/form-data header field: %s, value: %s",
+                            itrace("multipart/form-data header field: %s, value: %s",
                                   field, value);
                         }
                         else {
-                            trace("error: multipart/form-data parsing header failed");
+                            itrace("error: multipart/form-data parsing header failed");
                             next_state = state_error;
                         }
                         break;
 
                     case state_data:
                         state = state_data;
-                        trace("multipart/form-data state_data");
+                        itrace("multipart/form-data state_data");
                         dend = p;
                         ++p;
                         next_state = state_is_boundary;
@@ -307,7 +307,7 @@ namespace suil {
 
                     case state_end:
                         state = state_end;
-                        trace("multipart/form-data state machine done %d fields, %d files %d",
+                        itrace("multipart/form-data state machine done %d fields, %d files %d",
                                 form.size(), files.size(), mnow());
                         if (!form.empty() || !files.empty()) {
                             // cache the buffer for later references
@@ -318,7 +318,7 @@ namespace suil {
 
                     case state_error:
                     default:
-                        trace("error: multipart/form-data error in state machine");
+                        itrace("error: multipart/form-data error in state machine");
                         return false;
                 }
             }
@@ -378,7 +378,7 @@ namespace suil {
                 size_t len = stage.capacity();
                 // receive a chunk of headers
                 if (!sock.read(ptr, len, config.connection_timeout)) {
-                    trace("%s - receiving headers failed: %s",
+                    itrace("%s - receiving headers failed: %s",
                           sock.id(), errno_s);
                     status = (errno == ETIMEDOUT)?
                              Status::REQUEST_TIMEOUT : Status::INTERNAL_ERROR;
@@ -387,7 +387,7 @@ namespace suil {
                 stats.rx_bytes += len;
                 // parse the chunk of received headers
                 if (!feed(ptr, len)) {
-                    trace("%s - parsing headers failed: %s",
+                    itrace("%s - parsing headers failed: %s",
                             sock.id(), http_errno_name((enum http_errno) http_errno));
                     status = Status::BAD_REQUEST;
                     break;
@@ -408,7 +408,7 @@ namespace suil {
             if (headers.count("Content-Length"))
             {
                 if (content_length > config.max_body_len) {
-                    trace("%s - body Request too large: %d", sock.id(), content_length);
+                    itrace("%s - body Request too large: %d", sock.id(), content_length);
                     return Status::REQUEST_ENTITY_TOO_LARGE;
                 }
                 has_body = 1;
@@ -425,7 +425,7 @@ namespace suil {
                 }
 
                 if (!offload->valid()) {
-                    trace("%s - error opening file(%s) to save body: %s",
+                    itrace("%s - error opening file(%s) to save body: %s",
                           sock.id(), offload->path(), errno_s);
                     return Status::INTERNAL_ERROR;
                 }
@@ -446,7 +446,7 @@ namespace suil {
             do {
                 len = MIN(stage.capacity(), left);
                 if (!sock.receive(&stage[0], len, config.connection_timeout)) {
-                    trace("%s - receive failed: %s", sock.id(), errno_s);
+                    itrace("%s - receive failed: %s", sock.id(), errno_s);
                     status = (errno == ETIMEDOUT)?
                              Status::REQUEST_TIMEOUT:
                              Status::INTERNAL_ERROR;
@@ -456,7 +456,7 @@ namespace suil {
 
                 // parse header line
                 if (!feed(stage, len)) {
-                    trace("%s - parsing failed: %s",
+                    itrace("%s - parsing failed: %s",
                           sock.id(), http_errno_name((enum http_errno )http_errno));
                     status = Status::BAD_REQUEST;
                     break;
@@ -466,7 +466,7 @@ namespace suil {
             } while (!body_complete && left > 0);
 
             if (status == Status::OK && !body_complete) {
-                trace("%s - parsing failed, body not complete",
+                itrace("%s - parsing failed, body not complete",
                          sock.id(), port());
                 status = Status::BAD_REQUEST;
             }
@@ -484,7 +484,7 @@ namespace suil {
             if (config.disk_offload && offload) {
                 size_t nwr = offload->write(at, length, config.connection_timeout);
                 if (nwr != length) {
-                    trace("%s error offloading body: %s", sock.id(), errno_s);
+                    itrace("%s error offloading body: %s", sock.id(), errno_s);
                     return -1;
                 }
             }
@@ -533,7 +533,7 @@ namespace suil {
                 do {
                     size_t chunk = MIN(4096, (size_t) (toread-nrd));
                     if (offload->read((ptr+nrd), chunk, config.connection_timeout)) {
-                        trace("%s - reading body failed: %s", sock.id(), errno_s);
+                        itrace("%s - reading body failed: %s", sock.id(), errno_s);
                         offload_error = 1;
                         return -1;
                     }

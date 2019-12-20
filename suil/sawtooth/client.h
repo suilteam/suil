@@ -5,12 +5,9 @@
 #include <suil/utils.h>
 #include <suil/logging.h>
 #include <suil/crypto.h>
+#include <suil/sawtooth/stream.h>
+#include <suil/sawtooth/protos.h>
 
-namespace sawtooth::protos {
-    class TransactionHeader;
-    class Transaction;
-    class Batch;
-};
 
 namespace suil::sawsdk::Client {
 
@@ -29,8 +26,10 @@ namespace suil::sawsdk::Client {
 
         void get(crypto::PrivateKey& out) const;
         void get(crypto::PublicKey& out) const;
+        [[nodiscard]]
         const crypto::PrivateKey& getPrivateKey() const;
-        const crypto::PublicKey getPublicKey() const;
+        [[nodiscard]]
+        const crypto::PublicKey& getPublicKey() const;
 
         suil::String sign(const void* data, size_t len) const;
 
@@ -46,16 +45,19 @@ namespace suil::sawsdk::Client {
             return verify(data.data(), data.size(), signature, publicKey);
         }
 
+        [[nodiscard]]
         inline bool isValid() const { return Ego.mKey.isValid(); }
 
     private:
-        Signer(crypto::ECKey&& key);
+        explicit Signer(crypto::ECKey&& key);
         crypto::ECKey mKey;
     };
 
     struct Transaction final {
         sawtooth::protos::Transaction* operator->();
         sawtooth::protos::Transaction& operator* ();
+        const sawtooth::protos::Transaction* operator->() const;
+        const sawtooth::protos::Transaction& operator* () const;
     private:
         friend struct Encoder;
         Transaction();
@@ -67,6 +69,8 @@ namespace suil::sawsdk::Client {
     struct Batch final {
         sawtooth::protos::Batch* operator-> ();
         sawtooth::protos::Batch& operator* ();
+        const sawtooth::protos::Batch* operator-> () const;
+        const sawtooth::protos::Batch& operator* () const;
     private:
         friend struct Encoder;
         Batch();
@@ -81,18 +85,54 @@ namespace suil::sawsdk::Client {
     struct Encoder final {
         Encoder(const suil::String& family, const suil::String& familyVersion, const suil::String& privateKey);
 
-        Transaction createTransaction(const suil::Data& payload, const Inputs& inputs = {}, const Outputs& outputs = {}) const;
-        Batch createBatch(const std::vector<Transaction>& txns) const;
-        Batch createBatch(const Transaction& txn) const {
-            return Ego.createBatch({txn});
+        Transaction operator()(const suil::Data& payload, const Inputs& inputs = {}, const Outputs& outputs = {}) const;
+
+        Batch operator()(const std::vector<Transaction>& txns) const;
+
+        Batch operator()(const Transaction& txn) const {
+            return Ego({txn});
         }
-        suil::Data encode(const Batch& batch);
+
+        suil::Data operator()(const std::vector<Batch>& batches) const;
+
+        suil::Data operator()(const Batch& batch) const {
+            return Ego({batch});
+        }
+
+        suil::Data encode(const suil::Data& payload, const Inputs& inputs = {}, const Outputs& outputs = {});
+
     private:
         suil::String mFamily;
         suil::String mFamilyVersion;
         suil::String mBatcherPublicKey;
         suil::String mSignerPublicKey;
         Signer mSigner;
+    };
+
+    struct ValidatorContext;
+    struct Validator final {
+        using SubmitResp = sawtooth::protos::ClientBatchSubmitResponse;
+
+        Validator();
+
+        Validator(Validator&&) = delete;
+        Validator(const Validator&) = delete;
+        Validator&operator=(Validator&&) = delete;
+        Validator&operator=(const Validator&) = delete;
+
+        bool connect(const suil::String& endpoint);
+
+        OnAirMessage::Ptr submitAsync(const std::vector<Batch>& batches);
+
+        inline OnAirMessage::Ptr submitAsync(const Batch& batch) {
+            return Ego.submitAsync({batch});
+        }
+
+        SubmitResp submit(const Batch& batch);
+
+    private:
+        ValidatorContext *mSelf;
+        zmq::Context      mContext{};
     };
 }
 

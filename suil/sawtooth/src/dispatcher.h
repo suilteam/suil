@@ -5,10 +5,10 @@
 #ifndef SUIL_DISPATCHER_H
 #define SUIL_DISPATCHER_H
 
-#include "stream.h"
+#include "suil/sawtooth/stream.h"
 
 namespace suil::sawsdk {
-
+    namespace Client { struct ValidatorContext; }
     define_log_tag(SAWSDK_DISPATCHER);
 
     struct Dispatcher : LOGGER(SAWSDK_DISPATCHER) {
@@ -19,9 +19,11 @@ namespace suil::sawsdk {
 
         Stream createStream();
 
-        void close();
+        void disconnect();
+        void exit();
     protected:
         friend struct TpContext;
+        friend struct Client::ValidatorContext;
         Dispatcher(zmq::Context& ctx);
 
     private:

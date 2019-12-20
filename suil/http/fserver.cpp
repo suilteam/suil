@@ -124,14 +124,14 @@ namespace suil {
         void FileServer::get(const Request &req, Response &resp, String &path, String &ext) {
             auto mime = mime_types_.find(ext);
             if (mime == mime_types_.end()) {
-                trace("extension type (%s) not supported", ext());
+                itrace("extension type (%s) not supported", ext());
                 throw Error::notFound();
             }
 
             mime_type_t& mm = mime->second;
             auto sf = load_file(path, mm);
             if (sf == cached_files_.end()) {
-                trace("requested static resource (%s) does not exist", path());
+                itrace("requested static resource (%s) does not exist", path());
                 // static file not found;
                 throw Error::notFound();
             }
@@ -163,13 +163,13 @@ namespace suil {
             // FIXME: part of code is the similar to GET code, move to common stub
             auto mime = mime_types_.find(ext);
             if (mime == mime_types_.end()) {
-                trace("extension type (%s) not supported", ext());
+                itrace("extension type (%s) not supported", ext());
                 throw Error::notFound();
             }
             mime_type_t& mm = mime->second;
             auto sf = load_file(path, mm);
             if (sf == cached_files_.end()) {
-                trace("requested static resource (%s) does not exist", path());
+                itrace("requested static resource (%s) does not exist", path());
                 // static file not found;
                 throw Error::notFound();
             }
@@ -256,10 +256,10 @@ namespace suil {
                 else {
                     to = cf.len;
                 }
-                trace("partial content: %lu-%lu/%lu", from, to,cf.len);
+                itrace("partial content: %lu-%lu/%lu", from, to,cf.len);
                 // build partial content chunk
                 if (from > to || from >= cf.len || to > cf.len) {
-                    trace("requested range is out of bounds");
+                    itrace("requested range is out of bounds");
                     resp.end(Status::REQUEST_RANGE_INVALID);
                     return;
                 }
@@ -324,12 +324,12 @@ namespace suil {
                         return cached_files_.end();
                     }
                     else if (config.enable_send_file) {
-                        trace("enable send fd(%d) for %s", cf.fd, path());
+                        itrace("enable send fd(%d) for %s", cf.fd, path());
                         cf.use_fd = 1;
                     }
                     else {
                         if (!read_file(cf, st)) {
-                            trace("loading file (%s) failed", path());
+                            itrace("loading file (%s) failed", path());
                             close(cf.fd);
                             return cached_files_.end();
                         }
@@ -362,12 +362,12 @@ namespace suil {
                         return cached_files_.end();
                     }
                     else if (config.enable_send_file) {
-                        trace("enable send fd(%d) for %s", cf.fd, cf.path());
+                        itrace("enable send fd(%d) for %s", cf.fd, cf.path());
                         cf.use_fd = 1;
                     }
                     else {
                         if (!read_file(cf, st)) {
-                            trace("loading file (%s) failed", cf.path());
+                            itrace("loading file (%s) failed", cf.path());
                             close(cf.fd);
                             cached_files_.erase(it);
                             return cached_files_.end();
@@ -386,7 +386,7 @@ namespace suil {
         bool FileServer::read_file(cached_file_t &cf, const struct stat &st)
         {
             if (cf.fd < 0) {
-                trace("reloading a closed file not allowed");
+                itrace("reloading a closed file not allowed");
                 return false;
             }
 

@@ -44,7 +44,8 @@ set(SAWTOOTH_SOURCES
         src/tp.cpp
         src/transaction.cpp
         src/stream.cpp
-        src/client.cpp)
+        src/client.cpp
+        src/validator.cpp)
 
 include_directories(PROTOBUF_INCLUDE_DIR)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
@@ -54,14 +55,22 @@ target_link_libraries(sawtooth protobuf::libprotobuf suil)
 
 set(sawtooth_INSTALL_TARGETS sawtooth)
 
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/sawtooth)
 set(SAWTOOTH_PROTOS_ALL ${CMAKE_CURRENT_BINARY_DIR}/protos.h)
+set(SAWTOOTH_PROTOS_DEV ${CMAKE_CURRENT_BINARY_DIR}/suil/sawtooth/protos.h)
+
 file(WRITE ${SAWTOOTH_PROTOS_ALL} "#ifndef __SUIL_SAWTOOTH_PROTOS_AMALGAMATE_H_\n")
 file(APPEND ${SAWTOOTH_PROTOS_ALL} "#define __SUIL_SAWTOOTH_PROTOS_AMALGAMATE_H_\n")
+
+file(WRITE ${SAWTOOTH_PROTOS_DEV} "#ifndef __SUIL_SAWTOOTH_PROTOS_AMALGAMATE_H_\n")
+file(APPEND ${SAWTOOTH_PROTOS_DEV} "#define __SUIL_SAWTOOTH_PROTOS_AMALGAMATE_H_\n")
 foreach(HEADER ${SAWTOOTH_PROTO_HDRS})
     get_filename_component(HEADER_NAME ${HEADER} NAME)
     file(APPEND ${SAWTOOTH_PROTOS_ALL} "#include <suil/sawtooth/protos/${HEADER_NAME}>\n")
+    file(APPEND ${SAWTOOTH_PROTOS_DEV} "#include \"../../${HEADER_NAME}\"\n")
 endforeach()
 file(APPEND ${SAWTOOTH_PROTOS_ALL} "#endif // __SUIL_SAWTOOTH_PROTOS_AMALGAMATE_H_\n")
+file(APPEND ${SAWTOOTH_PROTOS_DEV} "#endif // __SUIL_SAWTOOTH_PROTOS_AMALGAMATE_H_\n")
 
 install(TARGETS ${sawtooth_INSTALL_TARGETS}
     ARCHIVE DESTINATION lib

@@ -85,7 +85,7 @@ namespace suil::rpc {
             SuilRpcRequest rpcRequest;
             hb >> rpcRequest;
             suil::Heapboard bb(rpcRequest.params);
-            trace("handling request {id=%d, method=%d}", rpcRequest.id, rpcRequest.method);
+            itrace("handling request {id=%d, method=%d}", rpcRequest.id, rpcRequest.method);
             rpcResponse.id = rpcResponse.id;
             if (rpcRequest.method <= 0) {
                 // methods with negative indices are system

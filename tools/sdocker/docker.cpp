@@ -102,15 +102,15 @@ namespace suil::docker {
     VersionResp Docker::version()
     {
         String resource{"/version"};
-        trace("requesting resource at %s", resource());
+        itrace("requesting resource at %s", resource());
         auto resp = http::client::get(httpSession, resource());
-        trace("request resource status %d", resp.status());
+        itrace("request resource status %d", resp.status());
         if (resp.status() != http::Status::OK) {
             // request failed
             reportFailure(resp);
         }
 
-        trace("get resource status %d", resp.status());
+        itrace("get resource status %d", resp.status());
         if (resp.status() != http::Status::OK) {
             // request failed
             reportFailure(resp);

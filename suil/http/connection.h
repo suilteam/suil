@@ -228,7 +228,7 @@ namespace suil {
             {
                 stats.total_requests++;
                 stats.open_requests++;
-                trace("(%p) %s - creating Connection", this, sock.id());
+                itrace("(%p) %s - creating Connection", this, sock.id());
             }
 
             void start() {
@@ -236,7 +236,7 @@ namespace suil {
                 Status  status = Status::OK;
                 Request req(sock, config);
 
-                trace("%s - starting Connection handler", sock.id());
+                itrace("%s - starting Connection handler", sock.id());
                 do {
                     // receive Request headers
                     status = req.receive_headers(stats);
@@ -248,7 +248,7 @@ namespace suil {
                         }
                         else {
                             // receiving headers timed out, abort
-                            trace("%s - receiving headers timeout", sock.id());
+                            itrace("%s - receiving headers timeout", sock.id());
                         }
                         break;
                     }
@@ -330,7 +330,7 @@ namespace suil {
                     res.clear();
                 } while (!close_);
 
-                trace("%p - done handling Connection, %d", this, close_);
+                itrace("%p - done handling Connection, %d", this, close_);
             }
 
             ~Connection() {
@@ -344,7 +344,7 @@ namespace suil {
             void send_response(Request& req, Response& res, bool err = false) {
                 if (!sock.isopen()) {
                     close_ = true;
-                    trace("%p - send Response error: socket closed", this);
+                    itrace("%p - send Response error: socket closed", this);
                     return;
                 }
 
@@ -448,7 +448,7 @@ namespace suil {
                             rc = sock.sendfile(b.fd, (b.offset + nsent), chunk,
                                                config.connection_timeout);
                             if (rc == 0 || rc != chunk) {
-                                trace("(%p) -  sending Response failed: %s", errno_s);
+                                itrace("(%p) -  sending Response failed: %s", errno_s);
                                 return false;
                             }
 
@@ -465,7 +465,7 @@ namespace suil {
                                            chunk,
                                            config.connection_timeout);
                             if (rc == 0) {
-                                trace("(%p) sending Response failed: %s", errno_s);
+                                itrace("(%p) sending Response failed: %s", errno_s);
                                 return false;
                             }
 

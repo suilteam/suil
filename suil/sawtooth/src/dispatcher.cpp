@@ -54,9 +54,14 @@ namespace suil::sawsdk {
         go(receiveMessages(Ego));
     }
 
-    void Dispatcher::close() {
+    void Dispatcher::disconnect() {
         iinfo("Disconnecting server socket");
         Ego.mServerSock.close();
+    }
+
+    void Dispatcher::exit() {
+        idebug("dispatcher exiting...");
+        Ego.mDispatchSock.send(Dispatcher::EXIT_MESSAGE);
     }
 
     void Dispatcher::receiveMessages(Dispatcher &Self)

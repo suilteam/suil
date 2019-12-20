@@ -137,7 +137,7 @@ namespace suil {
 
                 router.validate();
 
-                trace("starting server...");
+                itrace("starting server...");
                 return basesrv_t::run();
             }
 

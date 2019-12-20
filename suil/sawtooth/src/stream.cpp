@@ -2,7 +2,7 @@
 // Created by dc on 2019-12-15.
 //
 
-#include "stream.h"
+#include "suil/sawtooth/stream.h"
 
 namespace suil::sawsdk {
 

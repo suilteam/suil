@@ -190,7 +190,7 @@ namespace suil::sawsdk {
 
         idebug("TP done, unregistering");
         Ego.unRegisterAll();
-        Ego.mDispatcher.close();
+        Ego.mDispatcher.exit();
     }
 
     TransactionProcessor::TransactionProcessor(suil::String &&connString)

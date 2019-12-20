@@ -328,7 +328,7 @@ namespace suil {
                 /* configure key */
                 if (tmp) {
                     key = std::move(tmp.dup());
-                    trace("jwt key changed to %s", key());
+                    itrace("jwt key changed to %s", key());
                 }
 
                 /* configure authenticate header string */

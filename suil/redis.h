@@ -653,7 +653,7 @@ namespace suil {
                 }
 
                 if (db != 0) {
-                    trace("changing database to %d", db);
+                    itrace("changing database to %d", db);
                     auto resp = cli("SELECT", 1);
                     if (!resp) {
                         throw Exception::create(
@@ -677,11 +677,11 @@ namespace suil {
             ~RedisDb() {
                 if (cleaning) {
                     /* unschedule the cleaning coroutine */
-                    trace("notifying cleanup routine to exit");
+                    itrace("notifying cleanup routine to exit");
                     !notify;
                 }
 
-                trace("cleaning up %lu connections", Ego.cache.size());
+                itrace("cleaning up %lu connections", Ego.cache.size());
                 auto it = Ego.cache.begin();
 
                 while (it != Ego.cache.end()) {
@@ -704,12 +704,12 @@ namespace suil {
 
             typename ConnectedClients::iterator newConnection() {
                 Proto proto;
-                trace("opening redis Connection");
+                itrace("opening redis Connection");
                 if (!proto.connect(addr, Ego.config.timeout)) {
                     throw Exception::create("connecting to redis server '",
                                             ipstr(Ego.addr), "' failed: ", errno_s);
                 }
-                trace("connected to redis server");
+                itrace("connected to redis server");
                 Client<Proto> cli(
                         std::move(proto),
                         Ego.config,
@@ -724,7 +724,7 @@ namespace suil {
                     }
                 }
 
-                trace("connected to redis server: %s", ipstr(addr));
+                itrace("connected to redis server: %s", ipstr(addr));
                 return it;
             }
 

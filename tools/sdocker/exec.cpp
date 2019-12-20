@@ -9,14 +9,14 @@ namespace suil::docker {
     void Exec::start(const suil::String id, const ExecStartReq &request)
     {
         auto resource = utils::catstr(ref.apiBase, "/exec/", id, "/start");
-        trace("requesting resource at %s", resource());
+        itrace("requesting resource at %s", resource());
         auto resp = http::client::post(ref.httpSession, resource(), [&](http::client::Request& req) {
             // build custom request
             req << request;
             return true;
         });
 
-        trace("request resource status %d", resp.status());
+        itrace("request resource status %d", resp.status());
         if (resp.status() != http::Status::CREATED) {
             // request failed
             Docker::reportFailure(resp);
@@ -26,7 +26,7 @@ namespace suil::docker {
     void Exec::resize(const suil::String id, uint32_t h, uint32_t w)
     {
         auto resource = utils::catstr(ref.apiBase, "/exec/", id, "/resize");
-        trace("requesting resource at %s", resource());
+        itrace("requesting resource at %s", resource());
         auto resp = http::client::post(ref.httpSession, resource(), [&](http::client::Request& req) {
             // build custom request
             Docker::arg(req, "h", h);
@@ -34,7 +34,7 @@ namespace suil::docker {
             return true;
         });
 
-        trace("request resource status %d", resp.status());
+        itrace("request resource status %d", resp.status());
         if (resp.status() != http::Status::CREATED) {
             // request failed
             Docker::reportFailure(resp);
@@ -44,10 +44,10 @@ namespace suil::docker {
     json::Object Exec::inspect(const suil::String id)
     {
         auto resource = utils::catstr(ref.apiBase, "/exec/", id, "/json");
-        trace("requesting resource at %s", resource());
+        itrace("requesting resource at %s", resource());
         auto resp = http::client::get(ref.httpSession, resource());
 
-        trace("request resource status %d", resp.status());
+        itrace("request resource status %d", resp.status());
         if (resp.status() != http::Status::OK) {
             // request failed
             Docker::reportFailure(resp);

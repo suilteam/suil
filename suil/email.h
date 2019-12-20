@@ -328,7 +328,7 @@ namespace suil {
                           server.data(), port, errno_s);
                 return false;
             }
-            trace("Connection to email server '%s:%d' open", server.data(), port);
+            itrace("Connection to email server '%s:%d' open", server.data(), port);
 
             // login to server
             return sender.login(domain, user, passwd);

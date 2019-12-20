@@ -35,7 +35,7 @@ namespace suil {
 
         raw = sslconnect(addr, utils::after(timeout));
         if (raw == nullptr) {
-            trace("connetion to address %s failed: %s",
+            itrace("connetion to address %s failed: %s",
                   ipstr(addr), errno_s);
 
             return false;
@@ -53,7 +53,7 @@ namespace suil {
 
         size_t ns = sslsend(raw, buf, (int) len, utils::after(timeout));
         if (errno != 0) {
-            trace("send error: %s", errno_s);
+            itrace("send error: %s", errno_s);
             if (errno == ECONNRESET) {
                 close();
             }
@@ -97,7 +97,7 @@ namespace suil {
 
         len = sslrecv(raw, buf, (int) len, utils::after(timeout));
         if (errno != 0) {
-            trace("receiving failed: %s", errno_s);
+            itrace("receiving failed: %s", errno_s);
             if (errno == ECONNRESET) {
                 // close the socket
                 Ego.close();
@@ -118,7 +118,7 @@ namespace suil {
 
         len = sslrecvuntil(raw, buf, len, delims, ndelims, utils::after(timeout));
         if (errno != 0) {
-            trace("receiving failed: %s", errno_s);
+            itrace("receiving failed: %s", errno_s);
             if (errno == ECONNRESET) {
                 // close the socket
                 Ego.close();
@@ -138,7 +138,7 @@ namespace suil {
 
         len = sslrecv(raw, buf, len, utils::after(timeout));
         if (errno != 0) {
-            trace("receiving failed: %s", errno_s);
+            itrace("receiving failed: %s", errno_s);
             if (errno == ECONNRESET) {
                 // close the socket
                 Ego.close();
@@ -196,7 +196,7 @@ namespace suil {
 
         raw = tcpconnect(addr, utils::after(timeout));
         if (raw == NULL) {
-            trace("Connection to address %s failed: %s", ipstr(addr), errno_s);
+            itrace("Connection to address %s failed: %s", ipstr(addr), errno_s);
             return false;
         }
         return true;
@@ -204,13 +204,13 @@ namespace suil {
 
     size_t TcpSock::send(const void *buf, size_t len, int64_t timeout) {
         if (!isopen()) {
-            trace("writing to a closed socket not supported");
+            itrace("writing to a closed socket not supported");
             errno = ENOTSUP;
             return 0;
         } else {
             size_t ns = tcpsend(raw, buf, len, utils::after(timeout));
             if (errno != 0) {
-                trace("sending failed: %s", errno_s);
+                itrace("sending failed: %s", errno_s);
                 if (errno == ECONNRESET) {
                     Ego.close();
                 }
@@ -223,13 +223,13 @@ namespace suil {
 
     size_t TcpSock::sendfile(int fd, off_t offset, size_t len, int64_t timeout) {
         if (!isopen()) {
-            trace("writing to a closed socket not supported");
+            itrace("writing to a closed socket not supported");
             errno = ENOTSUP;
             return 0;
         } else {
             size_t ns = tcpsendfile(raw, fd, offset, len, utils::after(timeout));
             if (errno != 0) {
-                trace("sending failed: %s", errno_s);
+                itrace("sending failed: %s", errno_s);
                 if (errno == ECONNRESET)
                     Ego.close();
 
@@ -246,7 +246,7 @@ namespace suil {
 
         tcpflush(raw, utils::after(timeout));
         if (errno != 0) {
-            trace("flushing socket failed: %s", errno_s);
+            itrace("flushing socket failed: %s", errno_s);
             if (errno == ECONNRESET)
                 Ego.close();
             return false;
@@ -266,7 +266,7 @@ namespace suil {
 
         len = tcprecv(raw, buf, len, utils::after(timeout));
         if (errno != 0) {
-            trace("receiving failed: %s", errno_s);
+            itrace("receiving failed: %s", errno_s);
             if (errno == ECONNRESET)
                 Ego.close();
 
@@ -286,7 +286,7 @@ namespace suil {
         }
         len = tcprecvuntil(raw, buf, len, delims, ndelims, utils::after(timeout));
         if (errno != 0) {
-            trace("receiving failed: %s", errno_s);
+            itrace("receiving failed: %s", errno_s);
             if (errno == ECONNRESET)
                 Ego.close();
 
@@ -306,7 +306,7 @@ namespace suil {
 
         len = tcpread(raw, buf, len, utils::after(timeout));
         if (errno != 0) {
-            trace("reading failed: %s", errno_s);
+            itrace("reading failed: %s", errno_s);
             if (errno == ECONNRESET)
                 Ego.close();
 
@@ -353,7 +353,7 @@ namespace suil {
         sslsock tsock;
         tsock = sslaccept(raw, utils::after(timeout));
         if (tsock == nullptr) {
-            trace("accept Connection failed: %s", errno_s);
+            itrace("accept Connection failed: %s", errno_s);
             s = sock_t(nullptr);
             return false;
         } else {
@@ -388,7 +388,7 @@ namespace suil {
         tcpsock tsock;
         tsock = tcpaccept(raw, utils::after(timeout));
         if (tsock == nullptr) {
-            trace("accept Connection failed: %s", errno_s);
+            itrace("accept Connection failed: %s", errno_s);
             s = sock_t(nullptr);
             return false;
         } else {

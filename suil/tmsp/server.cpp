@@ -46,7 +46,7 @@ namespace suil::tmsp {
         // send size of message
         if (writeProtobufSize(this, dbg, sock, ob.size()) != 0) {
             // failed to size of variable size buffer
-            trace("%s - sending Response header failed: ", dbg, errno_s);
+            itrace("%s - sending Response header failed: ", dbg, errno_s);
             return false;
         }
 
@@ -55,7 +55,7 @@ namespace suil::tmsp {
             sent = sock.send(&data[total], tsd, 1500);
             if (sent != tsd) {
                 // sending message failure
-                trace("%s - sending %lu/%lu failed: %s",
+                itrace("%s - sending %lu/%lu failed: %s",
                       dbg, sent, tsd, errno_s);
                 return false;
             }
