@@ -3,6 +3,8 @@
 //
 
 #include "suil/cmdl.h"
+#include "suil/zstring.h"
+#include "suil/base.h"
 
 namespace suil {
     namespace cmdl {
@@ -125,7 +127,12 @@ namespace suil {
                     // argument taking the form --arg=val
                     *cval++ = '\0';
                 }
-
+                if (carg[0] != '-') {
+                    // positional argument
+                    Ego.positionals.emplace_back(String{carg}.dup());
+                    pos++;
+                    continue;
+                }
                 int dashes = Cmd::isvalid(carg);
                 // are we passing option (or value)
                 if (!dashes) {
@@ -255,6 +262,17 @@ namespace suil {
 
             String val = cmdl::readparam(display, nullptr);
             passed.emplace(std::make_pair(arg.lf.peek(), std::move(val)));
+        }
+
+        String Cmd::getPositional(int index, const char* msg)
+        {
+            if (Ego.positionals.size() <= index) {
+                if (msg != nullptr) {
+                    throw Exception::create(msg);
+                }
+                return {};
+            }
+            return Ego.positionals[index].peek();
         }
 
         String Cmd::operator[](const String &lf) {

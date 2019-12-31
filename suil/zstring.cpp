@@ -12,7 +12,7 @@ namespace suil {
               m_own(false)
     {}
 
-    String::String(const char *str)
+    String::String(const char *str) noexcept
             : m_cstr(str),
               m_len((uint32_t) (str ? strlen(str) : 0)),
               m_own(false)

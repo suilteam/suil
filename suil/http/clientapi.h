@@ -315,6 +315,8 @@ namespace suil {
 
                 OBuffer& buffer(const char* content_type = "text/plain");
 
+                uint8_t& buffer(size_t size, const char* contentType = "text/plain");
+
                 inline void keepalive(bool on) {
                     if (on)
                         hdrs("Connection", "Keep-Alive");

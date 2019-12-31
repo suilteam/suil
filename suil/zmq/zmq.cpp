@@ -88,30 +88,29 @@ namespace suil::zmq {
 
     Socket::Socket(Context &context, int type)
         : ctx{context},
-          sock{zmq_socket(context, type)}
-    {
-        if (sock == nullptr) {
-            throw Exception::create("failed to create a new zmq socket: ", zmq_strerror(zmq_errno()));
-        }
-        id = utils::randbytes(4);
-        zmq_setsockopt(Ego.sock, ZMQ_IDENTITY, Ego.id(), Ego.id.size());
-    }
+          sock{nullptr},
+          type{type}
+    {}
 
     Socket::Socket(suil::zmq::Socket &&other)
-        : sock{sock},
+        : sock{other.sock},
           ctx{other.ctx},
-          id{std::move(other.id)}
+          id{std::move(other.id)},
+          type{other.type}
     {
         other.sock = nullptr;
         other.fd = -1;
+        idebug("Move ctor socket: %p->%p %s", &other, this, id());
     }
 
     Socket& Socket::operator=(suil::zmq::Socket &&other) {
         Ego.sock = other.sock;
         Ego.fd = other.fd;
         Ego.id = std::move(other.id);
+        Ego.type = other.type;
         other.sock = nullptr;
         other.fd = -1;
+        idebug("Move assign socket: %p->%p %s", &other, this, id());
         return Ego;
     }
 
@@ -124,6 +123,13 @@ namespace suil::zmq {
         }
         idebug("%s has  zmq socket %d", Ego.id(), Ego.fd);
         return true;
+    }
+
+    void Socket::setIdentity()
+    {
+        id = utils::randbytes(4);
+        zmq_setsockopt(Ego.sock, ZMQ_IDENTITY, Ego.id(), Ego.id.size());
+        idebug("New socket: %p %s", this, id());
     }
 
     Message Socket::receive(int64_t to)
@@ -226,8 +232,8 @@ namespace suil::zmq {
     }
 
     void Socket::close() {
-        if (sock) {
-            idebug("Closing socket %s", Ego.id());
+        if (sock != nullptr) {
+            idebug("closing socket %s", Ego.id());
             zmq_close(sock);
             sock = nullptr;
             fd = -1;
@@ -258,12 +264,13 @@ namespace suil::zmq {
 
     bool Socket::connect(const suil::String& endpoint)
     {
+        Ego.close();
+
+        Ego.sock = zmq_socket(Ego.ctx, Ego.type);
         if (Ego.sock == nullptr) {
-            Ego.sock = zmq_socket(Ego.ctx, ZMQ_REQ);
-            if (Ego.sock == nullptr) {
-                throw Exception::create("failed to create a new ZMQ_REQ socket: ", zmq_strerror(zmq_errno()));
-            }
+            throw Exception::create("failed to create a new socket: ", zmq_strerror(zmq_errno()));
         }
+        Ego.setIdentity();
 
         if (zmq_connect(Ego.sock, endpoint.c_str())) {
             ierror("failed to connect to zmq endpoint '%s': %s", endpoint(), zmq_strerror(zmq_errno()));
@@ -289,12 +296,13 @@ namespace suil::zmq {
 
     bool Socket::bind(const suil::String& endpoint)
     {
+        Ego.close();
+
+        Ego.sock = zmq_socket(Ego.ctx, Ego.type);
         if (Ego.sock == nullptr) {
-            Ego.sock = zmq_socket(Ego.ctx, ZMQ_REP);
-            if (Ego.sock == nullptr) {
-                throw Exception::create("failed to create a new ZMQ_REP socket: ", zmq_strerror(zmq_errno()));
-            }
+            throw Exception::create("failed to create a new ZMQ_REP socket: ", zmq_strerror(zmq_errno()));
         }
+        Ego.setIdentity();
 
         if (zmq_bind(Ego.sock, endpoint.c_str())) {
             ierror("failed to bind to zmq endpoint '%s': %s", endpoint, zmq_strerror(zmq_errno()));

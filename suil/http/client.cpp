@@ -272,6 +272,14 @@ namespace suil {
                 return body;
             }
 
+            uint8_t& Request::buffer(size_t size, const char *contentType)
+            {
+                buffer(contentType);
+                body.reserve(size);
+                body.seek(size);
+                return body[0];
+            }
+
             void Request::encodeargs(OBuffer &dst) const {
                 if (!arguments.empty()) {
                     dst << "?";
@@ -320,7 +328,6 @@ namespace suil {
                 hdrs("Date", Datetime()(Datetime::HTTP_FMT));
                 encodehdrs(head);
                 head << CRLF;
-
                 size_t nwr = sock.send(head.data(), head.size(), timeout);
                 if (nwr != head.size()) {
                     /* sending headers failed, no need to send body */
@@ -394,9 +401,7 @@ namespace suil {
             Response Session::perform(handle_t& h, Method m, const char *resource, request_builder_t& builder, ResponseWriter& rd) {
                 Request& req = h.req;
                 Response resp;
-                if (builder == nullptr) {
-                    req.reset(m, resource, false);
-                }
+                req.reset(m, resource, false);
 
                 for(auto& hdr: headers) {
                     String key(hdr.first.data(), hdr.first.size(), false);

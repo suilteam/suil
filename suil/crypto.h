@@ -16,7 +16,7 @@
 namespace suil::crypto {
 
     constexpr int ECDSA_SIGNATURE_SIZE{72};
-    constexpr int ECDSA_COMPACT_SIGNATURE_SIZE{64};
+    constexpr int ECDSA_COMPACT_SIGNATURE_SIZE{65};
     constexpr int EC_PRIVATE_KEY_SIZE{32};
     constexpr int EC_COMPRESSED_PUBLIC_KEY_SIZE{33};
 
@@ -121,6 +121,8 @@ namespace suil::crypto {
         }
     };
 
+    struct ECDSASignature;
+
     struct ECKey final {
         using Conversion = point_conversion_form_t;
 
@@ -143,6 +145,9 @@ namespace suil::crypto {
         operator bool() const {return isValid(); }
 
         operator EC_KEY*() const { return ecKey; }
+
+        ~ECKey();
+
     private:
         ECKey(EC_KEY *key);
         EC_KEY     *ecKey{nullptr};
@@ -154,6 +159,7 @@ namespace suil::crypto {
         using Binary<ECDSA_SIGNATURE_SIZE>::Blob;
         suil::String toCompactForm(bool base64 = true) const;
         static ECDSASignature fromCompactForm(const suil::String& sig, bool b64 = true);
+        int8_t RecId{-1};
     };
 
     bool ECDSASign(ECDSASignature& sig, const PrivateKey& key, const void* data, size_t len);

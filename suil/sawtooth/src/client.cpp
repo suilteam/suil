@@ -9,23 +9,23 @@ namespace sp {
 
 namespace suil::sawsdk::Client {
 
-    Signer::Signer(crypto::ECKey&& key)
-        : mKey(std::move(key))
+    Signer::Signer(secp256k1::KeyPair&& key)
+        : mKey(key)
     {}
 
     Signer:: Signer(Signer&& other) noexcept
-        : mKey(std::move(other.mKey))
+        : mKey(other.mKey)
     {}
 
     Signer& Signer::operator=(Signer& other) noexcept
     {
-        Ego.mKey = std::move(other.mKey);
+        Ego.mKey = other.mKey;
         return Ego;
     }
 
     Signer Signer::load(const suil::String& privKey)
     {
-        auto priv = crypto::PrivateKey::fromString(privKey);
+        auto priv = secp256k1::PrivateKey::fromString(privKey);
         if (!priv.nil()) {
             return Signer::load(priv);
         }
@@ -34,55 +34,55 @@ namespace suil::sawsdk::Client {
         }
     }
 
-    Signer Signer::load(const crypto::PrivateKey& privKey)
+    Signer Signer::load(const secp256k1::PrivateKey& privKey)
     {
-        return Signer{crypto::ECKey::fromKey(privKey)};
+        return Signer{secp256k1::KeyPair::fromPrivateKey(privKey)};
     }
 
-    void Signer::get(crypto::PrivateKey& out) const
+    void Signer::get(secp256k1::PrivateKey& out) const
     {
         if (Ego.isValid()) {
             out.copyfrom(Ego.getPrivateKey());
         }
     }
 
-    void Signer::get(crypto::PublicKey& out) const {
+    void Signer::get(secp256k1::PublicKey& out) const {
         if (Ego.isValid()) {
             out.copyfrom(Ego.getPublicKey());
         }
     }
 
-    const crypto::PrivateKey& Signer::getPrivateKey() const {
-        return Ego.mKey.getPrivateKey();
+    const secp256k1::PrivateKey& Signer::getPrivateKey() const {
+        return Ego.mKey.Private;
     }
 
-    const crypto::PublicKey& Signer::getPublicKey() const {
-        return Ego.mKey.getPublicKey();
+    const secp256k1::PublicKey& Signer::getPublicKey() const {
+        return Ego.mKey.Public;
     }
 
     suil::String Signer::sign(const void* data, size_t len) const {
-        crypto::ECDSASignature signature;
-        if (crypto::ECDSASign(signature, Ego.getPrivateKey(), data, len)) {
-            ierror("Signer::sign signing message failed");
-            return signature.toCompactForm();
+        secp256k1::Signature signature;
+        if (secp256k1::ECDSASign(signature, Ego.getPrivateKey(), data, len)) {
+            return signature.toString();
         }
+        ierror("Signer::sign signing message failed");
         return {};
     }
 
     bool Signer::verify(const void* data, size_t len, const suil::String& sig, const suil::String& publicKey)
     {
         LOGGER(SAWSDK_CLIENT) lt;
-        auto signature = crypto::ECDSASignature::fromCompactForm(sig);
+        auto signature = secp256k1::Signature::fromCompact(sig);
         if (signature.nil()) {
             lerror(&lt, "Signer::verify loading signature failed");
             return false;
         }
-        auto pubKey = crypto::PublicKey::fromString(publicKey);
+        auto pubKey = secp256k1::PublicKey::fromString(publicKey);
         if (pubKey.nil()) {
             lerror(&lt, "Signer::verify loading public key failed");
             return false;
         }
-        return crypto::ECDSAVerify(data, len, signature, pubKey);
+        return secp256k1::ECDSAVerify(data, len, signature, pubKey);
     }
 
     Transaction::Transaction()
@@ -133,13 +133,16 @@ namespace suil::sawsdk::Client {
         return *mSelf;
     }
 
-    Encoder::Encoder(const suil::String& family, const suil::String& familyVersion, const suil::String& privateKey)
+    Encoder::Encoder(const String& family, String&& familyVersion, const String&& privateKey)
         : mSigner{Signer::load(privateKey)},
           mFamily(family.dup()),
-          mFamilyVersion(familyVersion.dup()),
-          mBatcherPublicKey(mSigner.getPublicKey().toString()),
-          mSignerPublicKey(mSigner.getPublicKey().toString())
-    {}
+          mFamilyVersion(std::move(familyVersion)),
+          mBatcherPublicKey{},
+          mSignerPublicKey{}
+    {
+        mBatcherPublicKey = mSigner.getPublicKey().toString();
+        mSignerPublicKey = mBatcherPublicKey.peek();
+    }
 
     Transaction Encoder::operator()(const suil::Data& payload, const Inputs& inputs, const Outputs& outputs) const
     {
@@ -179,28 +182,45 @@ namespace suil::sawsdk::Client {
             auto it = batch->add_transactions();
             it->CopyFrom(*txn);
         }
-        protoSet(header, signer_public_key, Ego.mSigner.getPublicKey().toString());
+        protoSet(header, signer_public_key, Ego.mSignerPublicKey);
 
         auto headerBytes = protoSerialize(header);
         auto signature = mSigner.sign(headerBytes);
-
+        sdebug("Signature %s", signature());
         protoSet(*batch, header, headerBytes);
         protoSet(*batch, header_signature, signature);
 
         return batch;
     }
 
-    suil::Data Encoder::operator()(const std::vector<Batch> &batches) const {
-        sp::BatchList list;
+    void Encoder::encode(sawtooth::protos::BatchList& out, const std::vector<Batch>& batches) {
         for (const auto& batch: batches) {
-            list.add_batches()->CopyFrom(*batch);
+            out.add_batches()->CopyFrom(*batch);
         }
-        return protoSerialize(list);
     }
 
-    suil::Data Encoder::encode(const suil::Data &payload, const Inputs &inputs, const Outputs &outputs)
+    suil::Data Encoder::encode(const std::vector<Batch> &batches)
+    {
+        sawtooth::protos::BatchList list;
+        Encoder::encode(list, batches);
+        suil::Data data{list.ByteSizeLong()};
+        list.SerializeToArray(data.data(), static_cast<int>(data.size()));
+        return data;
+    }
+
+    void Encoder::encode(OBuffer& dst, const std::vector<Batch> &batches)
+    {
+        sawtooth::protos::BatchList list;
+        Encoder::encode(list, batches);
+        dst.reserve(list.ByteSizeLong());
+        auto buf = &dst[dst.size()];
+        list.SerializeToArray(buf, static_cast<int>(dst.capacity()));
+        dst.seek(list.ByteSizeLong());
+    }
+
+    Batch Encoder::encode(const suil::Data &payload, const Inputs &inputs, const Outputs &outputs)
     {
         auto txn = Ego(payload, inputs, outputs);
-        return Ego(Ego(txn));
+        return Ego(txn);
     }
 }

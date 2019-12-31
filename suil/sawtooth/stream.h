@@ -69,15 +69,13 @@ namespace suil::sawsdk {
         Stream&operator=(const Stream&) = delete;
 
         template <typename T>
-        OnAirMessage::Ptr sendMessage(Message::Type type, const T& msg) {
+        OnAirMessage::Ptr asyncSend(Message::Type type, const T& msg) {
             suil::Data data{msg.ByteSizeLong()};
             msg.SerializeToArray(data.data(), data.size());
-            auto correlationId = Ego.getCorrelationId();
-            auto onAir = OnAirMessage::mkshared(std::move(correlationId));
-            mOnAirMsgs[onAir->correlationId().peek()] = onAir;
-            Ego.send(type, data, onAir->correlationId());
-            return onAir;
+            return Ego.asyncSend(type, data);
         }
+
+        OnAirMessage::Ptr asyncSend(Message::Type type, const suil::Data& data);
 
         template <typename T>
         void sendResponse(Message::Type type, const T& msg, const suil::String& correlationId) {
@@ -86,6 +84,8 @@ namespace suil::sawsdk {
             Ego.send(type, data, correlationId);
         }
 
+        void send(Message::Type type, const suil::Data& data, const suil::String& correlationId);
+
     private:
         friend struct Dispatcher;
         friend struct TpContext;
@@ -93,12 +93,8 @@ namespace suil::sawsdk {
 
         suil::String getCorrelationId();
 
-        void send(Message::Type type,
-                const suil::Data& data,
-                const suil::String& correlationId);
-
-        zmq::Dealer mSocket;
-        static uint32_t mCorrelationCounter;
+        zmq::Socket mSocket;
+        static uint32_t CorrelationCounter;
         suil::Map<OnAirMessage::Ptr>& mOnAirMsgs;
     };
 }

@@ -60,7 +60,7 @@ message Transaction {
     bytes header = 1;
 
     // The signature derived from signing the header
-    bytes header_signature = 2;
+    string header_signature =2;
 
     // The payload is the encoded family specific information of the
     // transaction. Example cbor({'Verb': verb, 'Name': name,'Value': value})

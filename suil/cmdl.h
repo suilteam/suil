@@ -5,7 +5,6 @@
 #ifndef SUIL_CMDL_HPP
 #define SUIL_CMDL_HPP
 
-
 #include <suil/utils.h>
 
 namespace suil {
@@ -87,10 +86,22 @@ namespace suil {
 
             String operator[](const String& lf);
 
+            String operator[](int index) {
+                return Ego.getPositional(index);
+            }
+
             template <typename V>
             V getvalue(const char*lf, const V def) {
                 String zlf{lf};
                 return std::move(getvalue(zlf, def));
+            }
+
+            template <typename V>
+            V getPositional(int index, const char* errMsg = nullptr) {
+                auto value = Ego.getPositional(index, errMsg);
+                V tmp{};
+                setvalue(tmp, value);
+                return tmp;
             }
 
             String getvalue(const char*lf, const char* def) {
@@ -98,6 +109,8 @@ namespace suil {
                 String zdef{def};
                 return std::move(getvalue(zlf, zdef));
             }
+
+            String getPositional(int index, const char* errMsg = nullptr);
 
             template <typename V>
             V getvalue(const String& name, const V def) {
@@ -123,7 +136,7 @@ namespace suil {
 
             template <typename V>
             inline void setvalue(V& out, String& from) {
-                utils::cast(from, out.trim(' '));
+                utils::cast(from.trim(' '), out);
             }
 
             template <typename V>
@@ -155,6 +168,7 @@ namespace suil {
             String    name;
             String    descript;
             std::vector<Arg> args;
+            std::vector<String> positionals;
             size_t      longest{0};
             bool        required{false};
             bool        internal{false};

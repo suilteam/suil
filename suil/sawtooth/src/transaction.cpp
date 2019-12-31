@@ -76,4 +76,23 @@ namespace suil::sawsdk {
                 return suil::Data{};
         }
     }
+
+    TransactionHandler::TransactionHandler(const String &family, const String &ns)
+        : mAddressEcoder(ns),
+          mFamily(family.dup())
+    {
+        mNamespaces.push_back(ns.dup());
+    }
+
+    const String& TransactionHandler::getFamily() const {
+        return mFamily;
+    }
+
+    StringVec& TransactionHandler::getNamespaces() {
+        return mNamespaces;
+    }
+
+    StringVec& TransactionHandler::getVersions() {
+        return mVersions;
+    }
 }

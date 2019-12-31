@@ -176,6 +176,13 @@ public:                                     \
            std::forward<Args>(args)...);    \
     }
 
+#define DISABLE_COPY_CTOR(Type) Type(const Type&) = delete
+#define DISABLE_MOVE_CTOR(Type) Type(Type&&) = delete
+#define DISABLE_COPY_ASSIGN(Type) Type& operator=(const Type&) = delete
+#define DISABLE_MOVE_ASSIGN(Type) Type& operator=(Type&&) = delete
+#define DISABLE_COPY(Type) DISABLE_COPY_CTOR(Type); DISABLE_COPY_ASSIGN(Type)
+#define DISABLE_MOVE(Type) DISABLE_MOVE_CTOR(Type); DISABLE_MOVE_ASSIGN(Type)
+
     /**
 * get the current time in milliseconds
 * @return the current time in milli seconds
@@ -368,6 +375,21 @@ public:                                     \
          */
         template <typename... Args>
         static Exception create(int code, Args&... args) {
+            std::stringstream ss;
+            create(ss, args...);
+            return Exception(ss.str(), code);
+        }
+
+        /**
+         * create an exception with an exception message string streamed from
+         * \arg args parameters
+         * @tparam Args argument types deduced by compiler
+         * @param code the exception code
+         * @param args argument list to build up a string
+         * @return and Exception object which can be thrown
+         */
+        template <typename... Args>
+        static Exception create0(int code, Args&... args) {
             std::stringstream ss;
             create(ss, args...);
             return Exception(ss.str(), code);

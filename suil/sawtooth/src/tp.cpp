@@ -29,9 +29,9 @@ namespace suil::sawsdk {
 
     void TpContext::registerHandler(sawsdk::TransactionHandler::UPtr &&handler)
     {
-        auto fn = handler->getFamilyName();
+        auto fn = handler->getFamily();
         idebug("registerHandler adding handler for %s", fn());
-        Ego.mHandlers[fn.peek()] = std::move(handler);
+        Ego.mHandlers[fn.dup()] = std::move(handler);
     }
 
     void TpContext::registerAll()
@@ -48,7 +48,7 @@ namespace suil::sawsdk {
                 for (const auto& ns: handler->getNamespaces()) {
                     setValue(req, &sp::TpRegisterRequest::add_namespaces, ns);
                 }
-                auto future = Ego.mRespStream.sendMessage(sp::Message::TP_REGISTER_REQUEST, req);
+                auto future = Ego.mRespStream.asyncSend(sp::Message::TP_REGISTER_REQUEST, req);
                 future->getMessage(resp, sp::Message::TP_REGISTER_RESPONSE);
                 if (resp.status() != sp::TpRegisterResponse::OK) {
                     throw Exception::create("failed to register handler {name: ",
@@ -64,7 +64,7 @@ namespace suil::sawsdk {
         sp::TpUnregisterRequest req;
         sp::TpUnregisterResponse resp;
 
-        auto future = Ego.mRespStream.sendMessage(sp::Message::TP_UNREGISTER_REQUEST, req);
+        auto future = Ego.mRespStream.asyncSend(sp::Message::TP_UNREGISTER_REQUEST, req);
         future->getMessage(resp, sp::Message::TP_UNREGISTER_REQUEST);
 
         if (resp.status() != sp::TpUnregisterResponse::OK) {
@@ -87,11 +87,12 @@ namespace suil::sawsdk {
             auto it = Ego.mHandlers.find(fn);
             if (it != Ego.mHandlers.end()) {
                 try {
-                    Transaction txn(TransactionHeader{txnHeader}, req.release_payload(), req.release_signature());
+                    Transaction txn(TransactionHeader{txnHeader}, req.payload(), req.signature());
                     GlobalState gs(new GlobalStateContext(mDispatcher.createStream(), String{req.context_id()}.dup()));
-                    auto applicator = it->second->getTransactor(std::move(txn), std::move(gs));
+                    auto applicator = it->second->getProcessor(std::move(txn), std::move(gs));
                     try {
                         applicator->apply();
+                        resp.set_status(sp::TpProcessResponse::OK);
                     }
                     catch (...) {
                         auto ex = Exception::fromCurrent();
@@ -118,7 +119,6 @@ namespace suil::sawsdk {
             ierror("Transaction process error: %s", ex.what());
             resp.set_status(sp::TpProcessResponse::INTERNAL_ERROR);
         }
-
         Ego.mRespStream.sendResponse(sp::Message::TP_PROCESS_RESPONSE, resp, cid);
     }
 

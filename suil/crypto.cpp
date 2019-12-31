@@ -17,6 +17,80 @@ namespace suil::crypto {
 
     constexpr size_t EC_KEY_LEN{32};
 
+    // Perform ECDSA key recovery (see SEC1 4.1.6) for curves over (mod p)-fields
+    // recid selects which key is recovered
+    // if check is non-zero, additional checks are performed
+    static int ECDSA_SIG_recover_key_GFp(EC_KEY *eckey, ECDSA_SIG *ecsig, const unsigned char *msg, int msglen, int recid, int check)
+    {
+        if (!eckey) return 0;
+
+        int ret = 0;
+        BN_CTX *ctx = NULL;
+
+        BIGNUM *x = NULL;
+        BIGNUM *e = NULL;
+        BIGNUM *order = NULL;
+        BIGNUM *sor = NULL;
+        BIGNUM *eor = NULL;
+        BIGNUM *field = NULL;
+        EC_POINT *R = NULL;
+        EC_POINT *O = NULL;
+        EC_POINT *Q = NULL;
+        BIGNUM *rr = NULL;
+        BIGNUM *zero = NULL;
+        int n = 0;
+        int i = recid / 2;
+
+        const EC_GROUP *group = EC_KEY_get0_group(eckey);
+        if ((ctx = BN_CTX_new()) == NULL) { ret = -1; goto err; }
+        BN_CTX_start(ctx);
+        order = BN_CTX_get(ctx);
+        if (!EC_GROUP_get_order(group, order, ctx)) { ret = -2; goto err; }
+        x = BN_CTX_get(ctx);
+        if (!BN_copy(x, order)) { ret=-1; goto err; }
+        if (!BN_mul_word(x, i)) { ret=-1; goto err; }
+        if (!BN_add(x, x, ecsig->r)) { ret=-1; goto err; }
+        field = BN_CTX_get(ctx);
+        if (!EC_GROUP_get_curve_GFp(group, field, NULL, NULL, ctx)) { ret=-2; goto err; }
+        if (BN_cmp(x, field) >= 0) { ret=0; goto err; }
+        if ((R = EC_POINT_new(group)) == NULL) { ret = -2; goto err; }
+        if (!EC_POINT_set_compressed_coordinates_GFp(group, R, x, recid % 2, ctx)) { ret=0; goto err; }
+        if (check)
+        {
+            if ((O = EC_POINT_new(group)) == NULL) { ret = -2; goto err; }
+            if (!EC_POINT_mul(group, O, NULL, R, order, ctx)) { ret=-2; goto err; }
+            if (!EC_POINT_is_at_infinity(group, O)) { ret = 0; goto err; }
+        }
+        if ((Q = EC_POINT_new(group)) == NULL) { ret = -2; goto err; }
+        n = EC_GROUP_get_degree(group);
+        e = BN_CTX_get(ctx);
+        if (!BN_bin2bn(msg, msglen, e)) { ret=-1; goto err; }
+        if (8*msglen > n) BN_rshift(e, e, 8-(n & 7));
+        zero = BN_CTX_get(ctx);
+        if (!BN_zero(zero)) { ret=-1; goto err; }
+        if (!BN_mod_sub(e, zero, e, order, ctx)) { ret=-1; goto err; }
+        rr = BN_CTX_get(ctx);
+        if (!BN_mod_inverse(rr, ecsig->r, order, ctx)) { ret=-1; goto err; }
+        sor = BN_CTX_get(ctx);
+        if (!BN_mod_mul(sor, ecsig->s, rr, order, ctx)) { ret=-1; goto err; }
+        eor = BN_CTX_get(ctx);
+        if (!BN_mod_mul(eor, e, rr, order, ctx)) { ret=-1; goto err; }
+        if (!EC_POINT_mul(group, Q, eor, R, sor, ctx)) { ret=-2; goto err; }
+        if (!EC_KEY_set_public_key(eckey, Q)) { ret=-2; goto err; }
+
+        ret = 1;
+
+        err:
+        if (ctx) {
+            BN_CTX_end(ctx);
+            BN_CTX_free(ctx);
+        }
+        if (R != NULL) EC_POINT_free(R);
+        if (O != NULL) EC_POINT_free(O);
+        if (Q != NULL) EC_POINT_free(Q);
+        return ret;
+    }
+
     static bool b642bin(uint8_t* bin, size_t len, const void* data, size_t dlen) {
         try {
             auto out = utils::base64::decode(static_cast<const uint8_t *>(data), dlen);
@@ -187,6 +261,13 @@ namespace suil::crypto {
         return Ego;
     }
 
+    ECKey::~ECKey() {
+        if (Ego.ecKey) {
+            EC_KEY_free(Ego.ecKey);
+            Ego.ecKey = nullptr;
+        }
+    }
+
     ECKey ECKey::generate()
     {
         EC_KEY *key{nullptr};
@@ -236,6 +317,22 @@ namespace suil::crypto {
 
     const PublicKey& ECKey::getPublicKey() const {
         return Ego.pubKey;
+    }
+
+    static bool key2pub(PublicKey& pub, EC_KEY *key)
+    {
+        // default conversion form is compressed
+        EC_KEY_set_conv_form(key, POINT_CONVERSION_COMPRESSED);
+        auto len = i2o_ECPublicKey(key, nullptr);
+        if (len != EC_COMPRESSED_PUBLIC_KEY_SIZE) {
+            serror("get public key failed '%d': %d", len, __LINE__);
+            return false;
+        }
+
+        auto dst = &pub.bin();
+        i2o_ECPublicKey(key, &dst);
+
+        return true;
     }
 
     EC_KEY* PublicKey::pub2key(const PublicKey& pub)
@@ -350,6 +447,7 @@ namespace suil::crypto {
             return {};
         }
         uint8_t compact[ECDSA_COMPACT_SIGNATURE_SIZE] = {0};
+        compact[0] = (uint8_t)(Ego.RecId+31);
         auto sz = BN_num_bytes(sig->r);
         if (sz > 32) {
             serror("saving signature failed '%d': %d %d", sz, __LINE__, ERR_get_error());
@@ -357,7 +455,7 @@ namespace suil::crypto {
             return {};
         }
         // big endian stuff
-        BN_bn2bin(sig->r, &compact[32-sz]);
+        BN_bn2bin(sig->r, &compact[33-sz]);
 
         sz = BN_num_bytes(sig->s);
         if (sz > 32) {
@@ -365,6 +463,7 @@ namespace suil::crypto {
             ECDSA_SIG_free(sig);
             return {};
         }
+
         // big endian stuff
         BN_bn2bin(sig->s, &compact[ECDSA_COMPACT_SIGNATURE_SIZE-sz]);
         ECDSA_SIG_free(sig);
@@ -396,12 +495,12 @@ namespace suil::crypto {
         BN_init(&r); BN_init(&s);
         ECDSA_SIG signature{&r, &s};
 
-        if (BN_bin2bn(compact, 32, signature.r) == nullptr) {
+        if (BN_bin2bn(&compact[1], 32, signature.r) == nullptr) {
             serror("loading signature failed: %d %d", __LINE__, ERR_get_error());
             BN_clear(&r); BN_clear(&s);
             return {};
         }
-        if (BN_bin2bn(&compact[32], 32, signature.s) == nullptr) {
+        if (BN_bin2bn(&compact[33], 32, signature.s) == nullptr) {
             serror("loading signature failed: %d %d", __LINE__, ERR_get_error());
             BN_clear(&r); BN_clear(&s);
             return {};
@@ -414,6 +513,7 @@ namespace suil::crypto {
             BN_clear(&r); BN_clear(&s);
             return {};
         }
+        tmp.RecId = (int8_t)(compact[0] - 31);
         return tmp;
     }
 
@@ -426,14 +526,34 @@ namespace suil::crypto {
             serror("signing message failed - invalid key");
             return false;
         }
-        Hash hash;
-        Hash256(hash, data, len);
-        auto signature = ECDSA_do_sign(&hash.bin(), hash.size(), key);
+        SHA256Digest digest;
+        SHA256(digest, data, len);
+        auto signature = ECDSA_do_sign(&digest.bin(), digest.size(), key);
         if (signature == nullptr) {
             serror("signing message failed - %d %d", __LINE__, ERR_get_error());
             return false;
         }
 
+    /* See https://github.com/sipa/bitcoin/commit/a81cd9680.
+     * There can only be one signature with an even S, so make sure we
+     * get that one. */
+        if (BN_is_odd(signature->s)) {
+            const EC_GROUP *group;
+            BIGNUM order{};
+
+            BN_init(&order);
+            group = EC_KEY_get0_group(key);
+            EC_GROUP_get_order(group, &order, NULL);
+            BN_sub(signature->s, &order, signature->s);
+            BN_clear(&order);
+
+            if (BN_is_odd(signature->s)) {
+                serror("signing message failed '%d'", __LINE__);
+                ECDSA_SIG_free(signature);
+                return false;
+            }
+            sdebug("Was odd had to unodd");
+        }
 
         if (ECDSA_size(key) != sig.size()) {
             serror("signing message failed '%d'- %d", ECDSA_size(key), __LINE__);
@@ -445,6 +565,30 @@ namespace suil::crypto {
             serror("signing message failed - %d %d", __LINE__, ERR_get_error());
             ECDSA_SIG_free(signature);
             return false;
+        }
+
+        for (int8_t i=0; i<4; i++)
+        {
+            auto ecKey = EC_KEY_new_by_curve_name(NID_secp256k1);
+            if (ecKey == nullptr) {
+                serror("signing message failure %d %d", __LINE__, ERR_get_error());
+                return {};
+            };
+
+            if (ECDSA_SIG_recover_key_GFp(ecKey, signature, (unsigned char*)&digest.cbin(), digest.size(), i, 1) == 1) {
+                PublicKey pub;
+                key2pub(pub, ecKey);
+                if (pub == key.getPublicKey()) {
+                    sig.RecId = i;
+                    break;
+                }
+            }
+            EC_KEY_free(ecKey);
+        }
+        sdebug("RecId is %hhd", sig.RecId);
+        if (sig.RecId == -1) {
+            serror("signing message failed - %d RecId", __LINE__);
+            return {};
         }
 
         ECDSA_SIG_free(signature);

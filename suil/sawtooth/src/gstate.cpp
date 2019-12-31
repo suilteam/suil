@@ -62,7 +62,7 @@ namespace suil::sawsdk {
         for(const auto& addr: addresses) {
             setValue(req, &sp::TpStateGetRequest::add_addresses, addr);
         }
-        auto future = Ego.mStream.sendMessage(sp::Message::TP_STATE_GET_REQUEST, req);
+        auto future = Ego.mStream.asyncSend(sp::Message::TP_STATE_GET_REQUEST, req);
         future->getMessage(resp, sp::Message::TP_STATE_GET_RESPONSE);
 
         if (resp.status() == sp::TpStateGetResponse::AUTHORIZATION_ERROR) {
@@ -94,7 +94,7 @@ namespace suil::sawsdk {
             entry.set_data(second.cdata(), second.size());
         }
 
-        auto future = Ego.mStream.sendMessage(sp::Message::TP_STATE_SET_REQUEST, req);
+        auto future = Ego.mStream.asyncSend(sp::Message::TP_STATE_SET_REQUEST, req);
         future->getMessage(resp, sp::Message::TP_STATE_SET_RESPONSE);
         if (resp.status() == sp::TpStateSetResponse::AUTHORIZATION_ERROR) {
             throw Exception::create("Set global state authorization error - check inputs");
@@ -117,7 +117,7 @@ namespace suil::sawsdk {
             setValue(req, &sp::TpStateDeleteRequest::add_addresses, addr);
         }
 
-        auto future = Ego.mStream.sendMessage(sp::Message::TP_STATE_DELETE_REQUEST, req);
+        auto future = Ego.mStream.asyncSend(sp::Message::TP_STATE_DELETE_REQUEST, req);
         future->getMessage(resp, sp::Message::TP_STATE_DELETE_RESPONSE);
 
         if (resp.status() == sp::TpStateDeleteResponse::AUTHORIZATION_ERROR) {
@@ -144,7 +144,7 @@ namespace suil::sawsdk {
 
         setValue(req, &sp::TpEventAddRequest::set_context_id, Ego.mContextId);
         req.set_allocated_event(event);
-        auto future = Ego.mStream.sendMessage(sp::Message::TP_EVENT_ADD_REQUEST, req);
+        auto future = Ego.mStream.asyncSend(sp::Message::TP_EVENT_ADD_REQUEST, req);
         future->getMessage(resp, sp::Message::TP_EVENT_ADD_RESPONSE);
 
         if (resp.status() == sp::TpEventAddResponse::ERROR) {

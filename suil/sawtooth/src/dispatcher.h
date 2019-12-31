@@ -12,10 +12,18 @@ namespace suil::sawsdk {
     define_log_tag(SAWSDK_DISPATCHER);
 
     struct Dispatcher : LOGGER(SAWSDK_DISPATCHER) {
+        sptr(Dispatcher);
+
+        Dispatcher(Dispatcher&&) = delete;
+        Dispatcher(const Dispatcher&) = delete;
+        Dispatcher&operator=(Dispatcher&&) = delete;
+        Dispatcher&operator=(const Dispatcher&) = delete;
+
         static constexpr Message::Type SERVER_CONNECT_EVENT = static_cast<Message::Type>(0xFFFE);
         static constexpr Message::Type SERVER_DISCONNECT_EVENT = static_cast<Message::Type>(0XFFFF);
 
         void connect(const suil::String& connString);
+        void bind();
 
         Stream createStream();
 
@@ -39,7 +47,7 @@ namespace suil::sawsdk {
         zmq::Dealer mServerSock;
         zmq::Dealer mMsgSock;
         zmq::Dealer mRequestSock;
-        zmq::Pair mDispatchSock;
+        zmq::Pair   mDispatchSock;
         suil::Map<OnAirMessage::Ptr> mOnAirMessages;
         bool mExiting{false};
         bool mServerConnected{false};

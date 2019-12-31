@@ -72,7 +72,7 @@ namespace suil {
         }
 
         void base64::decode(OBuffer& ob, const uint8_t *in, size_t size) {
-            ob.reserve((uint32_t) (size/4)*3);
+            ob.reserve((uint32_t) (((size/4)*3)+4));
             static const unsigned char ASCII_LOOKUP[256] =
             {
                 /* ASCII table */

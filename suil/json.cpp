@@ -1433,9 +1433,7 @@ namespace suil::json {
     }
 
     Object::operator bool()   const {
-        if (mNode == nullptr || mNode->tag != JsonTag::JSON_BOOL)
-            return false;
-        return mNode->bool_;
+    	return !Ego.empty();
     }
 
     Object::operator double()   const {

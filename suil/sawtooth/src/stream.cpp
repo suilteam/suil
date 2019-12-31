@@ -6,7 +6,7 @@
 
 namespace suil::sawsdk {
 
-    uint32_t Stream::mCorrelationCounter{0};
+    uint32_t Stream::CorrelationCounter{0};
 
     OnAirMessage::OnAirMessage(const suil::String id)
         : mCorrelationId(std::move(id))
@@ -67,7 +67,7 @@ namespace suil::sawsdk {
 
     Stream::Stream(suil::zmq::Context &ctx, suil::Map<OnAirMessage::Ptr> &msgs)
         : mOnAirMsgs{msgs},
-          mSocket{ctx}
+          mSocket{ctx, ZMQ_PUSH}
     {}
 
     Stream::Stream(Stream&& other) noexcept
@@ -80,6 +80,15 @@ namespace suil::sawsdk {
         Ego.mOnAirMsgs = other.mOnAirMsgs;
         Ego.mSocket = std::move(other.mSocket);
         return Ego;
+    }
+
+    OnAirMessage::Ptr Stream::asyncSend(Message::Type type, const suil::Data &data)
+    {
+        auto correlationId = Ego.getCorrelationId();
+        auto onAir = OnAirMessage::mkshared(std::move(correlationId));
+        mOnAirMsgs[onAir->correlationId().peek()] = onAir;
+        Ego.send(type, data, onAir->correlationId());
+        return onAir;
     }
 
     void Stream::send(Message::Type type, const suil::Data &data, const suil::String &correlationId)
@@ -102,7 +111,7 @@ namespace suil::sawsdk {
 
     suil::String Stream::getCorrelationId() {
         OBuffer ob;
-        ob << (++Ego.mCorrelationCounter);
+        ob << (++Ego.CorrelationCounter);
         return String{ob};
     }
 }

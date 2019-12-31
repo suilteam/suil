@@ -4,9 +4,11 @@
 #include <suil/base.h>
 #include <suil/utils.h>
 #include <suil/logging.h>
-#include <suil/crypto.h>
-#include <suil/sawtooth/stream.h>
+#include <suil/secp256k1.h>
+#include <suil/sawtooth/sdk.h>
 #include <suil/sawtooth/protos.h>
+#include <suil/json.h>
+#include <suil/http/clientapi.h>
 
 
 namespace suil::sawsdk::Client {
@@ -22,14 +24,14 @@ namespace suil::sawsdk::Client {
         Signer& operator=(const Signer&) = delete;
 
         static Signer load(const suil::String& privKey);
-        static Signer load(const crypto::PrivateKey& privKey);
+        static Signer load(const secp256k1::PrivateKey& privKey);
 
-        void get(crypto::PrivateKey& out) const;
-        void get(crypto::PublicKey& out) const;
+        void get(secp256k1::PrivateKey& out) const;
+        void get(secp256k1::PublicKey& out) const;
         [[nodiscard]]
-        const crypto::PrivateKey& getPrivateKey() const;
+        const secp256k1::PrivateKey& getPrivateKey() const;
         [[nodiscard]]
-        const crypto::PublicKey& getPublicKey() const;
+        const secp256k1::PublicKey& getPublicKey() const;
 
         suil::String sign(const void* data, size_t len) const;
 
@@ -49,8 +51,8 @@ namespace suil::sawsdk::Client {
         inline bool isValid() const { return Ego.mKey.isValid(); }
 
     private:
-        explicit Signer(crypto::ECKey&& key);
-        crypto::ECKey mKey;
+        explicit Signer(secp256k1::KeyPair&& key);
+        secp256k1::KeyPair mKey;
     };
 
     struct Transaction final {
@@ -83,23 +85,20 @@ namespace suil::sawsdk::Client {
     using Outputs = std::vector<suil::String>;
 
     struct Encoder final {
-        Encoder(const suil::String& family, const suil::String& familyVersion, const suil::String& privateKey);
+        Encoder(const String& family, String&& familyVersion, const String&& privateKey);
 
         Transaction operator()(const suil::Data& payload, const Inputs& inputs = {}, const Outputs& outputs = {}) const;
 
         Batch operator()(const std::vector<Transaction>& txns) const;
 
         Batch operator()(const Transaction& txn) const {
-            return Ego({txn});
+            return Ego(std::vector<Transaction>{txn});
         }
 
-        suil::Data operator()(const std::vector<Batch>& batches) const;
-
-        suil::Data operator()(const Batch& batch) const {
-            return Ego({batch});
-        }
-
-        suil::Data encode(const suil::Data& payload, const Inputs& inputs = {}, const Outputs& outputs = {});
+        static void encode(sawtooth::protos::BatchList& out, const std::vector<Batch>& batches);
+        static suil::Data encode(const std::vector<Batch>& batches);
+        static void encode(OBuffer& dst, const std::vector<Batch>& batches);
+        Batch encode(const suil::Data& payload, const Inputs& inputs = {}, const Outputs& outputs = {});
 
     private:
         suil::String mFamily;
@@ -109,30 +108,32 @@ namespace suil::sawsdk::Client {
         Signer mSigner;
     };
 
-    struct ValidatorContext;
-    struct Validator final {
-        using SubmitResp = sawtooth::protos::ClientBatchSubmitResponse;
+    struct HttpRest {
+        sptr(HttpRest);
 
-        Validator();
+        HttpRest(const String& url,
+                 const String& family,
+                 const String& familyVersion,
+                 const String& privateKey,
+                 int port = 8008);
 
-        Validator(Validator&&) = delete;
-        Validator(const Validator&) = delete;
-        Validator&operator=(Validator&&) = delete;
-        Validator&operator=(const Validator&) = delete;
+        HttpRest(HttpRest&&) = delete;
+        HttpRest(const HttpRest&) = delete;
+        HttpRest& operator=(HttpRest&&) = delete;
+        HttpRest& operator=(const HttpRest& ) = delete;
 
-        bool connect(const suil::String& endpoint);
-
-        OnAirMessage::Ptr submitAsync(const std::vector<Batch>& batches);
-
-        inline OnAirMessage::Ptr submitAsync(const Batch& batch) {
-            return Ego.submitAsync({batch});
-        }
-
-        SubmitResp submit(const Batch& batch);
+        bool asyncBatches(const suil::Data& payload, const StringVec& inputs = {}, const StringVec& outputs = {});
+        bool asyncBatches(const std::vector<Batch>& batches);
+        suil::Data getState(const suil::String& key);
+        suil::String getPrefix();
+    private:
+        Encoder mEncoder;
+        AddressEncoder mAddressEncoder;
+        http::client::Session mSession;
 
     private:
-        ValidatorContext *mSelf;
-        zmq::Context      mContext{};
+        static const char* BATCHES_RESOURCE;
+        static const char* STATE_RESOURCE;
     };
 }
 

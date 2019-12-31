@@ -18,6 +18,17 @@ namespace suil::sawsdk {
 
     struct Errors final {
         static constexpr int InvalidTransaction = 0xFF00;
+        static constexpr int InternalError = 0xFF01;
+
+        template <typename ...Args>
+        static Exception invalidTransaction(Args... args) {
+            return Exception::create0(InvalidTransaction, args...);
+        }
+
+        template <typename ...Args>
+        static Exception internalError(Args&... args) {
+            return Exception::create0(InternalError, std::forward<Args>(args)...);
+        }
     };
     struct TransactionHeader {
         enum Field {
@@ -49,10 +60,10 @@ namespace suil::sawsdk {
     };
 
     struct Transaction final {
-        Transaction(TransactionHeader&& header, std::string* payload, std::string* signature)
+        Transaction(TransactionHeader&& header, std::string payload, std::string signature)
             : mHeader(std::move(header)),
-              mPayload(payload),
-              mSignature(signature)
+              mPayload(std::move(payload)),
+              mSignature(std::move(signature))
         {}
 
         Transaction(Transaction&& other)
@@ -71,20 +82,20 @@ namespace suil::sawsdk {
         Transaction(const Transaction&) = delete;
         Transaction&operator=(const Transaction&) = delete;
 
-        const TransactionHeader& header() const { return mHeader; }
+        [[nodiscard]] const TransactionHeader& header() const { return mHeader; }
 
-        suil::Data payload() const {
-            return suil::Data{mPayload->data(), mPayload->size(), false};
+        [[nodiscard]] suil::Data payload() const {
+            return suil::Data{mPayload.data(), mPayload.size(), false};
         }
 
-        suil::Data signature() const {
-            return suil::Data{mSignature->data(), mSignature->size(), false};
+        [[nodiscard]] suil::Data signature() const {
+            return suil::Data{mSignature.data(), mSignature.size(), false};
         }
 
     private:
         TransactionHeader mHeader;
-        std::unique_ptr<std::string> mPayload{};
-        std::unique_ptr<std::string> mSignature{};
+        std::string mPayload{};
+        std::string mSignature{};
     };
 
     struct GlobalStateContext;
@@ -124,27 +135,65 @@ namespace suil::sawsdk {
         GlobalStateContext *mContext{nullptr};
     };
 
-    struct Transactor {
-        sptr(Transactor);
+    struct AddressEncoder final {
+        AddressEncoder(const suil::String& ns);
+        AddressEncoder(AddressEncoder&& other) noexcept ;
+        AddressEncoder&operator=(AddressEncoder&& other) noexcept ;
 
-        Transactor(Transaction&& txn, GlobalState&& state)
-            : mTxn(std::move(txn)),
+        AddressEncoder(const AddressEncoder&) = delete;
+        AddressEncoder&operator=(const AddressEncoder&) = delete;
+
+        suil::String operator()(const suil::String& key);
+        const suil::String& getPrefix();
+    private:
+        suil::String mapNamespace(const suil::String& key) const;
+        suil::String mapKey(const suil::String& key);
+
+    private:
+        suil::String mNamespace{};
+        suil::String mPrefix{};
+    };
+
+    struct Processor {
+        sptr(Processor);
+
+        Processor(AddressEncoder& addressEncoder, Transaction&& txn, GlobalState&& state)
+            : mEncoder(addressEncoder),
+              mTxn(std::move(txn)),
               mState(std::move(state))
         {}
 
         virtual void apply() = 0;
 
     protected:
+        inline suil::String makeAddress(const suil::String& key) {
+            return mEncoder(key);
+        }
+        AddressEncoder& mEncoder;
         Transaction mTxn;
         GlobalState mState;
     };
 
+    using StringVec = std::vector<suil::String>;
+
     struct TransactionHandler {
         sptr(TransactionHandler);
-        virtual suil::String getFamilyName() const = 0;
-        virtual std::vector<suil::String> getVersions() const = 0;
-        virtual std::vector<suil::String> getNamespaces() const = 0;
-        virtual Transactor::Ptr getTransactor(Transaction&& txn, GlobalState&& state) = 0;
+
+        TransactionHandler(const suil::String& family, const suil::String& ns);
+
+        const suil::String& getFamily() const;
+        StringVec& getVersions();
+        StringVec& getNamespaces();
+
+        virtual Processor::Ptr getProcessor(Transaction&& txn, GlobalState&& state) = 0;
+
+    protected:
+        AddressEncoder mAddressEcoder;
+
+    private:
+        String mFamily;
+        StringVec mNamespaces;
+        StringVec mVersions;
     };
 
     struct TpContext;

@@ -39,13 +39,15 @@ set(SAWTOOTH_PROTOS
 protobuf_generate_cpp(SAWTOOTH_PROTO_SRCS SAWTOOTH_PROTO_HDRS ${SAWTOOTH_PROTOS})
 
 set(SAWTOOTH_SOURCES
+        src/address.cpp
         src/dispatcher.cpp
         src/gstate.cpp
         src/tp.cpp
         src/transaction.cpp
         src/stream.cpp
         src/client.cpp
-        src/validator.cpp)
+        src/rest.cpp
+        )
 
 include_directories(PROTOBUF_INCLUDE_DIR)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
@@ -83,4 +85,6 @@ if (SUIL_BUILD_DEV_PACKAGE)
         DESTINATION include/suil/sawtooth/protos)
     install(FILES ${SAWTOOTH_PROTOS_ALL}
         DESTINATION include/suil/sawtooth)
+    install(FILES sdk.h client.h
+            DESTINATION include/suil/sawtooth)
 endif()

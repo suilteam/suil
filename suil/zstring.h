@@ -38,7 +38,7 @@ namespace suil {
          * the memory and must not outlive the memory
          * @param str the string to reference
          */
-        String(const char *str);
+        String(const char *str) noexcept;
 
         /**
          * creates a string from the given string view

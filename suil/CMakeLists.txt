@@ -20,6 +20,7 @@ set(LIB_SUIL_BASE_SOURCES
         net.cpp
         process.cpp
         redis.cpp
+        secp256k1.cpp
         sock.cpp
         utils.cpp
         wire.cpp
@@ -74,7 +75,7 @@ set_property(GLOBAL PROPERTY prop_SUIL_SOURCES
 add_library(suil SHARED
         ${LIB_SUIL_SOURCES})
 
-target_link_libraries(suil ${SUIL_LIBRARIES}   mill_s snappy lua)
+target_link_libraries(suil ${SUIL_LIBRARIES}  secp256k1 mill_s snappy lua)
 
 if (SUIL_BUILD_SAWTOOTH)
     add_subdirectory(sawtooth)
@@ -99,7 +100,7 @@ if (SUIL_BUILD_UNIT_TEST)
     file(GLOB_RECURSE SUIL_TEST_SOURCES ../tests/*.cpp ../test/*.c)
     add_executable(sut ${_SUIL_SOURCES} ${SUIL_TEST_SOURCES})
     add_dependencies(sut suil-gensyms)
-    target_link_libraries(sut ${SUIL_LIBRARIES} mill_s snappy lua)
+    target_link_libraries(sut ${SUIL_LIBRARIES} secp256k1 mill_s snappy lua)
     target_compile_definitions(sut PUBLIC -Dunit_test -Dsuil_ut=:public)
 endif()
 

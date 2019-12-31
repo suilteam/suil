@@ -22,9 +22,6 @@ namespace suil::sawsdk {
         Ego.mMsgSock.bind("inproc://send_queue");
         Ego.mRequestSock.bind("inproc://request_queue");
         Ego.mDispatchSock.bind(DISPATCH_THREAD_ENDPOINT);
-
-        go(sendMessages(Ego));
-        go(exitMonitor(Ego));
     }
 
     Stream Dispatcher::createStream() {
@@ -51,6 +48,11 @@ namespace suil::sawsdk {
         if (!Ego.mServerSock.monitor(SERVER_MONITOR_ENDPOINT, ZMQ_EVENT_CONNECTED|ZMQ_EVENT_DISCONNECTED)) {
             throw Exception::create("Failed to monitor server socket: ", zmq_strerror(zmq_errno()));
         }
+
+        idebug("%p", &Ego.mServerSock);
+
+        go(sendMessages(Ego));
+        go(exitMonitor(Ego));
         go(receiveMessages(Ego));
     }
 
@@ -121,6 +123,11 @@ namespace suil::sawsdk {
             auto msg = Self.mMsgSock.receive();
             if (msg.empty()) {
                 ldebug(&Self, "sendMessages - ignoring empty message");
+                continue;
+            }
+            sdebug("send %p", &Self.mServerSock);
+            if (!Self.mServerSock.isConnected()) {
+                ldebug(&Self, "sendMessages - server is not connected, dropping message");
                 continue;
             }
 

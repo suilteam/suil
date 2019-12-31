@@ -120,8 +120,10 @@ namespace suil::zmq {
 
     protected:
         bool resolveSocket();
+        void setIdentity();
         void* sock{nullptr};
         Context& ctx;
+        int type{ZMQ_REQ};
         suil::String id{};
     private:
         int  fd{-1};
@@ -148,6 +150,8 @@ namespace suil::zmq {
     };
 
     struct Dealer: public Socket {
+        sptr(Dealer);
+
         Dealer(Context& context);
         Dealer(Dealer&& other);
         Dealer&operator=(Dealer&& other);
@@ -157,6 +161,8 @@ namespace suil::zmq {
     };
 
     struct Pair: public Socket {
+        sptr(Pair);
+
         Pair(Context& context);
         Pair(Pair&& other);
         Pair&operator=(Pair&& other);

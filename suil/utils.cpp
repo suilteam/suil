@@ -299,7 +299,7 @@ namespace suil {
             //@TODO
             // printf("strtoll error: (str = %p, ep = %p), *ep = %02X, errno = %d",
             //       str(), ep, *ep, errno);
-            throw Exception::invalidArguments("utils::strtonum - %s", errno_s);
+            throw Exception::invalidArguments("utils::strtonum - failed, errno = ", errno);
         }
 
         if (l < min)
