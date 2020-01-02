@@ -158,10 +158,7 @@ namespace suil {
     }
 
     void OBuffer::bseek(off_t off) {
-        if (off >= 0) {
-            if (m_size < off) {
-                grow((uint32_t) MAX(m_size, (off-m_size)));
-            }
+        if ((off >= 0) && (m_size > off)) {
             m_offset = (uint32_t) off;
         }
         else {
