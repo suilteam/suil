@@ -80,7 +80,6 @@ namespace suil::zmq {
     void Message::destroy(void *data, void *hint)
     {
         if (data) {
-            sdebug("DESTROYING");
             ::free(data);
         }
     }
@@ -100,7 +99,6 @@ namespace suil::zmq {
     {
         other.sock = nullptr;
         other.fd = -1;
-        idebug("Move ctor socket: %p->%p %s", &other, this, id());
     }
 
     Socket& Socket::operator=(suil::zmq::Socket &&other) {
@@ -110,7 +108,6 @@ namespace suil::zmq {
         Ego.type = other.type;
         other.sock = nullptr;
         other.fd = -1;
-        idebug("Move assign socket: %p->%p %s", &other, this, id());
         return Ego;
     }
 
@@ -121,7 +118,7 @@ namespace suil::zmq {
             ierror("Cannot access zmq socket descriptor: %s", zmq_strerror(zmq_errno()));
             return false;
         }
-        idebug("%s has  zmq socket %d", Ego.id(), Ego.fd);
+        itrace("%s has  zmq socket %d", Ego.id(), Ego.fd);
         return true;
     }
 
@@ -129,7 +126,7 @@ namespace suil::zmq {
     {
         id = utils::randbytes(4);
         zmq_setsockopt(Ego.sock, ZMQ_IDENTITY, Ego.id(), Ego.id.size());
-        idebug("New socket: %p %s", this, id());
+        itrace("new socket identity: %p %s", this, id());
     }
 
     Message Socket::receive(int64_t to)
@@ -154,7 +151,7 @@ namespace suil::zmq {
                 return {};
             }
             else {
-                idebug("received zmq msg {id:%s, size:%zu}", Ego.id(), msg.size());
+                itrace("received zmq msg {id:%s, size:%zu}", Ego.id(), msg.size());
                 break;
             }
         } while (true);
@@ -185,7 +182,7 @@ namespace suil::zmq {
                 return {};
             }
             else {
-                idebug("sent %d bytes to zmq socket (%s)", sent, Ego.id());
+                itrace("sent %d bytes to zmq socket (%s)", sent, Ego.id());
                 break;
             }
         } while (true);
@@ -216,7 +213,7 @@ namespace suil::zmq {
                 return {};
             }
             else {
-                idebug("sent %d bytes to zmq socket (%s)", sent, Ego.id());
+                itrace("sent %d bytes to zmq socket (%s)", sent, Ego.id());
                 break;
             }
         } while (true);
@@ -233,7 +230,7 @@ namespace suil::zmq {
 
     void Socket::close() {
         if (sock != nullptr) {
-            idebug("closing socket %s", Ego.id());
+            itrace("closing socket %s", Ego.id());
             zmq_close(sock);
             sock = nullptr;
             fd = -1;
