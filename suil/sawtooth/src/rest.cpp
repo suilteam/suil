@@ -37,7 +37,7 @@ namespace suil::sawsdk::Client {
         if (resp.status() == http::Status::ACCEPTED) {
             auto obj = json::Object::decode(body);
             auto link = (String) obj("link");
-            sdebug("Transaction created: %s", link());
+            sinfo("Transaction created: %s", link());
             return true;
         }
         else {

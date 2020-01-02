@@ -186,7 +186,6 @@ namespace suil::sawsdk::Client {
 
         auto headerBytes = protoSerialize(header);
         auto signature = mSigner.sign(headerBytes);
-        sdebug("Signature %s", signature());
         protoSet(*batch, header, headerBytes);
         protoSet(*batch, header_signature, signature);
 
