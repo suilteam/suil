@@ -190,6 +190,37 @@ namespace suil {
                 router.debug_print();
             }
 
+            struct Controller {
+                sptr(Controller);
+
+                Controller(Endpoint& ep)
+                    : api(ep)
+                {}
+
+                virtual void init() {};
+
+                template <typename... Args>
+                static void fail(http::Response& resp, const String& key, Args... args) {
+                    resp << "{\"status\":\"" << key << "\", \"msg\":\"";
+                    if constexpr (sizeof...(args)) {
+                        Controller::append(resp, std::forward<Args>(args)...);
+                    }
+                    resp << "\"}";
+                }
+
+            protected:
+                Endpoint& api;
+
+            private:
+                template <typename Arg, typename... Args>
+                static void append(http::Response& resp, Arg arg, Args... args) {
+                    resp << arg;
+                    if constexpr (sizeof...(args)) {
+                        Controller::append(resp, std::forward<Args>(args)...);
+                    }
+                }
+            };
+
         private:
             Router   router;
         };

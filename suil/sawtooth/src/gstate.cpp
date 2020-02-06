@@ -71,7 +71,7 @@ namespace suil::sawsdk {
 
         if (resp.entries_size() > 0) {
             for (const auto& entry: resp.entries()) {
-                data.emplace(String{entry.address(), true}, fromStdString(entry.data()));
+                data.emplace(String{entry.address(), true}, fromStdString(entry.data()).copy());
             }
         }
     }
@@ -88,9 +88,9 @@ namespace suil::sawsdk {
         sp::TpStateSetResponse resp;
 
         setValue(req, &sp::TpStateSetRequest::set_context_id, Ego.mContextId);
-        for (const auto[first, second]: data) {
+        for (const auto& [first, second]: data) {
             auto& entry = *req.add_entries();
-            setValue(entry, &sp::TpStateEntry::set_address, first);
+            setValue(entry, &sp::TpStateEntry::set_address, first);\
             entry.set_data(second.cdata(), second.size());
         }
 

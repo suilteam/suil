@@ -600,11 +600,20 @@ namespace suil {
 
         size_t hexstr(const uint8_t *, size_t, char *out, size_t len);
 
+        bool isHexStr(const suil::String& str, int checkCase = -1 /* -1 lower, 0 no insensitive, 1 upper */);
+
         void dumpbuf(const char* hdr, const void* data, size_t len);
 
         String hexstr(const uint8_t *, size_t);
 
         void   bytes(const String &str, uint8_t *out, size_t olen);
+
+        Data   bytes(const uint8_t *data, size_t size, bool b64 = false);
+
+        template <typename D>
+        Data bytes(const D& data, bool b64 = true) {
+            return bytes(static_cast<const uint8_t*>(data.data()), data.size(), b64);
+        }
 
         void reverse(void *data, size_t len);
 
@@ -652,7 +661,36 @@ namespace suil {
             return utils::SHA512((const uint8_t *) data.data(), data.size(), b64);
         }
 
-        String AES_Encrypt(String &key, const uint8_t *buf, size_t size, bool b64 = true);
+        Data AES_EncryptBin(const String &secret, const uint8_t *data, size_t size);
+
+        String AES_Encrypt(const String &secret, const uint8_t *data, size_t size, bool b64 = true);
+
+        template <typename D>
+        String AES_Encrypt(const String& secret, const D& data, bool b64 = true) {
+            return AES_Encrypt(secret, static_cast<const uint8_t *>(data.data()), data.size(), b64);
+        }
+
+        Data AES_DecryptBin(const String& secret, const uint8_t *data, size_t size);
+
+        template <typename D>
+        Data AES_Decrypt(const String& secret, const D& data, bool b64 = true) {
+            auto dec = utils::bytes((const uint8_t*)data.data(), data.size(), b64);
+            return AES_DecryptBin(secret, dec.data(), dec.size());
+        }
+
+        Data RSA_EncryptBin(const String& publicKey, const uint8_t* data, size_t size);
+        String RSA_Encrypt(const String& publicKey, const uint8_t* data, size_t size, bool b64 = true);
+        template <typename D>
+        String RSA_Encrypt(const String& publicKey, const D& data, bool b64 = true) {
+            return RSA_Encrypt(publicKey, static_cast<const uint8_t *>(data.data()), data.size(), b64);
+        }
+
+        Data RSA_DecryptBin(const String& privateKey, const uint8_t *data, size_t size);
+        template <typename D>
+        Data RSA_Decrypt(const String& privateKey, const D& data, bool b64 = true) {
+            auto dec = utils::bytes((const uint8_t *)data.data(), data.size(), b64);
+            return RSA_DecryptBin(privateKey, dec.data(), dec.size());
+        }
 
         template<typename __C, typename __Opts>
         inline void apply_options(__C& o, __Opts& opts) {

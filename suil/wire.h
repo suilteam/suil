@@ -31,6 +31,10 @@ namespace suil {
             return Ego;
         }
 
+        static size_t maxByteSize(const VarInt& vi) {
+            return 1 + vi.length();
+        }
+
         Wire& operator>>(VarInt& vi) {
             uint8_t sz{0};
             pull(&sz, 1);
@@ -47,6 +51,8 @@ namespace suil {
             push(d.cdata(), d.size());
             return Ego;
         }
+
+        static size_t maxByteSize(const Data& d);
 
         Wire& operator>>(Data& d) {
             VarInt tmp(0);
@@ -71,6 +77,11 @@ namespace suil {
         }
 
         template <size_t N>
+        static size_t maxByteSize(const Blob<N>& b) {
+            return Wire::maxByteSize(VarInt{b.size()}) =+ b.size();
+        }
+
+        template <size_t N>
         Wire& operator>>(Blob<N>& b) {
             VarInt tmp(0);
             Ego >> tmp;
@@ -83,7 +94,7 @@ namespace suil {
         }
 
         template <typename T>
-        inline Wire& operator<<(const T val) {
+        Wire& operator<<(const T val) {
             if constexpr (std::is_arithmetic<T>::value) {
                 uint64_t tmp{0};
                 memcpy(&tmp, &val, sizeof(T));
@@ -96,6 +107,16 @@ namespace suil {
                 return Ego;
             }
         };
+
+        template <typename T>
+        static size_t maxByteSize(const T val) {
+            if constexpr (std::is_arithmetic<T>::value) {
+                return sizeof(val);
+            }
+            else {
+                return val.maxByteSize();
+            }
+        }
 
         template <typename T>
         inline Wire& operator>>(T& val) {
@@ -125,6 +146,17 @@ namespace suil {
         }
 
         template <typename... T>
+        static size_t maxByteSize(const iod::sio<T...>& o) {
+            size_t totalBytes{0};
+            iod::foreach2(o) |
+            [&](auto &m) {
+                /* use given metadata to to set options */
+                totalBytes += Wire::maxByteSize(m.symbol().member_access(o));
+            };
+            return totalBytes;
+        }
+
+        template <typename... T>
         Wire& operator>>(iod::sio<T...>& o) {
             iod::foreach2(o) |
             [&](auto &m) {
@@ -144,6 +176,16 @@ namespace suil {
                 Ego << e;
             }
             return Ego;
+        }
+
+        template <typename T>
+        static size_t maxByteSize(const std::vector<T>& v) {
+            VarInt sz{v.size()};
+            size_t totalBytes = Wire::maxByteSize(sz);
+            for (auto& e: v) {
+                totalBytes += Wire::maxByteSize(e);
+            }
+            return totalBytes;
         }
 
         template <typename T>
@@ -172,6 +214,16 @@ namespace suil {
         }
 
         template <typename... T>
+        static size_t maxByteSize(const std::vector<iod::sio<T...>>& v) {
+            VarInt sz{v.size()};
+            size_t totalBytes = Wire::maxByteSize(sz);
+            for (const iod::sio<T...>& e: v) {
+                totalBytes += Wire::maxByteSize(e);
+            }
+            return totalBytes;
+        }
+
+        template <typename... T>
         Wire& operator>>(std::vector<iod::sio<T...>>& v) {
             VarInt sz{0};
             Ego >> sz;
@@ -190,8 +242,16 @@ namespace suil {
             return (Ego << Data(str, strlen(str), false));
         }
 
+        static size_t mayByteSize(const char* str) {
+            return Wire::maxByteSize(Data{str, strlen(str), false});
+        }
+
         inline Wire& operator<<(const std::string& str) {
             return (Ego << Data(str.data(), str.size(), false));
+        }
+
+        static size_t mayByteSize(const std::string& str) {
+            return Wire::maxByteSize(Data{str.data(), str.size(), false});
         }
 
         inline Wire& operator>>(std::string& str) {
@@ -337,6 +397,20 @@ namespace suil {
 
         Heapboard(Heapboard&& hb);
 
+        template <typename T>
+        static Data serialize(const T& in, size_t Off = 16) {
+            Heapboard hb(Wire::maxByteSize(in)+16);
+            hb << in;
+            return hb.release();
+        }
+
+        template <typename T, typename D>
+        static void parse(T& dest, const D& data) {
+            suil::Heapboard bb(data.data(), data.size());
+            bb.setCopyOut(true);
+            bb >> dest;
+        }
+
         Heapboard& operator=(Heapboard&& hb);
 
         void copyfrom(const uint8_t* data, size_t sz);
@@ -386,6 +460,17 @@ namespace suil {
                 w >> m.symbol().member_access(o);
             }
         };
+    }
+
+    template <typename Mt>
+    inline size_t metaMaxByteSize(Mt& o) {
+        size_t totalBytes{0};
+        iod::foreach(Mt::Meta) |
+        [&](auto &m) {
+            /* use given metadata to to set options */
+            totalBytes += Wire::maxByteSize(m.symbol().member_access(o));
+        };
+        return totalBytes;
     }
 
     template <typename Mt>

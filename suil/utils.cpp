@@ -4,16 +4,17 @@
 
 #include <dirent.h>
 #include <csignal>
-#include <openssl/sha.h>
 #include <openssl/rand.h>
-#include <openssl/hmac.h>
+#include <openssl/aes.h>
 #include <openssl/md5.h>
-#include <syslog.h>
+#include <openssl/sha.h>
+#include <openssl/hmac.h>
+#include <openssl/rsa.h>
 
 #include <suil/utils.h>
-#include <suil/base64.h>
 #include <suil/logging.h>
-#include <cstdint>
+#include <openssl/evp.h>
+#include <openssl/err.h>
 
 namespace suil {
     
@@ -44,6 +45,19 @@ namespace suil {
             out[rc++] = i2c((uint8_t) (0x0F&in[i]));
         }
         return rc;
+    }
+
+    bool utils::isHexStr(const suil::String &str, int checkCase)  {
+        suil::strview  view = str;
+        if (checkCase < 0) {
+            return view.find_first_not_of("0123456789abcdef") == std::string::npos;
+        }
+        else if (checkCase > 0){
+            return view.find_first_not_of("0123456789ABCDEF") == std::string::npos;
+        }
+        else {
+            return view.find_first_not_of("0123456789abcdefABCDEF") == std::string::npos;
+        }
     }
 
     void utils::dumpbuf(const char* hdr, const void* data, size_t len) {
@@ -77,6 +91,26 @@ namespace suil {
         const char *p = str.data();
         for (int i = 0; i < size; i++) {
             out[i] = (uint8_t) (utils::c2i(*p++) << 4 | utils::c2i(*p++));
+        }
+    }
+
+    Data utils::bytes(const uint8_t *data, size_t size, bool b64)
+    {
+        if (!b64) {
+            auto outSize{(size / 2) + 3};
+            auto out = static_cast<uint8_t *>(malloc(outSize));
+            if (out) {
+                serror("utils::bytes malloc(%zu) failed: %s", outSize, errno_s);
+                return {};
+            }
+            bytes(String{(const char *) data, size, false}, out, outSize);
+            return Data{out, size / 2, true};
+        }
+        else {
+            OBuffer ob;
+            utils::base64::decode(ob, data, size);
+            size = ob.size();
+            return Data{ob.release(), size, true};
         }
     }
 
@@ -210,6 +244,138 @@ namespace suil {
         MD5(data, len, RAW);
         return std::move(hexstr(RAW, MD5_DIGEST_LENGTH));
     }
+
+#define logError() serror("AES_Encrypt %s", ERR_error_string(ERR_get_error(), nullptr));
+
+    String utils::AES_Encrypt(const suil::String &secret, const uint8_t *data, size_t size, bool b64)
+    {
+        auto bin = AES_EncryptBin(secret, data, size);
+        String res{nullptr};
+        if (b64) {
+            return utils::base64::encode(bin.data(), bin.size());
+        }
+        else {
+            return utils::hexstr(bin.data(), bin.size());
+        }
+    }
+
+    Data utils::AES_EncryptBin(const suil::String &pass, const uint8_t *data, size_t size)
+    {
+        uint8_t key[32] = {0};
+        uint8_t iv[16] = {0};
+
+        EVP_BytesToKey(EVP_aes_256_cbc(),
+                       EVP_sha1(),
+                       nullptr,
+                       (const uint8_t *) pass.data(),
+                       static_cast<int>(pass.size()),
+                       1,
+                       key,
+                       iv);
+
+        EVP_CIPHER_CTX *ctx{EVP_CIPHER_CTX_new()};
+        if (ctx == nullptr) {
+            logError();
+            return {};
+        }
+
+        if(1 != EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), nullptr, key, iv)) {
+            logError();
+            EVP_CIPHER_CTX_free(ctx);
+            return {};
+        }
+
+        auto cipherLen = static_cast<int>(size + AES_BLOCK_SIZE);
+        auto cipherText = static_cast<uint8_t *>(malloc(static_cast<size_t>(cipherLen)));
+        if (cipherText == nullptr) {
+            serror("AES_Encrypt malloc(%d) failed: %s", cipherLen, errno_s);
+            EVP_CIPHER_CTX_free(ctx);
+            return {};
+        }
+        if(1 != EVP_EncryptUpdate(ctx, cipherText, &cipherLen, data, static_cast<int>(size))) {
+            logError();
+            free(cipherText);
+            EVP_CIPHER_CTX_free(ctx);
+            return {};
+        }
+
+        int len{0};
+        if(1 != EVP_EncryptFinal_ex(ctx, cipherText + cipherLen, &len)) {
+            logError();
+            free(cipherText);
+            EVP_CIPHER_CTX_free(ctx);
+            return {};
+        }
+        cipherLen += len;
+        EVP_CIPHER_CTX_free(ctx);
+        return Data{cipherText, static_cast<size_t>(cipherLen), true};
+    }
+
+    Data utils::AES_DecryptBin(const String &secret, const uint8_t *data, size_t size)
+    {
+        uint8_t key[32] = {0};
+        uint8_t iv[16] = {0};
+
+        EVP_BytesToKey(EVP_aes_256_cbc(),
+                    EVP_sha1(),
+                    nullptr,
+                    (const uint8_t *)secret.data(),
+                    static_cast<int>(secret.size()),
+                    1,
+                    key,
+                    iv);
+
+        EVP_CIPHER_CTX *ctx{EVP_CIPHER_CTX_new()};
+        if (ctx == nullptr) {
+            logError();
+            return {};
+        }
+
+        if (EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv) != 1) {
+            logError();
+            EVP_CIPHER_CTX_free(ctx);
+            return {};
+        }
+
+        int p_len{static_cast<int>(size)}, f_len{0};
+        auto *plainText = static_cast<unsigned char *>(malloc(size));
+        if (plainText == nullptr) {
+            serror("AES_Decrypt malloc(%d) failed: %s", p_len, errno_s);
+            EVP_CIPHER_CTX_free(ctx);
+            return {};
+        }
+
+        if (1 != EVP_DecryptUpdate(ctx, plainText, &p_len, data, static_cast<int>(size))) {
+            logError();
+            free(plainText);
+            EVP_CIPHER_CTX_free(ctx);
+            return {};
+        }
+        if (1 != EVP_DecryptFinal_ex(ctx, plainText+p_len, &f_len)) {
+            logError();
+            free(plainText);
+            EVP_CIPHER_CTX_free(ctx);
+            return {};
+        }
+
+        p_len += f_len;
+        plainText[p_len++] = '\0';
+
+        EVP_CIPHER_CTX_free(ctx);
+        return Data{plainText, static_cast<size_t>(p_len), true};
+    }
+
+    Data utils::RSA_EncryptBin(const String &publicKey, const uint8_t *data, size_t size)
+    {
+        return {};
+    }
+
+    Data utils::RSA_DecryptBin(const suil::String &privateKey, const uint8_t *data, size_t size)
+    {
+        return {};
+    }
+
+#undef logError
 
     String utils::SHA_HMAC256(String &secret, const uint8_t *data, size_t len, bool b64) {
         if (data == nullptr)

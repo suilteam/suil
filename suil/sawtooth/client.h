@@ -18,7 +18,7 @@ namespace suil::sawsdk::Client {
     struct Signer final : LOGGER(SAWSDK_CLIENT) {
 
         Signer(Signer&& other) noexcept;
-        Signer& operator=(Signer& other) noexcept;
+        Signer& operator=(Signer&& other) noexcept;
 
         Signer(const Signer&) = delete;
         Signer& operator=(const Signer&) = delete;
@@ -99,13 +99,17 @@ namespace suil::sawsdk::Client {
         static suil::Data encode(const std::vector<Batch>& batches);
         static void encode(OBuffer& dst, const std::vector<Batch>& batches);
         Batch encode(const suil::Data& payload, const Inputs& inputs = {}, const Outputs& outputs = {});
-
+        void setSigner(const String& key);
+        const String& getSigner() const { return Ego.mSignerPublicKey; }
+        const String& getBatcher() const { return Ego.mBatcherPublicKey; }
+        void setBatcher(const String& key);
     private:
         suil::String mFamily;
         suil::String mFamilyVersion;
         suil::String mBatcherPublicKey;
         suil::String mSignerPublicKey;
         Signer mSigner;
+        Signer mBatcher;
     };
 
     struct HttpRest {
@@ -124,8 +128,10 @@ namespace suil::sawsdk::Client {
 
         bool asyncBatches(const suil::Data& payload, const StringVec& inputs = {}, const StringVec& outputs = {});
         bool asyncBatches(const std::vector<Batch>& batches);
-        suil::Data getState(const suil::String& key);
+        suil::Data getState(const suil::String& key, bool encode = true);
+        std::vector<suil::Data> getStates(const suil::String& prefix);
         suil::String getPrefix();
+        Encoder& encoder() { return  mEncoder; }
     private:
         Encoder mEncoder;
         AddressEncoder mAddressEncoder;
@@ -134,6 +140,60 @@ namespace suil::sawsdk::Client {
     private:
         static const char* BATCHES_RESOURCE;
         static const char* STATE_RESOURCE;
+    };
+
+    struct Logger final {
+        DISABLE_MOVE(Logger);
+        DISABLE_COPY(Logger);
+
+        Logger();
+        ~Logger();
+
+        inline void operator()(const char *msg, size_t size, log::Level l) {
+            Ego.log(msg, size, l);
+        }
+        inline size_t operator()(char *out, log::Level l, const char *tag, const char *fmt, va_list args) {
+            return Ego.format(out, l, tag, fmt, args);
+        }
+    private:
+        void log(const char *msg, size_t size, log::Level l);
+        size_t format(char *out, log::Level l, const char *tag, const char *fmt, va_list args);
+        static Syslog sSysLog;
+    };
+
+    struct Wallet final {
+        DISABLE_COPY(Wallet);
+
+        Wallet(Wallet&& other) = default;
+        Wallet&operator=(Wallet&&) = default;
+
+        static Wallet open(const String& path, const String& secret);
+        static Wallet create(const String& path, const String& secret);
+        const String& get(const String& name = "") const;
+        const String& generate(const String& name);
+        const String& defaultKey() const;
+        void save();
+
+        ~Wallet();
+
+    private:
+        Wallet(String&& path, String&& secret);
+
+    private:
+        typedef decltype(iod::D(
+            prop(Name, String),
+            prop(Key, String)
+        )) Entry;
+
+        typedef decltype(iod::D(
+            prop(MasterKey, String),
+            prop(Keys,      Repeated<Entry>)
+        )) Schema;
+
+        Schema mData;
+        String mPath;
+        String mSecret;
+        bool mDirty{false};
     };
 }
 

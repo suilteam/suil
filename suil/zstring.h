@@ -414,6 +414,8 @@ namespace suil {
             return std::string{c_str(), size()};
         }
 
+        size_t maxByteSize() const;
+
     private suil_ut:
         /**
          * serialization into a wire operator

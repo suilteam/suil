@@ -158,7 +158,7 @@ namespace suil {
     }
 
     void OBuffer::bseek(off_t off) {
-        if ((off >= 0) && (m_size > off)) {
+        if ((off >= 0) && (m_size >= off)) {
             m_offset = (uint32_t) off;
         }
         else {

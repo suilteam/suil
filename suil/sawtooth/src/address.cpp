@@ -6,31 +6,22 @@
 
 namespace suil::sawsdk {
 
-    constexpr size_t ADDRESS_LENGTH = 70;
-    constexpr size_t NS_PREFIX_LENGTH = 6;
-
-
-    static bool isHex(const suil::String& str) {
-        suil::strview  view = str;
-        return view.find_first_not_of("0123456789abcdef") == std::string::npos;
-    }
-
-    static void isValidAddr(const suil::String& addr) {
+    void AddressEncoder::isValidAddr(const suil::String& addr) {
         if (addr.size() != ADDRESS_LENGTH) {
             throw Exception::create("Address size is invalid, {Expected: ",
                                     ADDRESS_LENGTH, ", Got: ", addr.size(), "}");
         }
-        else if (!isHex(addr)) {
+        else if (!utils::isHexStr(addr)) {
             throw Exception::create("Address must be lowercase hexadecimal ONLY");
         }
     }
 
-    static void isNamespaceValid(const suil::String& ns) {
+    void AddressEncoder::isNamespaceValid(const suil::String& ns) {
         if (ns.size() != NS_PREFIX_LENGTH) {
             throw Exception::create("Namespace size is invalid, {Expected: ",
                                     NS_PREFIX_LENGTH, ", Got: ", ns.size(), "}");
         }
-        else if (!isHex(ns)) {
+        else if (!utils::isHexStr(ns)) {
             throw Exception::create("Namespace prefix must be lowercase hexadecimal ONLY");
         }
     }

@@ -7,6 +7,11 @@
 
 namespace suil {
 
+    size_t Wire::maxByteSize(const suil::Data &d) {
+        VarInt sz(d.size());
+        return Wire::maxByteSize(sz) + d.size();
+    }
+
     void Breadboard::toHexStr(suil::OBuffer &ob) const {
         auto tmp = Ego.raw();
         ob.reserve((tmp.size()*2)+2);
@@ -125,6 +130,10 @@ namespace suil {
 
     Wire& operator<<(suil::Wire &w, const suil::String &s) {
         return (w << Data(s.m_cstr, s.size(), false));
+    }
+
+    size_t String::maxByteSize() const {
+        return Wire::maxByteSize(Data{m_cstr, Ego.size(), false});
     }
 }
 

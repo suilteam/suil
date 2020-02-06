@@ -50,8 +50,8 @@ namespace suil::sawsdk {
         TransactionHeader(const TransactionHeader&) = delete;
         TransactionHeader& operator=(const TransactionHeader&) = delete;
 
-        virtual int getCount(Field field);
-        virtual suil::Data getValue(Field field, int index = 0);
+        virtual int getCount(Field field) const;
+        virtual suil::Data getValue(Field field, int index = 0) const;
 
         virtual ~TransactionHeader();
 
@@ -136,6 +136,9 @@ namespace suil::sawsdk {
     };
 
     struct AddressEncoder final {
+        static constexpr size_t ADDRESS_LENGTH = 70;
+        static constexpr size_t NS_PREFIX_LENGTH = 6;
+
         AddressEncoder(const suil::String& ns);
         AddressEncoder(AddressEncoder&& other) noexcept ;
         AddressEncoder&operator=(AddressEncoder&& other) noexcept ;
@@ -145,6 +148,10 @@ namespace suil::sawsdk {
 
         suil::String operator()(const suil::String& key);
         const suil::String& getPrefix();
+
+        static void isValidAddr(const suil::String& addr);
+
+        static void isNamespaceValid(const suil::String& ns);
     private:
         suil::String mapNamespace(const suil::String& key) const;
         suil::String mapKey(const suil::String& key);

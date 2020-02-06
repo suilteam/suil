@@ -31,7 +31,7 @@ namespace suil::sawsdk {
         }
     }
 
-    int TransactionHeader::getCount(TransactionHeader::Field field) {
+    int TransactionHeader::getCount(TransactionHeader::Field field) const {
         switch (field) {
             case TransactionHeader::Field::StringDependencies:
                 return mHeader->dependencies_size();
@@ -51,7 +51,7 @@ namespace suil::sawsdk {
         }
     }
 
-    suil::Data TransactionHeader::getValue(TransactionHeader::Field field, int index)
+    suil::Data TransactionHeader::getValue(TransactionHeader::Field field, int index) const
     {
         switch (field) {
             case TransactionHeader::Field::StringDependencies:

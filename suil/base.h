@@ -751,6 +751,9 @@ public:                                     \
             prop(vtime,  std::string)
     )) Version;
 
+    template <typename T>
+    using Repeated = std::vector<T>;
+
     extern const Version& ver_json;
     extern const uint8_t& spid;
 }

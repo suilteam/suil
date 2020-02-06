@@ -118,13 +118,13 @@ namespace suil {
         return std::move(String(m_cstr, m_len, false));
     }
 
-    inline void String::toupper() {
+    void String::toupper() {
         for (int i = 0; i < m_len; i++) {
             m_str[i] = (char) ::toupper(m_str[i]);
         }
     }
 
-    inline void String::tolower() {
+    void String::tolower() {
         for (int i = 0; i < m_len; i++) {
             m_str[i] = (char) ::tolower(m_str[i]);
         }

@@ -87,6 +87,7 @@ namespace suil::scc {
             // add serialization methods
             out << spaces(8) << "static " << tp.Name << " fromJson(iod::json::parser&);\n\n"
                 << spaces(8) << "void toJson(iod::json::jstream&) const;\n\n"
+                << spaces(8) << "size_t maxByteSize() const;\n\n"
                 << spaces(8) << "static " << tp.Name << " fromWire(suil::Wire&);\n\n"
                 << spaces(8) << "void toWire(suil::Wire&) const;\n\n"
                 << spaces(8) << "friend suil::OBuffer& operator<<(suil::OBuffer& out, const " << tp.Name << "& o);\n\n"
@@ -417,6 +418,11 @@ namespace suil::scc {
         sf << spaces(4) << "void " << mt.Name << "::toJson(iod::json::jstream& ss) const\n"
            << spaces(4) << "{\n"
            << spaces(8) << "suil::json::metaToJson(Ego, ss);\n"
+           << spaces(4) << "}\n\n";
+
+        sf << spaces(4) << "size_t " << mt.Name << "::maxByteSize() const\n"
+           << spaces(4) << "{\n"
+           << spaces(8) << "return suil::metaMaxByteSize(Ego);\n"
            << spaces(4) << "}\n\n";
 
         sf << spaces(4) << mt.Name << " " << mt.Name << "::fromWire(suil::Wire& w)\n"

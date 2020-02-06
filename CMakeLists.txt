@@ -173,7 +173,6 @@ if (SUIL_DEV_IDE)
     endif()
     if (SUIL_BUILD_APPS)
         add_subdirectory(apps/suilauth)
-        add_subdirectory(apps/trader)
     endif()
 endif()
 

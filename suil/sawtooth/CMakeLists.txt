@@ -47,6 +47,7 @@ set(SAWTOOTH_SOURCES
         src/stream.cpp
         src/client.cpp
         src/rest.cpp
+        src/wallet.cpp
         )
 
 include_directories(PROTOBUF_INCLUDE_DIR)
@@ -54,6 +55,9 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 add_library(sawtooth SHARED ${SAWTOOTH_PROTO_SRCS} ${SAWTOOTH_SOURCES})
 target_link_libraries(sawtooth protobuf::libprotobuf suil)
+
+add_executable(stw src/main.cpp)
+target_link_libraries(stw sawtooth suil)
 
 set(sawtooth_INSTALL_TARGETS sawtooth)
 

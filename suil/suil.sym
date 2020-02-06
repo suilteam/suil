@@ -216,3 +216,9 @@ SuilRPC:
   _extensions
   _methods
   _stream
+
+Sawtooth:
+  _MasterKey
+  _Keys
+  _Name
+  _Key

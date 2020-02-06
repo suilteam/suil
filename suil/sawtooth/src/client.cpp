@@ -17,7 +17,7 @@ namespace suil::sawsdk::Client {
         : mKey(other.mKey)
     {}
 
-    Signer& Signer::operator=(Signer& other) noexcept
+    Signer& Signer::operator=(Signer&& other) noexcept
     {
         Ego.mKey = other.mKey;
         return Ego;
@@ -135,13 +135,30 @@ namespace suil::sawsdk::Client {
 
     Encoder::Encoder(const String& family, String&& familyVersion, const String&& privateKey)
         : mSigner{Signer::load(privateKey)},
+          mBatcher{Signer::load(privateKey)},
           mFamily(family.dup()),
-          mFamilyVersion(std::move(familyVersion)),
-          mBatcherPublicKey{},
-          mSignerPublicKey{}
+          mFamilyVersion(std::move(familyVersion))
     {
         mBatcherPublicKey = mSigner.getPublicKey().toString();
-        mSignerPublicKey = mBatcherPublicKey.peek();
+        mSignerPublicKey = mBatcher.getPublicKey().toString();
+    }
+
+    void Encoder::setBatcher(const suil::String &key)
+    {
+        Ego.mBatcher = Signer::load(key);
+        if (!Ego.mBatcher.isValid()) {
+            throw Exception::create("Given batcher '", key, "' is an invalid key");
+        }
+        Ego.mBatcherPublicKey = mBatcher.getPublicKey().toString();
+    }
+
+    void Encoder::setSigner(const suil::String &key)
+    {
+        Ego.mSigner = Signer::load(key);
+        if (!Ego.mSigner.isValid()) {
+            throw Exception::create("Given signer '", key, "' is an invalid key");
+        }
+        Ego.mSignerPublicKey = mSigner.getPublicKey().toString();
     }
 
     Transaction Encoder::operator()(const suil::Data& payload, const Inputs& inputs, const Outputs& outputs) const
@@ -182,10 +199,10 @@ namespace suil::sawsdk::Client {
             auto it = batch->add_transactions();
             it->CopyFrom(*txn);
         }
-        protoSet(header, signer_public_key, Ego.mSignerPublicKey);
+        protoSet(header, signer_public_key, Ego.mBatcherPublicKey);
 
         auto headerBytes = protoSerialize(header);
-        auto signature = mSigner.sign(headerBytes);
+        auto signature = mBatcher.sign(headerBytes);
         protoSet(*batch, header, headerBytes);
         protoSet(*batch, header_signature, signature);
 
@@ -211,7 +228,7 @@ namespace suil::sawsdk::Client {
     {
         sawtooth::protos::BatchList list;
         Encoder::encode(list, batches);
-        dst.reserve(list.ByteSizeLong());
+        dst.reserve(list.ByteSizeLong()+1);
         auto buf = &dst[dst.size()];
         list.SerializeToArray(buf, static_cast<int>(dst.capacity()));
         dst.seek(list.ByteSizeLong());

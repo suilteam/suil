@@ -49,8 +49,6 @@ namespace suil::sawsdk {
             throw Exception::create("Failed to monitor server socket: ", zmq_strerror(zmq_errno()));
         }
 
-        idebug("%p", &Ego.mServerSock);
-
         go(sendMessages(Ego));
         go(exitMonitor(Ego));
         go(receiveMessages(Ego));
@@ -78,7 +76,7 @@ namespace suil::sawsdk {
 
             Message::UPtr proto(Message::mkunique());
             proto->ParseFromArray(zmsg.data(), static_cast<int>(zmsg.size()));
-            ldebug(&Self, "received message {type: %d}", proto->message_type());
+            ltrace(&Self, "received message {type: %d}", proto->message_type());
 
             switch (proto->message_type()) {
                 case sawtooth::protos::Message_MessageType_TP_PROCESS_REQUEST: {
@@ -125,7 +123,7 @@ namespace suil::sawsdk {
                 ldebug(&Self, "sendMessages - ignoring empty message");
                 continue;
             }
-            sdebug("send %p", &Self.mServerSock);
+
             if (!Self.mServerSock.isConnected()) {
                 ldebug(&Self, "sendMessages - server is not connected, dropping message");
                 continue;
