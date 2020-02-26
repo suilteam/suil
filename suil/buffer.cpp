@@ -511,7 +511,7 @@ TEST_CASE("OBuffer tests", "[common][obuffer]")
             REQUIRE(ob.m_offset == 5);
             REQUIRE_THROWS(ob.bseek(-1));   // does not work with negative numbers
             REQUIRE(ob.m_offset == 5);
-            REQUIRE_THROWS(ob.bseek(ob.m_size)); // cannot seek past the buffer size
+            REQUIRE_THROWS(ob.bseek(ob.m_size+1)); // cannot seek past the buffer size
             REQUIRE(ob.m_offset == 5);
             ob.bseek(0);
             REQUIRE(ob.m_offset == 0);
