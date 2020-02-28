@@ -92,7 +92,7 @@ namespace suil {
         }
 
         template <typename S>
-        void encjv(S& ss) {
+        void encjv(S& ss) const {
             ss << "{\"enabled\": ";
             json_encode_(enabled, ss);
             ss << ", \"roles\": ";

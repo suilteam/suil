@@ -73,7 +73,7 @@ if (NOT ZeroMQ_FOUND)
     pkg_check_modules(ZeroMQ QUIET libzmq)
 endif()
 
-if (NOT ZeroMQ_FOUND)
+if (NOT SUIL_DEV_IDE AND NOT ZeroMQ_FOUND)
    message(FATAL_ERROR "ZMQ development libraries required")
 endif()
 
