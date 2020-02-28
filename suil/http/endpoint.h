@@ -14,6 +14,10 @@ namespace suil {
 
     namespace http {
 
+        namespace mw {
+            struct EndpointAdmin;
+        }
+
         define_log_tag(HTTP_SERVER);
 
         template<typename H, typename B = TcpSs, typename... Mws>
@@ -42,6 +46,7 @@ namespace suil {
             typedef std::tuple<Mws...> middlewares_t;
 
         protected:
+            friend struct mw::EndpointAdmin;
             template<typename... Opts>
             BaseServer(H &h, Opts&... opts)
                 : backend(config, config, this),
@@ -104,36 +109,6 @@ namespace suil {
             int start() {
                 // configure pid
                 this->stats.pid = spid;
-
-                eproute((*this), "/sys/stats")
-                ("GET"_method)
-                .attrs(opt(AUTHORIZE, Roles{"System"}),
-                       opt(REPLY_TYPE, String{"application/json"}))
-                ([this] {
-                    // gather all the statistics
-                    return Ego.stats;
-                });
-
-                eproute((*this), "/sys/memory")
-                ("GET"_method)
-                .attrs(opt(AUTHORIZE, Roles{"System"}))
-                ([this] () {
-                    return "TODO: Implement memory usage";
-                });
-
-                eproute((*this), "/sys/about")
-                ("GET"_method)
-                .attrs(opt(AUTHORIZE, Roles{"System"}))
-                ([this] () {
-                    return SUIL_SOFTWARE_NAME " " SUIL_VERSION_STRING;
-                });
-
-                eproute((*this), "/sys/version")
-                ("GET"_method)
-                .attrs(opt(AUTHORIZE, Roles{"System"}))
-                ([this] () {
-                    return ver_json;
-                });
 
                 router.validate();
 
@@ -222,6 +197,7 @@ namespace suil {
             };
 
         private:
+            friend struct mw::EndpointAdmin;
             Router   router;
         };
 

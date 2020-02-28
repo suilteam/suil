@@ -8,6 +8,13 @@
 #include <suil/base.h>
 #include <suil/logging.h>
 
+
+#ifndef SUIL_IPC_MESSAGE_COUNT
+#define SUIL_IPC_MESSAGE_COUNT 256
+#endif
+
+static_assert((SUIL_IPC_MESSAGE_COUNT%8) == 0, "SUIL_IPC_MESSAGE_COUNT must be a multiple of 8");
+
 namespace suil {
 
     struct Lock_t {

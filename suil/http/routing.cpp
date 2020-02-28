@@ -204,10 +204,10 @@ namespace suil {
                             { suil::detail::ParamType::STRING, "{string}" },
                             { suil::detail::ParamType::PATH, "{path}" },
                     };
-
+                    auto ii{i};
                     for(auto& x:paramTraits)
                     {
-                        if (url.compare(i, x.name.size(), x.name) == 0)
+                        if (url.compare(ii, x.name.size(), x.name) == 0)
                         {
                             if (!m_nodes[idx].param_childrens[(int)x.type])
                             {
@@ -215,12 +215,13 @@ namespace suil {
                                 m_nodes[idx].param_childrens[(int)x.type] = new_node_idx;
                             }
                             idx = m_nodes[idx].param_childrens[(int)x.type];
-                            i += x.name.size();
+                            ii += x.name.size();
                             break;
                         }
                     }
-
-                    i --;
+                    if (i != ii) {
+                        i = ii-1;
+                    }
                 }
                 else
                 {
@@ -333,8 +334,13 @@ namespace suil {
                 throw Error::notFound();
             }
 
-            if (params.first >= m_rules.size())
-                throw std::runtime_error("trie internal structure corrupted!");
+            if (params.first >= m_rules.size()) {
+                throw Error::internal("System error, contact system administrator");
+            }
+
+            if (!m_rules[params.first]->attrs_.ENABLED) {
+                throw Error::notFound();
+            }
 
             // update Request with params
             req.params.index = params.first;
@@ -371,7 +377,7 @@ namespace suil {
                 return;
             }
 
-            if ((m_rules[req.params.index]->get_methods() & (1<<(uint32_t)req.method)) == 0)
+            if ((m_rules[req.params.index]->getMethods() & (1 << (uint32_t)req.method)) == 0)
             {
                 throw  Error::notFound();
             }
@@ -390,6 +396,46 @@ namespace suil {
                 throw Error::internal();
             }
         }
+
+        void Router::enumerate(RouteEnumerator f)
+        {
+            for (auto& rule: m_rules) {
+                if (rule == nullptr) {
+                    // UNLIKELY
+                    continue;
+                }
+                if (!f(*rule)) {
+                    // enumeration terminated
+                    return;
+                }
+            }
+        }
+
+        route_schema_t BaseRule::schema() const
+        {
+            route_schema_t dst;
+            schema(dst);
+            return dst;
+        }
+
+        void BaseRule::schema(route_schema_t &dst) const
+        {
+            dst.name = name_;
+            dst.rule = rule_;
+            dst.id = id_;
+            dst.description = description_;
+            dst.attrs.STATIC = attrs_.STATIC;
+            dst.attrs.AUTHORIZE = attrs_.AUTHORIZE;
+            dst.attrs.PARSE_COOKIES = attrs_.PARSE_COOKIES;
+            dst.attrs.PARSE_FORM = attrs_.PARSE_FORM;
+            dst.attrs.REPLY_TYPE = attrs_.REPLY_TYPE;
+            dst.attrs.ENABLED = attrs_.ENABLED;
+            for (auto m: method_names_) {
+                dst.methods.emplace_back(m);
+            }
+        }
+
+        uint32_t BaseRule::idGenerator = 0;
 
         void SystemAttrs::before(Request &req, Response &, Context &) {
             /* check for system attributes and apply appropriate actions */

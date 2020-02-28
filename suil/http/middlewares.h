@@ -8,6 +8,7 @@
 #include <suil/redis.h>
 #include <suil/channel.h>
 #include <suil/http/auth.h>
+#include <suil/http/routing.h>
 
 namespace suil::http::mw {
 
@@ -220,6 +221,119 @@ namespace suil::http::mw {
         bool  unblock{false};
         int32_t initRoute{0};
         Handler  handler{nullptr};
+    };
+
+    define_log_tag(ENDPOINT_ADMIN);
+    struct EndpointAdmin final : LOGGER(ENDPOINT_ADMIN) {
+        struct Context {
+        };
+
+        void before(http::Request& req, http::Response& resp, Context& ctx) {}
+
+        void after(http::Request& req, http::Response& resp, Context& ctx) {}
+
+        template <typename Endpoint>
+        void setup(Endpoint& ep) {
+            idebug("initializing administration endpoint");
+
+            ep("/_admin/routes")
+            ("GET"_method, "OPTIONS"_method)
+            .attrs(opt(AUTHORIZE, Auth{"SysAdmin"}))
+            ([&ep]() {
+                std::vector<route_schema_t> schemas;
+                ep.router.enumerate([&schemas](BaseRule& rule) {
+                    if (rule.path().find("_admin") != std::string::npos) {
+                        // do not include admin routes
+                        return true;
+                    }
+
+                    schemas.emplace_back(rule.schema());
+                    return true;
+                });
+
+                return schemas;
+            });
+
+            ep("/_admin/route/{uint}")
+            ("GET"_method, "OPTIONS"_method)
+            .attrs(opt(AUTHORIZE, Auth{"SysAdmin"}))
+            ([&ep](const Request&, Response& resp, uint32_t id) {
+                auto status{Status::NO_CONTENT};
+                ep.router.enumerate([&ep, &resp, &status, id](BaseRule& rule) {
+                    if (rule.path().find("_admin") != std::string::npos) {
+                        // do not include admin routes
+                        return true;
+                    }
+
+                    if (rule.id() == id) {
+                        route_schema_t schema{};
+                        rule.schema(schema);
+                        resp << schema;
+                        status = Status::OK;
+                        return false;
+                    }
+                    return true;
+                });
+
+                resp.end(status);
+            });
+
+            ep("/_admin/route/{uint}/enable")
+            ("POST"_method, "OPTIONS"_method)
+            .attrs(opt(AUTHORIZE, Auth{"SysAdmin"}))
+            ([this, &ep](uint32_t id) {
+                return setRouteEnabled(ep, id, true);
+            });
+
+            ep("/_admin/route/{uint}/disable")
+            ("POST"_method, "OPTIONS"_method)
+            .attrs(opt(AUTHORIZE, Auth{"SysAdmin"}))
+            ([this, &ep](uint32_t id) {
+                return setRouteEnabled(ep, id, false);
+            });
+
+            ep("/_admin/endpoint/stats")
+            ("GET"_method, "OPTIONS"_method)
+            .attrs(opt(AUTHORIZE, Auth{"SysAdmin"}))
+            ([&ep]{
+                return ep.stats;
+            });
+
+            ep("/_admin/about")
+            ("GET"_method, "OPTIONS"_method)
+            .attrs(opt(AUTHORIZE, Auth{"SysAdmin"}))
+            ([&ep]{
+                return utils::catstr(version::SWNAME, "-", version::STRING);
+            });
+
+            ep("/_admin/version")
+            ("GET"_method, "OPTIONS"_method)
+            .attrs(opt(AUTHORIZE, Auth{"SysAdmin"}))
+            ([&ep]{
+                return ver_json;
+            });
+        }
+
+    private:
+        template <typename  Endpoint>
+        Status setRouteEnabled(Endpoint& ep, uint32_t id, bool en) {
+            auto status{Status::NO_CONTENT};
+            ep.router.enumerate([this, &status, id, en](BaseRule& rule) {
+                if (rule.path().find("_admin") != std::string::npos) {
+                    // do not include admin routes
+                    return true;
+                }
+
+                if (rule.id() == id) {
+                    rule.attrs_.ENABLED = en;
+                    status = Status::ACCEPTED;
+                    idebug("disabling route %s", rule.path().c_str());
+                    return false;
+                }
+                return true;
+            });
+            return status;
+        }
     };
 }
 

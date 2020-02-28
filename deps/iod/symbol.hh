@@ -1,6 +1,8 @@
 #ifndef IOD_SYMBOL_HH_
 # define IOD_SYMBOL_HH_
 
+#include <sstream>
+
 #include <iod/tags.hh>
 #include <iod/grammar.hh>
 
@@ -12,9 +14,8 @@ namespace iod
   R lexical_cast(const T& t) {
       if constexpr (std::is_same_v<R,std::string>) {
           if constexpr (std::is_arithmetic_v<T>) {
-            char buf[128];
-            sprintf(buf, "%0.0f", t);
-            return std::string{buf};
+              std::stringstream ss; ss << t;
+              return ss.str();
           }
           else {
               return std::string{t};

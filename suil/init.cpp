@@ -24,9 +24,9 @@ namespace suil {
             version::MINOR,
             version::PATCH,
             version::BUILD,
-            SUIL_BUILD_TAG,
-            SUIL_VERSION_STRING,
-            SUIL_SOFTWARE_NAME
+            version::TAG,
+            __DATE__,
+            __TIME__
     };
 
     const Version& ver_json = g_version;

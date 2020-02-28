@@ -16,7 +16,7 @@
 
 namespace suil {
 
-    struct Auth {
+    struct Auth : iod::jsonvalue {
         template <typename... A>
         Auth(A... a)
             : enabled(true)
@@ -91,6 +91,17 @@ namespace suil {
             return false;
         }
 
+        template <typename S>
+        void encjv(S& ss) {
+            ss << "{\"enabled\": ";
+            json_encode_(enabled, ss);
+            ss << ", \"roles\": ";
+            json_encode_(roles, ss);
+            ss << "}";
+        }
+
+        bool empty() const { return !enabled; }
+
     private:
         template <typename... A>
         void addRoles(const char *r, A... a) {
@@ -103,16 +114,37 @@ namespace suil {
         std::vector<String> roles{};
     };
 
+    struct Desc {
+        Desc(const char *d)
+            : data(d)
+        {}
+
+        operator std::string() const {
+            return std::string{data};
+        }
+    private:
+        const char *data{nullptr};
+    };
+
     using Roles = Auth;
 
     typedef decltype(iod::D(
         prop(STATIC,         bool),
-        prop(AUTHORIZE,      Auth),
+        prop(AUTHORIZE(var(ignore)),      Auth),
         prop(PARSE_COOKIES,  bool),
         prop(PARSE_FORM,     bool),
-        prop(REPLY_TYPE,     String),
+        prop(REPLY_TYPE(var(ignore)),     String),
         prop(ENABLED,        bool)
     )) route_attributes_t;
+
+    typedef decltype(iod::D(
+        prop(id,                uint32_t),
+        prop(name(var(ignore)),          std::string),
+        prop(rule,              std::string),
+        prop(description(var(ignore)),       std::string),
+        prop(methods,           std::vector<std::string>),
+        prop(attrs,             route_attributes_t)
+    )) route_schema_t;
 
     namespace magic {
         struct out_of_range {

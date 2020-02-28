@@ -17,8 +17,8 @@ namespace suil {
             BaseRule(std::string rule)
                 : rule_(std::move(rule))
             {
-                static uint32_t idGenerator{0};
-                id_ = idGenerator++;
+                id_ = idGenerator;
+                idGenerator += 1;
             }
 
             virtual ~BaseRule() = default;
@@ -29,13 +29,29 @@ namespace suil {
                                 Response&,
                                 const suil::detail::routing_params &) = 0;
 
-            uint32_t get_methods() {
+            uint32_t getMethods() const {
                 return methods_;
             }
 
-            uint32_t get_id() const {
+            uint32_t id() const {
                 return id_;
             }
+
+            const std::string& name() const {
+                return name_;
+            }
+
+            const std::string& path() const {
+                return rule_;
+            }
+
+            const std::string& getDescription() const {
+                return description_;
+            }
+
+            route_schema_t schema() const;
+
+            void schema(route_schema_t& dst) const;
 
             friend class Router;
             route_attributes_t attrs_{false, false, false, false, nullptr, true};
@@ -45,9 +61,12 @@ namespace suil {
 
             std::string rule_;
             std::string name_;
+            std::string description_;
+            std::vector<const char*> method_names_;
             uint32_t    id_{0};
             template<typename T>
             friend struct rule_parameter_traits;
+            static uint32_t idGenerator;
         };
 
         namespace detail {
@@ -215,6 +234,7 @@ namespace suil {
             self_t& methods(Method method)
             {
                 ((self_t*)this)->methods_ = 1 << (int)method;
+                ((self_t*)this)->method_names_.emplace_back(method_name(method));
                 return (self_t&)*this;
             }
 
@@ -224,6 +244,12 @@ namespace suil {
                 methods(args_method...);
                 ((self_t*)this)->methods_ |= 1 << (int)method;
                 return (self_t&)*this;
+            }
+
+            self_t& description(std::string&& desc)
+            {
+                ((self_t*) this)->description_ = desc;
+                return (self_t &)*this;
             }
         };
 
@@ -256,6 +282,10 @@ namespace suil {
             template <typename... Methods>
             DynamicRule& operator()(Method m, Methods... ms) {
                 return methods(m, ms...);
+            }
+
+            DynamicRule& operator()(const Desc& desc) {
+                return description(desc);
             }
 
             template <typename... Opts>
@@ -353,6 +383,10 @@ namespace suil {
                 return *this;
             }
 
+            self_t&operator()(const Desc& desc) {
+                return rule_parameter_traits<TaggedRule<Args...>>::description(desc);
+            }
+
             template<typename Func>
             typename std::enable_if<
                     !magic::CallHelper<Func, magic::S<Args...>>::value &&
@@ -411,6 +445,8 @@ namespace suil {
         };
 
         const int RULE_SPECIAL_REDIRECT_SLASH = 1;
+
+        using RouteEnumerator = std::function<bool(BaseRule&)>;
 
         class Trie
         {
@@ -508,6 +544,9 @@ namespace suil {
                   api_base((base=="/")? "": base)
             {}
 
+            Router(const Router&) = delete;
+            Router&operator=(const Router&) = delete;
+
             DynamicRule& new_rule_dynamic(const std::string& rule);
 
             template <uint64_t N>
@@ -526,6 +565,8 @@ namespace suil {
             void validate();
 
             void handle(const Request& req, Response& res);
+
+            void enumerate(RouteEnumerator f);
 
             void debug_print() {
                 m_trie.debug_print();

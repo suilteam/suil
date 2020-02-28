@@ -1,6 +1,8 @@
 
 _id
 _name
+_rule
+_attrs
 _age
 _worker
 _suil
