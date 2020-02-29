@@ -19,9 +19,9 @@ int main(int argc, const char *argv[])
     suil::log::setup(opt(verbose, 3));
     Endpoint<> ep("/api",
             opt(port, 1024),
-            opt(name, "192.168.100.103"));
+            opt(name, "0.0.0.0"));
     FileServer fs(ep,
-            opt(root, "/home/dc/projects/sci/www"));
+            opt(root, ""));
     fs.alias("/banner", "images/banner.mp4");
 
     // simple route
