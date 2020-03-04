@@ -10,6 +10,8 @@
 #include <suil/http/connection.h>
 #include <suil/http/routing.h>
 
+#include <typeindex>
+
 namespace suil {
 
     namespace http {

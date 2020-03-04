@@ -84,3 +84,17 @@ if (SUIL_BUILD_LXC)
             DEPENDS    suil
             LIBRARIES  lxc suilxc)
 endif(SUIL_BUILD_LXC)
+
+set(swept_SOURCES
+        swept/main.cc
+        swept/script.cpp)
+
+include(swept/Swept.cmake)
+
+SuilApp(swept
+        SOURCES    ${swept_SOURCES}
+        VERSION    ${tools_VERSION}
+        DEFINES    ${tools_DEFINES}
+        INSTALL    ON
+        DEPENDS    suil
+        LUA2C      ${swept_LUA2C_SOURCES})

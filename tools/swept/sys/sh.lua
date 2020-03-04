@@ -1,28 +1,4 @@
---
--- @filename sh.lua
---
--- A simple module that allows users to execute
--- commands from from within as function calls.
---
--- @usage
---	```lua
----	local sh = require('sh') 
----
---- ls() -- executes command ls and prints outout to stdout or stderr
----
---- local res,ok = _ls() -- executes the conmand ls and returns and output object
---- if ok then print('command was successful')
---- else print('command failed') end
----
---- print(tostring(res)) -- get command output, if failed stderr will be prefered to stdout
---- ```
----
-
-local function tmpio()
-	local out = os.tmpname()
-	local err = out..'.err'
-	return out, err
-end
+local M = {}
 
 -- converts key and it's argument to "-k" or "-k=v" or just ""
 local function arg(k, a)
@@ -40,7 +16,7 @@ local function arg(k, a)
 		end
 		return list
 	end
-	error('invalid argument type '..type(a)..' '..k)
+	error('invalid argument type', type(a), a)
 end
 
 -- converts nested tables into a flat list of arguments and concatenated input
@@ -72,90 +48,74 @@ local function flatten(t)
 	f(t)
 	return result
 end
-local function readAll(file)
-	local fd, msg = io.open(file, 'r')
-	local data = fd:read('*a')
-	fd:close()
-	return data
-end
-			
-local function buildCommand(cmd, ...)
-	local args = flatten({...})
-	local s = cmd
-	for k, v in pairs(args.args) do
-		s = s .. ' ' .. v
-	end
-	return s
-end
 
-local Command = setmetatable({
-	stderr = function(this)
-		if this._stderr then
-			this.edata = readAll(this._stderr)
-			os.execute('rm -f '..this._stderr)
-			this._stderr = nil
+-- returns a function that executes the command with given args and returns its
+-- output, exit status etc
+local function command(cmd, ...)
+	local prearg = {...}
+	return function(...)
+		local args = flatten({...})
+		local s = cmd
+		for _, v in ipairs(prearg) do
+			s = s .. ' ' .. v
 		end
-		return this.edata
-	end,
-	stdout = function(this)
-		if this._stdout then
-			this.data = readAll(this._stdout)
-			os.execute('rm -f '..this._stdout)
-			this._stdout = nil
+		for k, v in pairs(args.args) do
+			s = s .. ' ' .. v
 		end
-		return this.data
-	end
-}, {
-	__call = function(this, cmd, ...)
-		local cmd,cap = cmd:gsub('^_', '')
-		local attrs = { cmd = buildCommand(cmd, ...), cap = cap ~= 0}
-		return setmetatable(attrs, {
-			__index = this,
-			__call = function(self, ...)
-				local s = buildCommand(self.cmd, ...)
-				if self.cap then
-					self._stdout, self._stderr = tmpio()
-					s = ('%s > %s 2>%s'):format(s, self._stdout, self._stderr)
-				end
-
-				-- execute command
-				self.cmd = s;
-				self.exitcode = os.execute(s) or false
-				return self, self.exitcode
+		--print(s)
+		if args.input then
+			local f = io.open(M.tmpfile, 'w')
+			f:write(args.input)
+			f:close()
+			s = s .. ' <'..M.tmpfile
+		end
+		local p = io.popen(s, 'r')
+		local output = p:read('*a')
+		local _, exit, status = p:close()
+		os.remove(M.tmpfile)
+		
+		local t = {
+			s = function(this)
+				return tostring(this)
 			end,
-			__gc = function(self)
-				if self._stdout then os.remove(self._stdout) end
-				if self._stderr then os.remove(self._stderr) end
+			__input = output,
+			__exitcode = exit == 'exit' and status or 127,
+			__signal = exit == 'signal' and status or 0,
+		}
+		local mt = {
+			__index = function(self, k, ...)
+				return _G[k] --, ...
 			end,
 			__tostring = function(self)
-				if self.exitcode then
-					return self:stdout() or self:stderr() or ''
-				else
-					return self:stderr() or self:stdout() or ''
-				end
-			end,
-			__bor = function(lhs, rhs)
-				assert((lhs.exitcode == nil) and (rhs.exitcode == nil), "cannot pipe already exited command")
-				local tmp = this('')
-				tmp.cmd = buildCommand(lhs.cmd, '|', rhs.cmd)
-				tmp.cap = lhs.cap
-				return tmp
+				-- return trimmed command output as a string
+				return self.__input:match('^%s*(.-)%s*$')
 			end
-		})
+		}
+		return setmetatable(t, mt)
 	end
-})
+end
 
+-- get global metatable
 local mt = getmetatable(_G)
 if mt == nil then
   mt = {}
   setmetatable(_G, mt)
 end
 
---
--- hook for undefined variables, not that this modifies
--- the expected 
+-- set hook for undefined variables
 mt.__index = function(t, cmd)
-	return Command(cmd)
+	return command(cmd)
 end
 
-return Command
+-- export command() function and configurable temporary "input" file
+M.command = command
+M.tmpfile = '/tmp/shluainput'
+
+-- allow to call sh to run shell commands
+setmetatable(M, {
+	__call = function(_, cmd, ...)
+		return command(cmd, ...)
+	end
+})
+
+return function() return M end

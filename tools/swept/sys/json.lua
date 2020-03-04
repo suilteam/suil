@@ -22,6 +22,8 @@
 -- SOFTWARE.
 --
 
+local json = { _version = "0.1.2" }
+
 -------------------------------------------------------------------------------
 -- Encode
 -------------------------------------------------------------------------------
@@ -129,6 +131,11 @@ encode = function(val, stack)
 end
 
 
+function json:encode(val)
+  return ( encode(val) )
+end
+
+
 -------------------------------------------------------------------------------
 -- Decode
 -------------------------------------------------------------------------------
@@ -190,7 +197,7 @@ local function codepoint_to_utf8(n)
     return string.char(f(n / 4096) + 224, f(n % 4096 / 64) + 128, n % 64 + 128)
   elseif n <= 0x10ffff then
     return string.char(f(n / 262144) + 240, f(n % 262144 / 4096) + 128,
-                       f(n % 4096 / 64) + 128, n % 64 + 128)
+      f(n % 4096 / 64) + 128, n % 64 + 128)
   end
   error( string.format("invalid unicode codepoint '%x'", n) )
 end
@@ -367,7 +374,7 @@ local char_func_map = {
 }
 
 
-local function parse(str, idx)
+parse = function(str, idx)
   local chr = str:sub(idx, idx)
   local f = char_func_map[chr]
   if f then
@@ -376,26 +383,18 @@ local function parse(str, idx)
   decode_error(str, idx, "unexpected character '" .. chr .. "'")
 end
 
-local json = setmetatable({
-	decode = function(this, str)
-		if str == nil or type(str) ~= "string" then
-			error("expected argument of type string, got " .. type(str))
-		end
-		local res, idx = parse(str, next_char(str, 1, space_chars, true))
-		idx = next_char(str, idx, space_chars, true)
-		if idx <= #str then
-			decode_error(str, idx, "trailing garbage")
-		end
-		return res
-	end,
-	encode = function(this, val)
-		return encode(val)
-	end,
-	
-	-- private fields
-	_version = "0.1.2"
-}, {
-	__newindex = Constify('json')
-})
 
-return json
+function json:decode(str)
+  if type(str) ~= "string" then
+    error("expected argument of type string, got " .. type(str))
+  end
+  local res, idx = parse(str, next_char(str, 1, space_chars, true))
+  idx = next_char(str, idx, space_chars, true)
+  if idx <= #str then
+    decode_error(str, idx, "trailing garbage")
+  end
+  return res
+end
+
+
+return function() return json end

@@ -75,6 +75,8 @@ dkms.conf
 suil/symbols.h
 suil/docker/types.h
 *_symbols.h
+*_decls.h
+*_defs.h
 cmake/SuilConfigVersion.cmake
 
 # Build directories

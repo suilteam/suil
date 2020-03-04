@@ -436,14 +436,12 @@ namespace suil {
     {
         spin_lock(lk);
 
-        strace("{%ld} lock-%u acquired by suil-%hhu",
-        mnow(), lk.Id, spid);
+        strace("{%ld} lock-%u acquired by suil-%hhu", mnow(), lk.Id, spid);
     }
 
     Lock::~Lock() {
         unlock(lk);
-        strace("{%ld} lock-%d released by suil-%hhu",
-               mnow(), lk.Id, spid);
+        strace("{%ld} lock-%d released by suil-%hhu", mnow(), lk.Id, spid);
     }
 
     bool Lock::spin_lock(Lock_t& l, int64_t tout) {
