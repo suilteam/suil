@@ -8,11 +8,19 @@
 
 include("sys/sh")
 include("sys/utils")
-local Json = import("sys/json")
-local Logger,_,File =import('sys/logger')
+local Json   = import("sys/json")
+local Logger,Exts =import('sys/logger')
 
 -- initialize a default global system logger
-Log = Logger{}
+local fanout = Exts.Fanout({
+    consoleLogger = Exts.Console {
+        level = Logger.INFO
+    }
+})
+
+Log = Logger {
+    sink = fanout
+}
 
 local parser = import("sys/argparse") {
     name = arg[0],
@@ -20,6 +28,7 @@ local parser = import("sys/argparse") {
 }
 
 parser:option("-r --root", "The root directory to scan for swept test cases", nil)
+parser:option("--logdir",  "The base directory to save all log files", nil)
 parser:option("-f --filters", "A list of test script filters in regex format, prefix with '-' to exclude script", nil)
       :args("*")
       :count("*")
@@ -33,7 +42,6 @@ local Init, Parse
 if pathExists(startupPath) then
     Log:inf("loading startup scripit %s", startupPath)
     Parse, Init = require('startup')()
-    print(Parse, Init)
     if Parse then
         Log:inf("invoking command line parser extension returned by startup script")
         Parse(parser)
@@ -64,6 +72,7 @@ if parsed.dump then
     tprint(Swept.Config)
 end
 
+-- Invoke init function is created
 if Init ~= nil then
     Log:inf("startup script return an init function, invoking the function with command line arguments")
     Swept.Data = Init(parsed)
@@ -74,5 +83,9 @@ if Init ~= nil then
         Log:inf("init returned %s", S(Swept.Data))
     end
 end
+
+-- Initialize log file is enable
+local logDir = Swept.Config.logdir or "/tmp/swept/logs"
+Log.sink:add('fileLogger', Exts.File{dir = logDir, prefix = Swept.Config.prefix})
 
 return function() return Swept.Config end

@@ -89,6 +89,9 @@ if (SUIL_BUILD_DEV_PACKAGE)
                 LIBRARIES  lxc suilxc)
     endif(SUIL_BUILD_LXC)
 
+    # Install example directory
+    install(DIRECTORY swept/example
+            DESTINATION share/swept)
 endif(SUIL_BUILD_DEV_PACKAGE)
 
 include(swept/Swept.cmake)

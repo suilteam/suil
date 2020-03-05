@@ -1,4 +1,5 @@
-local _,Console  = import('sys/logger')
+local _,Exts  = import('sys/logger')
+local Console = Exts.Console
 
 local Reporter = setmetatable({
 	startCollection = function(this, path)
@@ -44,7 +45,7 @@ local Reporter = setmetatable({
 		this.nfailed  = 0
 		this.pstart   = 0
 		this.currentFile = nil
-		print()
+		--print()
 	end,
 
 	startTestcase = function(this, name, descr)
@@ -106,5 +107,22 @@ local Reporter = setmetatable({
 	
 	__newindex = constify('reporter')
 })
+
+local ConsoleReporter = setmetable({
+}, {
+})
+
+local JUnitReporter = setmetatable({
+}, {
+})
+
+local JsonReporter  = setmetatable({
+}, {
+})
+
+local FanoutReporter = setmetatable({
+}, {
+})
+
 
 return Reporter

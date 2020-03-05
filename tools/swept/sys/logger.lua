@@ -37,15 +37,22 @@ local Console = setmetatable({
 		print(fmt:format(...))
 	end
 }, {
-	__call = function(this, lvl, tag, msg)
-		local colors = {
-			'\27[1;31m',
-			'\27[1;33m',
-			'\27[1;0m',
-			'\27[1;36m',
-			'\27[1;32m'
-		}
-		print(colors[lvl]..msg..'\27[0m')
+	__call = function(this, attrs)
+		return setmetatable(attrs, {
+			__index = this,
+			__call = function(self, lvl, tag, msg)
+				if self.level == nil or self.level >= lvl then
+					local colors = {
+						'\27[1;31m',
+						'\27[1;33m',
+						'\27[1;0m',
+						'\27[1;36m',
+						'\27[1;32m'
+					}
+					print(colors[lvl]..msg..'\27[0m')
+				end
+			end
+		})
 	end,
 	__newindex = constify('Logger')
 })
@@ -54,19 +61,54 @@ local File = setmetatable({
 }, {
 	__call = function(this, attrs)
 		attrs = attrs or {}
-		attrs.dir = attrs.dir or './logs'
+		attrs.dir = attrs.dir or '/tmp/sweeper/logs'
 		mkdir('-p', attrs.dir)
 
-		attrs.fname = attrs.fname or os.date('%Y_%m_%d_%H_%M_%S.log')
-		attrs.path = attrs.dir..'/'..attrs.fname
+		attrs.fname = (attrs.prefix or '') .. os.date('%Y_%m_%d_%H_%M_%S.log')
+		attrs.path  = attrs.dir..'/'..attrs.fname
 		return setmetatable(attrs, {
 			__index = this,
-			__call = function(this, lvl, tag, msg)
-				echo('"'..msg..'"', " >> ", this.path)
+			__call = function(self, lvl, tag, msg)
+				if self.level == nil or self.level >= lvl then
+					echo('"'..msg..'"', " >> ", self.path)
+					return
+				end
 			end
 		})
 	end,
 	__newindex = constify('File')
+})
+
+local Fanout = setmetatable({
+	_outputs = {},
+	add = function(this, name, sink)
+		assert(this ~= sink, "Try avoiding loops while adding sinks to a fanout")
+		if not this._outputs[name] then
+			this._outputs[name] = sink
+		end
+	end,
+
+	get = function(this, name)
+		return this._outputs[name]
+	end
+}, {
+	__call = function(this, lgs)
+		for k,s in pairs(lgs) do
+			-- add the sink to the fanout
+			this:add(k, s)
+		end
+
+		return setmetatable({}, {
+			__index = this,
+			__call = function(this, lvl, tag, msg)
+				for k,s in pairs(this._outputs) do
+					-- forward the log to all outputs of the fanout
+					s(lvl, tag, msg)
+				end
+			end
+		})
+	end,
+	__newindex = constify('Fanout')
 })
 
 Logger = setmetatable({
@@ -151,5 +193,9 @@ Logger = setmetatable({
 })
 
 return function()
-	return Logger,Console,File
+	return Logger, {
+		Console = Console,
+		File = File,
+		Fanout = Fanout
+	}
 end

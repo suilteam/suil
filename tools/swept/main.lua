@@ -23,7 +23,7 @@ function include(args)
         end
         return table.unpack(rets)
     else
-        error("un-supported message of type '"..type(args).."'")
+        error("un-supported parameter of type '"..type(args).."'")
     end
 end
 
@@ -36,6 +36,15 @@ function import(name)
 end
 
 -- loads command line arguments or configuration
-local config = import("init")
--- loads and executes the test runner
-import("sys/sweeper") (config)
+local function Start()
+    local config = import("init")
+    -- loads and executes the test runner
+    import("sys/sweeper") (config)
+end
+
+local ok,msg = pcall(Start)
+if not ok then
+    io.stderr:write(msg..'\n')
+    io.stderr:write(debug.traceback()..'\n')
+    os.exit(-1);
+end

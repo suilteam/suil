@@ -6,9 +6,8 @@
 -- To change this template use File | Settings | File Templates.
 --
 
-local Report   = import('sys/reporter')
-local Logger,_,File   = import('sys/logger')
-TestCase, Fixture  = import('sys/testcase')
+local Report        = import('sys/reporter')
+TestCase, Fixture   = import('sys/testcase')
 
 local Testit = setmetatable({
     applyFilters = function(this, logger, files, filters)
@@ -57,8 +56,8 @@ local Testit = setmetatable({
             filters = {},
             ignore = {}
         })
-
-        local logger = Logger{sink = File()}
+        -- logger is the same same the created global log
+        local logger = Log
 
         if not pathExists(config.root) then
             logger:err("tests directory '"..config.root.."' does not exist")

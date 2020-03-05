@@ -88,7 +88,13 @@ if (!lua_istable(L, 1)) {   \
 
     int EmbeddedScripts::panicHandler(lua_State *L)
     {
-        fprintf(stderr, "error: %s\n", luaL_checkstring(L, -1));
+        auto msg = luaL_checkstring(L, -1);
+        if (msg) {
+            fprintf(stderr, "error: %s\n", msg);
+        }
+        else {
+            fprintf(stderr, "unknown error in swept\n");
+        }
         exit(EXIT_FAILURE);
         return 0;
     }
