@@ -13,83 +13,89 @@ if (SUIL_BUILD_DEV_PACKAGE)
     set(_SCC_BIN     ${CMAKE_BINARY_DIR}/tools/scc)
     set(_IOD_BIN     ${CMAKE_BINARY_DIR}/deps/iod/iodsyms)
     set(_GENTPS_BIN  ${CMAKE_BINARY_DIR}/tools/suiltps)
+    set(_LUAC_BIN    ${CMAKE_BINARY_DIR}/luac)
 endif()
 
 SuilProject(tools
         SCC_BIN     ${_SCC_BIN}
         IOD_BIN     ${_IOD_BIN}
         GENTPS_BIN  ${_GENTPS_BIN}
+        LUAC_BIN    ${_LUAC_BIN}
         SYMBOLS     ${CMAKE_CURRENT_SOURCE_DIR}/tools.sym)
 
-set(suiltps_SOURCES
-        typegen/main.cc)
+if (SUIL_BUILD_DEV_PACKAGE)
+    # only build some tools on development package
+    set(suiltps_SOURCES
+            typegen/main.cc)
 
-SuilApp(suiltps
-        SOURCES   ${suiltps_SOURCES}
-        VERSION   ${tools_VERSION}
-        DEFINES   ${tools_DEFINES}
-        INSTALL   ON
-        DEPENDS   suil)
+    SuilApp(suiltps
+            SOURCES   ${suiltps_SOURCES}
+            VERSION   ${tools_VERSION}
+            DEFINES   ${tools_DEFINES}
+            INSTALL   ON
+            DEPENDS   suil)
 
-set(scc_SOURCES
-        scc/main.cpp
-        scc/mpc.c
-        scc/program.cpp
-        scc/parser.cpp)
+    set(scc_SOURCES
+            scc/main.cpp
+            scc/mpc.c
+            scc/program.cpp
+            scc/parser.cpp)
 
-SuilApp(scc
-        SOURCES    ${scc_SOURCES}
-        VERSION    ${tools_VERSION}
-        DEFINES    ${tools_DEFINES} "-DGRAMMAR_DIR=\"${CMAKE_CURRENT_LIST_DIR}\""
-        INSTALL    ON
-        DEPENDS    suil)
+    SuilApp(scc
+            SOURCES    ${scc_SOURCES}
+            VERSION    ${tools_VERSION}
+            DEFINES    ${tools_DEFINES} "-DGRAMMAR_DIR=\"${CMAKE_CURRENT_LIST_DIR}\""
+            INSTALL    ON
+            DEPENDS    suil)
 
-set(suilapp_SOURCES
-        sapp/cmd_init.cpp
-        sapp/main.cc)
+    set(suilapp_SOURCES
+            sapp/cmd_init.cpp
+            sapp/main.cc)
 
-SuilApp(suilapp
-        SOURCES    ${suilapp_SOURCES}
-        VERSION    ${tools_VERSION}
-        DEFINES    ${tools_DEFINES} "-DBASE_PATH=\"${SUIL_BASE_PATH}\""
-        INSTALL    ON
-        DEPENDS    suil)
-
-if (SUIL_BUILD_LXC)
-    # Build docker only requested to do so
-    set(lxc_SOURCES
-            lxc/lxc.cpp
-            lxc/lxc.scc.cpp)
-
-    SuilStatic(suilxc
-            SOURCES      ${lxc_SOURCES}
-            VERSION      ${tools_VERSION}
-            DEFINES      ${tools_DEFINES}
-            INSTALL      ON
-            LIBRARIES    lxc
-            SCC_SOURCES  ${CMAKE_CURRENT_SOURCE_DIR}/lxc/lxc.scc
-            SCC_OUTDIR   ${CMAKE_CURRENT_SOURCE_DIR}/lxc)
-
-    set(scc_HEADERS
-            ${CMAKE_CURRENT_SOURCE_DIR}/lxc/lxc.scc.h
-            ${CMAKE_CURRENT_SOURCE_DIR}/lxc/lxc.h)
-    install(FILES ${sdocker_HEADERS}
-            DESTINATION include/suil/lxc/)
-
-    SuilApp(suilxc-demo
-            SOURCES    lxc/main.cpp
+    SuilApp(suilapp
+            SOURCES    ${suilapp_SOURCES}
             VERSION    ${tools_VERSION}
             DEFINES    ${tools_DEFINES} "-DBASE_PATH=\"${SUIL_BASE_PATH}\""
             INSTALL    ON
-            DEPENDS    suil
-            LIBRARIES  lxc suilxc)
-endif(SUIL_BUILD_LXC)
+            DEPENDS    suil)
+
+    if (SUIL_BUILD_LXC)
+        # Build docker only requested to do so
+        set(lxc_SOURCES
+                lxc/lxc.cpp
+                lxc/lxc.scc.cpp)
+
+        SuilStatic(suilxc
+                SOURCES      ${lxc_SOURCES}
+                VERSION      ${tools_VERSION}
+                DEFINES      ${tools_DEFINES}
+                INSTALL      ON
+                LIBRARIES    lxc
+                SCC_SOURCES  ${CMAKE_CURRENT_SOURCE_DIR}/lxc/lxc.scc
+                SCC_OUTDIR   ${CMAKE_CURRENT_SOURCE_DIR}/lxc)
+
+        set(scc_HEADERS
+                ${CMAKE_CURRENT_SOURCE_DIR}/lxc/lxc.scc.h
+                ${CMAKE_CURRENT_SOURCE_DIR}/lxc/lxc.h)
+        install(FILES ${sdocker_HEADERS}
+                DESTINATION include/suil/lxc/)
+
+        SuilApp(suilxc-demo
+                SOURCES    lxc/main.cpp
+                VERSION    ${tools_VERSION}
+                DEFINES    ${tools_DEFINES} "-DBASE_PATH=\"${SUIL_BASE_PATH}\""
+                INSTALL    ON
+                DEPENDS    suil
+                LIBRARIES  lxc suilxc)
+    endif(SUIL_BUILD_LXC)
+
+endif(SUIL_BUILD_DEV_PACKAGE)
+
+include(swept/Swept.cmake)
 
 set(swept_SOURCES
         swept/main.cc
         swept/script.cpp)
-
-include(swept/Swept.cmake)
 
 SuilApp(swept
         SOURCES    ${swept_SOURCES}

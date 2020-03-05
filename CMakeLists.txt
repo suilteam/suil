@@ -153,11 +153,8 @@ include_directories(SYSTEM ${PROJECT_SOURCE_DIR})
 # add the main project
 add_subdirectory(suil)
 
-if (SUIL_BUILD_DEV_PACKAGE)
-    # only build tools when building a development package
-    include_directories(tools)
-    add_subdirectory(tools)
-endif(SUIL_BUILD_DEV_PACKAGE)
+include_directories(tools)
+add_subdirectory(tools)
 
 if (SUIL_BUILD_DEV_PACKAGE)
     message(STATUS "Development package enabled")

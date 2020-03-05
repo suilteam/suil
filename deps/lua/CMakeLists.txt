@@ -47,8 +47,18 @@ set(lua_HEADERS
 
 add_library(lua STATIC ${lua_SOURCES})
 target_compile_definitions(lua PRIVATE LUA_USE_POSIX)
+add_executable(luac luac.c)
+target_compile_definitions(lua PRIVATE LUA_USE_POSIX)
+add_dependencies(luac lua)
+target_link_libraries(luac lua m)
 
 set_target_properties(lua
+        PROPERTIES
+        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
+
+set_target_properties(luac
         PROPERTIES
         ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
@@ -64,3 +74,9 @@ if (SUIL_BUILD_DEV_PACKAGE)
     # install the header files
     install(FILES ${lua_HEADERS} DESTINATION include/lua)
 endif(SUIL_BUILD_DEV_PACKAGE)
+
+# Install luac in both development and production builds
+install(TARGETS luac
+        RUNTIME DESTINATION bin
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib)

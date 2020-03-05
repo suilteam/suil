@@ -33,6 +33,7 @@ foreach(SCRIPT ${swept_SCRIPTS})
     # compile the script and generate C code
     suil_lua2c(${SCRIPT_NAME}
             TARGET swept
+            BINARY ${SUIL_luac_BINARY}
             SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/${SCRIPT})
 endforeach()
 

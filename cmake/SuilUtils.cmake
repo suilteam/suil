@@ -202,7 +202,7 @@ function(suil_scc name)
 endfunction()
 
 function(suil_lua2c name)
-    set(kvargs TARGET SCRIPT VARIABLE OUTDIR)
+    set(kvargs TARGET SCRIPT VARIABLE OUTDIR BINARY)
     cmake_parse_arguments(LUA2C "" "${kvargs}" "" ${ARGN})
     if (NOT LUA2C_SCRIPT)
         message(FATAL_ERROR "suil_lua2c requires a script to convert to C file")
@@ -210,6 +210,11 @@ function(suil_lua2c name)
 
     if (NOT LUA2C_TARGET)
         message(FATAL_ERROR "suil_lua2c requires a TARGET name to use in file")
+    endif()
+
+    set(suilluac luac)
+    if (LUA2C_BINARY)
+        set(suilscc ${LUA2C_BINARY})
     endif()
 
     if (NOT LUA2C_VARIABLE)
@@ -225,7 +230,7 @@ function(suil_lua2c name)
     message(STATUS "Compiling lua script ${LUA2C_SCRIPT}")
     # compile the script
     add_custom_command(
-            COMMAND luac -o ${name}.out ${LUA2C_SCRIPT}
+            COMMAND ${suilluac} -o ${name}.out ${LUA2C_SCRIPT}
             OUTPUT  ${name}.out
             WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
             DEPENDS ${LUA2C_SCRIPT})
