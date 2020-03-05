@@ -9,6 +9,10 @@
 include("sys/sh")
 include("sys/utils")
 local Json = import("sys/json")
+local Logger,_,File =import('sys/logger')
+
+-- initialize a default global system logger
+Log = Logger{}
 
 local parser = import("sys/argparse") {
     name = arg[0],
@@ -20,20 +24,55 @@ parser:option("-f --filters", "A list of test script filters in regex format, pr
       :args("*")
       :count("*")
 
+RUNDIR=pwd():s()
+Log:inf("swept started from directory %s", RUNDIR)
 
-local configPath = pwd():s()..'/.config'
-local config = {}
-if pathExists(configPath) then
-    config = Json:decode(cat(configPath):s())
+local startupPath = RUNDIR..'/startup.lua'
+local Init, Parse
+
+if pathExists(startupPath) then
+    Log:inf("loading startup scripit %s", startupPath)
+    Parse, Init = require('startup')()
+    print(Parse, Init)
+    if Parse then
+        Log:inf("invoking command line parser extension returned by startup script")
+        Parse(parser)
+    end
 end
 
+-- parse and dump command line arguments
+local configPath = RUNDIR..'/.config'
+Swept.Config = {}
+if pathExists(configPath) then
+    Log:inf("loading configuration file %s", configPath)
+    Swept.Config = Json:decode(cat(configPath):s())
+end
+
+Log:inf("parsing command line arguments")
 local parsed = parser:parse()
+
 for k,v in pairs(parsed) do
     if v ~= nil then
         if type(v) ~= 'table' or #v > 0 then
-            config[k] = v
+            Swept.Config[k] = v
         end
     end
 end
 
-return function() return config end
+if parsed.dump then
+    -- only dump arguments if dumping tables is allowed
+    tprint(Swept.Config)
+end
+
+if Init ~= nil then
+    Log:inf("startup script return an init function, invoking the function with command line arguments")
+    Swept.Data = Init(parsed)
+    if parsed.dump and type(Swept.Data) == 'table' then
+        Log:inf("init function returned data")
+        tprint(Swept.Data)
+    else
+        Log:inf("init returned %s", S(Swept.Data))
+    end
+end
+
+return function() return Swept.Config end

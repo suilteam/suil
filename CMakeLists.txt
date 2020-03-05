@@ -101,6 +101,9 @@ add_subdirectory(deps/lua)
 
 include_directories(deps)
 
+set(SUIL_PACKAGE_INCLUDES  ${PostgreSQL_INCLUDE_DIRS})
+set(SUIL_PACKAGE_DEFINES   ${SUIL_DEFINES})
+
 if (SUIL_BUILD_DEV_PACKAGE)
     configure_file(buildapp.sh ${CMAKE_BINARY_DIR}/buildapp COPYONLY)
 
@@ -111,9 +114,6 @@ if (SUIL_BUILD_DEV_PACKAGE)
     # library packaging
     set(SUIL_PACKAGE_STATIC_LIBRARIES ${SUIL_STATIC_LIBRARIES} suil)
     set(SUIL_PACKAGE_LIBRARIES ${SUIL_LIBRARIES} suil)
-
-    set(SUIL_PACKAGE_INCLUDES  ${PostgreSQL_INCLUDE_DIRS})
-    set(SUIL_PACKAGE_DEFINES   ${SUIL_DEFINES})
 
     # Create version configuration file
     configure_file(SuilVersion.cmake.in
@@ -145,6 +145,10 @@ if (SUIL_BUILD_DEV_PACKAGE)
             FILES_MATCHING PATTERN "*.cmake")
     install(FILES ${CMAKE_BINARY_DIR}/.generated/suil/base.inc
             DESTINATION include/suil)
+else()
+    # Create version configuration file
+    configure_file(SuilVersion.cmake.in
+            "${CMAKE_SOURCE_DIR}/cmake/SuilConfigVersion.cmake" @ONLY)
 endif()
 
 include_directories(${PostgreSQL_INCLUDE_DIRS})
