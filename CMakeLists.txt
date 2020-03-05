@@ -81,7 +81,7 @@ set(SUIL_LIBRARIES
         ssl crypto uuid sqlite3 pq zmq)
 
 set(SUIL_STATIC_LIBRARIES
-        ssl crypto uuid sqlite3 pq zmq)
+        ssl crypto uuid sqlite3 pq zmq lua)
 
 set(SUIL_ARCHIVE_LIBS
         ${CMAKE_BINARY_DIR}/libmill_s.a
@@ -146,6 +146,9 @@ if (SUIL_BUILD_DEV_PACKAGE)
     install(FILES ${CMAKE_BINARY_DIR}/.generated/suil/base.inc
             DESTINATION include/suil)
 else()
+    # library packaging
+    set(SUIL_PACKAGE_STATIC_LIBRARIES ${SUIL_STATIC_LIBRARIES} suil)
+    set(SUIL_PACKAGE_LIBRARIES ${SUIL_LIBRARIES} suil)
     # Create version configuration file
     configure_file(SuilVersion.cmake.in
             "${CMAKE_SOURCE_DIR}/cmake/SuilConfigVersion.cmake" @ONLY)
