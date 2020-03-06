@@ -32,11 +32,11 @@ Log:inf("swept started from directory %s", RUNDIR)
 _,_,RUNDIRNAME=_basename_S(RUNDIR)
 Log:inf("run directory name is %s", RUNDIRNAME)
 
-parser:option("-r --root", "The root directory to scan for swept test cases", RUNDIR..'/tests')
-parser:option("--logdir",  "The directory to save all log files", Dirs.LOGS)
-parser:option("--resdir",  "The directory to save generated result files", Dirs.RESULTS)
-parser:option("--prefix",  "The string to prefix all files (logs and results) generated for this run", RUNDIRNAME)
-parser:option("-f --filters", "A list of test script filters in regex format, prefix with '-' to exclude script", FILTER)
+parser:option("-r --root", "The root directory to scan for swept test cases", nil)
+parser:option("--logdir",  "The directory to save all log files", nil)
+parser:option("--resdir",  "The directory to save generated result files", nil)
+parser:option("--prefix",  "The string to prefix all files (logs and results) generated for this run", nil)
+parser:option("-f --filters", "A list of test script filters in regex format, prefix with '-' to exclude script", nil)
       :args("*")
       :count("*")
 
@@ -63,6 +63,7 @@ end
 Log:inf("parsing command line arguments")
 local parsed = parser:parse()
 
+-- merge config file with passed in command line arguments
 for k,v in pairs(parsed) do
     if v ~= nil then
         if type(v) ~= 'table' or #v > 0 then
@@ -70,6 +71,15 @@ for k,v in pairs(parsed) do
         end
     end
 end
+
+-- Add defaults for missing arguments
+applyDefaults(Swept.Config, {
+    root = RUNDIR..'/tests',
+    logdir = Dirs.LOGS,
+    resdir = Dirs.RESULTS,
+    prefix = RUNDIRNAME,
+    filters = FILTER
+})
 
 if parsed.dump then
     -- only dump arguments if dumping tables is allowed
