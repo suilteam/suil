@@ -18,7 +18,7 @@ build:dev:
   services:
     - docker:dind
   only:
-    - master
+    - merge_requests
   # Install all the required dependencies before proceeding to build
   before_script: *docker_hub_login
     
@@ -59,7 +59,7 @@ build:prod:
     - docker
     - linux
   only:
-    - master
+    - merge_requests
 
   before_script: *docker_hub_login
 
@@ -214,7 +214,7 @@ test:devel:
     - docker
     - linux
   only:
-    - master
+    - merge_requests
   before_script: *docker_hub_login
   script:
     - docker pull suilteam/suil-dev:latest
