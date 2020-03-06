@@ -39,6 +39,9 @@ end
 
 function constify(what)
 	return function(this, key, val)
+		if Log then
+			Log:err('%s[%s] error:\n%s', what, key, debug.traceback())
+		end
 		assert(false, ("'%s' is readyonly"):format(what))
 	end
 end
@@ -56,7 +59,8 @@ function timestamp()
 end
 
 function pathExists(path)
-	return tostring(stat(path..'> /dev/null 2>&1 ; echo $?')) == '0'
+	local _,ok,_ = _stat(path)
+	return ok
 end
 
 S = tostring

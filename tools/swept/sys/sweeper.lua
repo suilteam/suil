@@ -6,7 +6,7 @@
 -- To change this template use File | Settings | File Templates.
 --
 
-local Report        = import('sys/reporter')
+local Reporter      = import('sys/reporter')
 TestCase, Fixture   = import('sys/testcase')
 
 local Testit = setmetatable({
@@ -51,34 +51,33 @@ local Testit = setmetatable({
 }, {
     __call = function(this, config)
         config =  config or {}
-        applyDefaults(config, {
-            root = S(pwd())..'/tests',
-            filters = {},
-            ignore = {}
-        })
-        -- logger is the same same the created global log
-        local logger = Log
+        applyDefaults(config, Swept.Config)
 
         if not pathExists(config.root) then
-            logger:err("tests directory '"..config.root.."' does not exist")
+            Log:err("tests directory '"..config.root.."' does not exist")
             return false
         end
-        local files = tostring(find(config.root, '-name', "'test_*.lua'")):split('\r\n')
+        local files = _find(config.root, '-name', "'test_*.lua'"):s():split('\r\n')
         if #files == 0 then
-            logger:wrn("found 0 test cases in directory '"..config.root.."'")
+            Log:wrn("found 0 test cases in directory '"..config.root.."'")
             return false
         end
-        local filters = this:resolveFilters(logger, config.filters)
+        local filters = this:resolveFilters(Log, config.filters)
         local enabledFiles = files
-        if #filters > 0 then enabledFiles = this:applyFilters(logger, files, filters) end
+        if #filters > 0 then enabledFiles = this:applyFilters(Log, files, filters) end
         if #enabledFiles == 0 then
-            logger:wrn("all test files filtered out, nothing to execute")
+            Log:wrn("all test files filtered out, nothing to execute")
             return false
         end
 
-        logger:inf("proceeding with %s test files", #enabledFiles)
+        local Report = Reporter.Fanout({
+            json = Reporter.Structured(Reporter.Json),
+            default = Reporter.Console
+        })
+
+        Log:inf("proceeding with %s test files", #enabledFiles)
         for _,testFile in pairs(enabledFiles) do
-            local ctx = setmetatable({ reporter = Report, logger = logger}, {
+            local ctx = setmetatable({ reporter = Report, logger = Log }, {
                 __index = function (self, key)
                     if self.reporter[key] then
                         return self.reporter[key]
@@ -88,27 +87,30 @@ local Testit = setmetatable({
                         return nil
                     end
                 end,
-                __call = function(_ctx, fmt, ...)
-                    _ctx.reporter:success('', fmt, ...)
+                __call = function(_ctx, tag, fmt, ...)
+                    _ctx.reporter:message(tag, fmt, ...)
                 end
             })
+
+            -- start running collection
             Report:startCollection(testFile)
             local func,msg = loadfile(testFile, 't', _ENV)
             if not func then
                 -- loading test cases failed
-                logger:err("loading test file '%s' failed - %s", testFile, msg)
+                Log:err("loading test file '%s' failed - %s", testFile, msg)
                 Report:failCollection("loading test file '%s' failed - %s", testFile, msg)
             else
                 local suite, msg = func()
                 if not suite then
                     -- loading test suites failed
-                    logger:err("loading test suites failed - %s", msg)
-                    Report:failCollection("loading test suites failed - %s", msg)
+                    Log:err("loading test suites failed - %s", msg or 'no returned fixture')
+                    Report:failCollection("loading test suites failed - %s", msg or 'no returned fixture')
                 else
+                    Report:update(suite._name, suite._descr)
                     local ok, msg = pcall(function(_ctx) suite:_exec(_ctx) end, ctx)
                     if not ok then
                         -- unhandled error when executing suite
-                        logger:err("unhandled error - %s", msg)
+                        Log:err("unhandled error - %s", msg)
                         Report:failCollection("unhandled error - %s", msg)
                     else
                         Report:endCollection()
@@ -116,6 +118,8 @@ local Testit = setmetatable({
                 end
             end
         end
+        local path = (config.resdir or Dirs.RESULTS)..'/'..config.filename
+        Report:finalize(path)
     end
 })
 

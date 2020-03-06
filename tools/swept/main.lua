@@ -42,9 +42,30 @@ local function Start()
     import("sys/sweeper") (config)
 end
 
+-- base temporary directory
+TEMPDIR='/tmp/swept'
+--- list of temporary directory used as defualts
+Dirs = {
+    SHELL   = 'sh',
+    DATA    = 'data',
+    RESULTS = 'res',
+    LOGS    = 'logs'
+}
+-- default test filter
+FILTER = {"~DISABLE", ".*"}
+
+for name,dir in pairs(Dirs) do
+    Dirs[name] = TEMPDIR..'/'..dir
+    os.execute('mkdir -p '..Dirs[name])
+end
+
+-- start execution
 local ok,msg = pcall(Start)
+os.execute('rm -rf '..Dirs.SHELL..'/*')
+
+-- finish
 if not ok then
     io.stderr:write(msg..'\n')
     io.stderr:write(debug.traceback()..'\n')
-    os.exit(-1);
+    Swept:exit(1)
 end

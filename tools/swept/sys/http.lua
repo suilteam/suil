@@ -1,27 +1,33 @@
-include('sys/sh')
+local X = include('sys/sh')
 local Json = import('sys/json')
 
 local function genid()
-    return tostring(head({ c = 16 }, '/dev/urandom'):md5sum({ b = true }):awk("'{print $1}'"))
+    local cmd = X('_head', { c = 16 }, '/dev/urandom') |
+                X('_md5sum', { b = true }) |
+                X('_awk', "'{print $1}'")
+    return cmd():s()
 end
 
 local Response = setmetatable({
     json = function(s)
         if not s._json and s.body then
-            s._json = Json.decode(s.body)
+            s._json = Json:decode(s.body)
         end
         return s._json
     end
 }, {
-    __call = function(_, attrs)
+    __call = function(this, attrs)
         -- wraps the given table into a response object
-        return setmetatable(attrs, { __index = Response })
+        return setmetatable(attrs, { __index = this })
     end
 })
 
 local function _Http(attrs, url)
     function parse_resp(id)
-        local _hdrs = tostring(cat(id):grep("' '"))
+        local read = X('_cat', id) | X("_grep", "' '")
+        local _hdrs = read():s()
+        Log:trc(_hdrs)
+
         local hdrs = _hdrs:split("\r\n")
         if #hdrs < 1 then
             error("headers '" .. _hdrs .. "' are not valid")
@@ -73,6 +79,7 @@ local function _Http(attrs, url)
     assert(attrs, "Http requires a table of parameters")
 
     local reqid = genid()
+
     local args = {
         s = true,
         D = reqid,
@@ -96,7 +103,7 @@ local function _Http(attrs, url)
         end
 
         if type(attrs.body) == 'table' then
-            args.data = Json.encode(attrs.body)
+            args.data = Json:encode(attrs.body)
             args.H[#args.H] = 'Content-Type: application/json'
         elseif type(attrs.body) == 'string' then
             args.data = tostring(attrs.body)
@@ -119,13 +126,12 @@ local function _Http(attrs, url)
     end
 
     -- perform http request
-    local res = curl(args, url)
-    --[[if res.__exitcode then
+    local res,ok,_ = _curl(args, url)
+    if not ok then
         -- remove id file if it exists and error out
         rm('-rf', reqid)
-        error("Http - curl exited with failure code "..res.__exitcode)
+        error("Http - curl exited with failure code "..tostring(res))
     end
-    --]]
 
     -- parse response status
     local r, resp = pcall(parse_resp, reqid)
@@ -198,9 +204,38 @@ local Http = setmetatable({
     NotExtended = 510,
     NetworkAuthenticationRequired = 511
 }, {
-    __call = function(_, attrs, url)
+    __call = function(_, url, attrs)
         return _Http(attrs, url)
     end
 })
 
-return function () return Http, Response end
+local Verifier = setmetatable({
+    HasHeader = function(this, name, fmt, ...)
+        Test(this.resp.headers[name], fmt, ...)
+        return this
+    end,
+
+    IsHeader = function(this, name, value, fmt, ...)
+        Equal(this.resp.headers[name], value, fmt, ...)
+        return this
+    end,
+
+    IsStatus = function(this, value, fmt, ...)
+        Equal(this.resp.status, value, fmt, ...)
+        return this
+    end,
+    WithFunc = function(this, func)
+        if func and type(func) == 'function' then
+            func(this.resp)
+        end
+        return this
+    end
+}, {
+    __call = function(this, resp)
+        return setmetatable({ resp = resp}, {
+            __index = this
+        })
+    end
+})
+
+return function () return Http, Response, Verifier end

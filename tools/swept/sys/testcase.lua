@@ -79,15 +79,15 @@ local Testcase = setmetatable({
 		else
 			status = {s = Test.Failed, m = ("Test '%s' is malformed, does not have runner"):format(this.name)}
 		end
-		
-		if status.s == Test.Success then
+
+		if status.s == Test.Passed then
 			if this._success and type(this._success) == 'function' then
-				ctx.reporter:success('run', status.m)
+				if status.m then ctx.reporter:message('run', status.m) end
 				ok,status = this._resolve(pcall(this._success, ctx))
 			end
 		elseif status.s ~= Test.Ignore then
 			if this._failure and type(this._failure) == 'function' then
-				ctx.reporter:failure('run', status.m)
+				if status.m then ctx.reporter:message('run', status.m) end
 				local ok,tmp = this._resolve(pcall(this._success, ctx))
 				status.m = tmp.m
 			end
@@ -118,10 +118,14 @@ local Fixture = setmetatable({
 				test(ctx)
 			end
 		end
+	end,
+
+	desc = function(this, d)
+		this._desc = d
 	end
 }, {
-	__call = function(this)
-		return setmetatable({_tests = {}}, {
+	__call = function(this, name, descr)
+		return setmetatable({_name = name, descr = descr, _tests = {}}, {
 			__index = this,
 			__call = function(self, name, description)
 				assert(not(self._tests[name]), "test with name '"..name.."' already added to fixture")

@@ -4,7 +4,8 @@
 --- DateTime: 2020-02-29 1:39 p.m.
 ---
 
-local Example = Fixture()
+local Example = Fixture('BasicTestFixture', "A basic test feature used as an example")
+
 Example("ExampleTestPass", "Example test case passing")
 :run(function(ctx)
     Test(true, "Example passing test case")
@@ -19,7 +20,7 @@ end)
     Test((Swept:now()-ctx.start) >= 2000, "Ellapsed time should be greator or equal to 2 seconds")
 end)
 :after(function(ctx)
-    ctx.reporter:success("after", "test done {start  %d, end %d}", ctx.start, Swept:now())
+    ctx("after", "test done {start  %d, end %d}", ctx.start, Swept:now())
 end)
 
 return Example

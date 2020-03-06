@@ -13,7 +13,7 @@ local function Init(argv)
     if argv.verbose then
         Log:dbg("verbose argument provided")
     end
-    return {name = id({u  = true, n = true}):s(), id = id({u = true}):s()}
+    return {name = _id({u  = true, n = true}):s(), id = _id({u = true}):s()}
 end
 
 return function() return Parse, Init end

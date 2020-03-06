@@ -27,14 +27,18 @@ local parser = import("sys/argparse") {
     description = "Swept is the a single file testing framework/runtime used for executing swept tests written in LUA"
 }
 
-parser:option("-r --root", "The root directory to scan for swept test cases", nil)
-parser:option("--logdir",  "The base directory to save all log files", nil)
-parser:option("-f --filters", "A list of test script filters in regex format, prefix with '-' to exclude script", nil)
+_,_,RUNDIR=_pwd_S()
+Log:inf("swept started from directory %s", RUNDIR)
+_,_,RUNDIRNAME=_basename_S(RUNDIR)
+Log:inf("run directory name is %s", RUNDIRNAME)
+
+parser:option("-r --root", "The root directory to scan for swept test cases", RUNDIR..'/tests')
+parser:option("--logdir",  "The directory to save all log files", Dirs.LOGS)
+parser:option("--resdir",  "The directory to save generated result files", Dirs.RESULTS)
+parser:option("--prefix",  "The string to prefix all files (logs and results) generated for this run", RUNDIRNAME)
+parser:option("-f --filters", "A list of test script filters in regex format, prefix with '-' to exclude script", FILTER)
       :args("*")
       :count("*")
-
-RUNDIR=pwd():s()
-Log:inf("swept started from directory %s", RUNDIR)
 
 local startupPath = RUNDIR..'/startup.lua'
 local Init, Parse
@@ -53,7 +57,7 @@ local configPath = RUNDIR..'/.config'
 Swept.Config = {}
 if pathExists(configPath) then
     Log:inf("loading configuration file %s", configPath)
-    Swept.Config = Json:decode(cat(configPath):s())
+    Swept.Config = Json:decode(_cat(configPath):s())
 end
 
 Log:inf("parsing command line arguments")
@@ -84,8 +88,13 @@ if Init ~= nil then
     end
 end
 
+-- Setup the filename
+Swept.Config.filename = Swept.Config.prefix..'_'..os.date('%Y_%m_%d_%H_%M_%S.log')
+
 -- Initialize log file is enable
-local logDir = Swept.Config.logdir or "/tmp/swept/logs"
-Log.sink:add('fileLogger', Exts.File{dir = logDir, prefix = Swept.Config.prefix})
+Log.sink:add('fileLogger', Exts.File{
+    dir = Swept.Config.logdir or Dirs.LOGS,
+    fname = Swept.Config.filename..'.log'
+})
 
 return function() return Swept.Config end

@@ -27,6 +27,8 @@ namespace suil::swept {
         static int sweptLoad(lua_State* L);
         static int sweptSleep(lua_State* L);
         static int sweptEnv(lua_State* L);
+        static int sweptGc(lua_State* L);
+        static int sweptExit(lua_State* L);
         static int panicHandler(lua_State* L);
 
     private:

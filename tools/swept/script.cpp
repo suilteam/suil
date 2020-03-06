@@ -86,6 +86,24 @@ if (!lua_istable(L, 1)) {   \
         return 1;
     }
 
+    int EmbeddedScripts::sweptExit(lua_State *L)
+    {
+        CALL_SYNTAX("env")
+        if (!lua_isnumber(L, 2)) {
+            return luaL_error(L, "Swept:env takes name name of the environment variable");
+        }
+        auto num = static_cast<int>(luaL_checknumber(L, 2));
+        lua_close(L);
+        exit(num);
+    }
+
+    int EmbeddedScripts::sweptGc(lua_State *L)
+    {
+        CALL_SYNTAX("env")
+        lua_gc(L, LUA_GCCOLLECT, 0);
+        return 0;
+    }
+
     int EmbeddedScripts::panicHandler(lua_State *L)
     {
         auto msg = luaL_checkstring(L, -1);
@@ -162,6 +180,8 @@ if (!lua_istable(L, 1)) {   \
         exportFunction(state(), EmbeddedScripts::sweptNow,  "now");
         exportFunction(state(), EmbeddedScripts::sweptSleep, "sleep");
         exportFunction(state(), EmbeddedScripts::sweptEnv, "env");
+        exportFunction(state(), EmbeddedScripts::sweptGc, "gc");
+        exportFunction(state(), EmbeddedScripts::sweptExit, "exit");
     }
 
     static void createargtable (lua_State *L, char **argv, int argc, int script) {

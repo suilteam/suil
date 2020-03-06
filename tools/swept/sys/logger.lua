@@ -61,7 +61,7 @@ local File = setmetatable({
 }, {
 	__call = function(this, attrs)
 		attrs = attrs or {}
-		attrs.dir = attrs.dir or '/tmp/sweeper/logs'
+		attrs.dir = attrs.dir or TEMPDIR..'/logs'
 		mkdir('-p', attrs.dir)
 
 		attrs.fname = (attrs.prefix or '') .. os.date('%Y_%m_%d_%H_%M_%S.log')
@@ -93,12 +93,7 @@ local Fanout = setmetatable({
 	end
 }, {
 	__call = function(this, lgs)
-		for k,s in pairs(lgs) do
-			-- add the sink to the fanout
-			this:add(k, s)
-		end
-
-		return setmetatable({}, {
+		local fo = setmetatable({}, {
 			__index = this,
 			__call = function(this, lvl, tag, msg)
 				for k,s in pairs(this._outputs) do
@@ -107,6 +102,14 @@ local Fanout = setmetatable({
 				end
 			end
 		})
+
+		if lgs and type(lgs) == 'table' then
+			for k,s in pairs(lgs) do
+				-- add the sink to the fanout
+				fo:add(k, s)
+			end
+		end
+		return fo
 	end,
 	__newindex = constify('Fanout')
 })
@@ -154,6 +157,7 @@ Logger = setmetatable({
 		lvl = lvl > this.TRACE1 and this.TRACE1 or lvl
 		local msg
 		if lvl < this.DEBUG then
+			if not fmt then print(debug.traceback()) end
 			msg = ("%s %s %8s "):format(
 				os.date('%Y-%m-%d %H:%M:%S'),
 				_levelMsg[lvl],
