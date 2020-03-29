@@ -19,7 +19,8 @@ local fanout = Exts.Fanout({
 })
 
 Log = Logger {
-    sink = fanout
+    sink = fanout,
+    level = Logger.TRACE0
 }
 
 local parser = import("sys/argparse") {
@@ -36,9 +37,8 @@ parser:option("-r --root", "The root directory to scan for swept test cases", ni
 parser:option("--logdir",  "The directory to save all log files", nil)
 parser:option("--resdir",  "The directory to save generated result files", nil)
 parser:option("--prefix",  "The string to prefix all files (logs and results) generated for this run", nil)
-parser:option("-f --filters", "A list of test script filters in regex format, prefix with '-' to exclude script", nil)
+parser:option("-f --filters", "A list of test script filters in regex format, prefix with '~' to exclude script", nil)
       :args("*")
-      :count("*")
 
 local startupPath = RUNDIR..'/startup.lua'
 local Init, Parse
@@ -104,7 +104,8 @@ Swept.Config.filename = Swept.Config.prefix..'_'..os.date('%Y_%m_%d_%H_%M_%S.log
 -- Initialize log file is enable
 Log.sink:add('fileLogger', Exts.File{
     dir = Swept.Config.logdir or Dirs.LOGS,
-    fname = Swept.Config.filename..'.log'
+    fname = Swept.Config.filename..'.log',
+    level = Logger.TRACE0
 })
 
 return function() return Swept.Config end

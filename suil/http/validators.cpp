@@ -52,11 +52,11 @@ namespace suil::http::validators {
         if (upper && u < upper)
             ob << "Password invalid, requires at least '" << upper << "' uppercase characters";
         if (lower && l < lower)
-            ob << (ob.empty()? "":"\n") << "Password invalid, requires at least '" << lower << "' lowercase characters";
+            ob << (ob.empty()? "":", ") << "Password invalid, requires at least '" << lower << "' lowercase characters";
         if (special && s < special)
-            ob << (ob.empty()? "":"\n") << "Password invalid, requires at least '" << special << "' special characters";
+            ob << (ob.empty()? "":", ") << "Password invalid, requires at least '" << special << "' special characters";
         if (nums && n < nums)
-            ob << (ob.empty()? "":"\n") << "Password invalid, requires at least '" << lower << "' digits";
+            ob << (ob.empty()? "":", ") << "Password invalid, requires at least '" << lower << "' digits";
 
         return !ob.empty();
     }

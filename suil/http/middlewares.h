@@ -57,12 +57,12 @@ namespace suil::http::mw {
             configure(host, port, options);
         }
 
-    private:
         inline Connection& conn(int db = 0) {
             itrace("connecting to database %d", db);
             return database.connect(db);
         }
 
+    private:
         Db database{};
     };
 
@@ -225,6 +225,8 @@ namespace suil::http::mw {
 
     define_log_tag(ENDPOINT_ADMIN);
     struct EndpointAdmin final : LOGGER(ENDPOINT_ADMIN) {
+        static constexpr const char* Role = "SystemAdmin";
+
         struct Context {
         };
 
@@ -238,7 +240,7 @@ namespace suil::http::mw {
 
             ep("/_admin/routes")
             ("GET"_method, "OPTIONS"_method)
-            .attrs(opt(AUTHORIZE, Auth{"SysAdmin"}))
+            .attrs(opt(AUTHORIZE, Auth{Role}))
             ([&ep]() {
                 std::vector<route_schema_t> schemas;
                 ep.router.enumerate([&schemas](BaseRule& rule) {
@@ -256,7 +258,7 @@ namespace suil::http::mw {
 
             ep("/_admin/route/{uint}")
             ("GET"_method, "OPTIONS"_method)
-            .attrs(opt(AUTHORIZE, Auth{"SysAdmin"}))
+            .attrs(opt(AUTHORIZE, Auth{Role}))
             ([&ep](const Request&, Response& resp, uint32_t id) {
                 auto status{Status::NO_CONTENT};
                 ep.router.enumerate([&ep, &resp, &status, id](BaseRule& rule) {
@@ -280,35 +282,35 @@ namespace suil::http::mw {
 
             ep("/_admin/route/{uint}/enable")
             ("POST"_method, "OPTIONS"_method)
-            .attrs(opt(AUTHORIZE, Auth{"SysAdmin"}))
+            .attrs(opt(AUTHORIZE, Auth{Role}))
             ([this, &ep](uint32_t id) {
                 return setRouteEnabled(ep, id, true);
             });
 
             ep("/_admin/route/{uint}/disable")
             ("POST"_method, "OPTIONS"_method)
-            .attrs(opt(AUTHORIZE, Auth{"SysAdmin"}))
+            .attrs(opt(AUTHORIZE, Auth{Role}))
             ([this, &ep](uint32_t id) {
                 return setRouteEnabled(ep, id, false);
             });
 
             ep("/_admin/endpoint/stats")
             ("GET"_method, "OPTIONS"_method)
-            .attrs(opt(AUTHORIZE, Auth{"SysAdmin"}))
+            .attrs(opt(AUTHORIZE, Auth{Role}))
             ([&ep]{
                 return ep.stats;
             });
 
             ep("/_admin/about")
             ("GET"_method, "OPTIONS"_method)
-            .attrs(opt(AUTHORIZE, Auth{"SysAdmin"}))
+            .attrs(opt(AUTHORIZE, Auth{Role}))
             ([&ep]{
                 return utils::catstr(version::SWNAME, "-", version::STRING);
             });
 
             ep("/_admin/version")
             ("GET"_method, "OPTIONS"_method)
-            .attrs(opt(AUTHORIZE, Auth{"SysAdmin"}))
+            .attrs(opt(AUTHORIZE, Auth{Role}))
             ([&ep]{
                 return ver_json;
             });

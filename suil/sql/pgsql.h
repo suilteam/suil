@@ -1096,7 +1096,7 @@ namespace suil {
         Settings(Settings&&) = delete;
         Settings& operator=(Settings&&) = delete;
 
-        void init();
+        void init(bool reset = false);
 
         template <typename V>
         void set(const String& key, V v) {

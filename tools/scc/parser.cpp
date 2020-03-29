@@ -25,7 +25,7 @@ params      : <param>? (',' <param>)* ;
 method      : <comments>? <attribs>? <generic> <ident> '(' <params>? ')' ;
 ctor        : <comments>* <attribs>? <ident> '(' <params>? ')' ;
 methods     : ((<ctor>|<method>) ';')+ ;
-meta        : <comments>? "meta" <attribs>? <ident> (':' <generic>)? '{' <fields> '}' ;
+meta        : <comments>? ("meta"|"union") <attribs>? <ident> (':' <generic>)? '{' <fields> '}' ;
 rpc         : <comments>? ("srvc"|"srpc"|"jrpc")  <attribs>? <ident> (':' <generic>)? '{' <methods> '}' ;
 types       : ((<meta>|<rpc>) ';')+ ;
 namespace   : "namespace" <scoped> '{' <types> '}' ;
@@ -279,11 +279,13 @@ program     : <includes>? <symbols>? <namespace> ;
 
     void Parser::build_MetaType(ProgramFile &out, mpc_ast_t *ast)
     {
-        int offset = 1;
+        int offset = 0;
         if (strstr(ast->children[0]->tag, "comments"))
             offset++;
 
         MetaType mt{};
+        mt.Kind = std::string(ast->children[offset++]->contents);
+
         if (strcmp("attribs|>", ast->children[offset]->tag) == 0) {
             // meta-type has attributes, parse them
             build_Attribs(mt.Attribs, ast->children[offset++]);
