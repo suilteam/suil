@@ -37,7 +37,7 @@ local Testit = setmetatable({
         local output = {}
         for i,filter in ipairs(filters) do
             if type(filter) ~= 'string' or not filter then
-                logger:err("ignoring filter #%d is invalid, it has invalid format", i)
+                logger:err("ignoring filter #%d (%s) is invalid, it has invalid format", i, tostring(filter or ''))
             else
                 local ex = filter:byte(1) == string.byte('~', 1)
                 if ex then

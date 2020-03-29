@@ -82,6 +82,14 @@ namespace suil {
                 return count != 0;
             }
 
+            int trancate() {
+                OBuffer qb(32);
+                qb << "TRUNCATE TABLE " << table;
+                int count{0};
+                conn(qb)() >> count;
+                return count;
+            }
+
             template<typename T>
             bool insert(const T& o)
             {
@@ -115,19 +123,23 @@ namespace suil {
             }
 
             // initialize a table for this table
-            bool cifne() {
+            bool cifne(bool trunc = false) {
                 // pass the request to respective connection
                 if (!conn.has_table(table())) {
                     WithoutIgnore tmp{};
                     return conn.create_table(table, tmp);
                 }
+                else if (trunc) {
+                    // truncate table if requested
+                    Ego.trancate();
+                }
                 return false;
             }
 
             // create table if not exist and seed with users
-            bool cifne(std::vector<Type>& seed) {
+            bool cifne(std::vector<Type>& seed, bool trunc = false) {
                 // create table if does not exist
-                if (Ego.cifne()) {
+                if (Ego.cifne(trunc)) {
                     // if created seed with data
                     if (!seed.empty()) {
                         for(auto& data: seed) {

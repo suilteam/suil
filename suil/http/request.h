@@ -23,7 +23,7 @@ namespace suil {
 
         struct Request;
         struct RequestForm {
-            RequestForm(const Request& req, std::vector<String>&& required = {});
+            RequestForm(const Request& req, std::vector<String>&& required = {}, const char *sep = "\n");
             void operator|(form_data_it_t f);
             void operator|(form_file_it_t f);
             const String operator[](const char*);
@@ -46,6 +46,7 @@ namespace suil {
             bool find(String& out, const char *name);
 
             const Request& req;
+            const char *seperator{"\n"};
             std::vector<suil::String> required{};
         };
 
@@ -244,7 +245,7 @@ namespace suil {
                     // for has value
                     if (isRequired && it->second.empty()) {
                         /* required field cannot be empty */
-                        ob << (ob.empty()? "" : "\n") << "Required field '" << name << "' cannot be empty";
+                        ob << (ob.empty()? "" : seperator) << "Required field '" << name << "' cannot be empty";
                     }
                     else {
                         /* parse value */
@@ -253,13 +254,13 @@ namespace suil {
                         }
                         catch (...) {
                             /* unhandled error, parsing failed */
-                            ob << (ob.empty() ? "" : "\n") << "Field '" << name << "' has unsupported value.";
+                            ob << (ob.empty() ? "" : seperator) << "Field '" << name << "' has unsupported value.";
                         }
                     }
                 }
                 else if(isRequired) {
                     /* required field missing */
-                    ob << (ob.empty() ? "" : "\n") << "Required field '" << name << "' was not provided";
+                    ob << (ob.empty() ? "" : seperator) << "Required field '" << name << "' was not provided";
                 }
             };
 
@@ -293,7 +294,7 @@ namespace suil {
                 }
                 else if(isRequired) {
                     /* required field missing */
-                    ob << (ob.empty() ? "" : "\n") << "Required field '" << name << "' was not provided";
+                    ob << (ob.empty() ? "" : seperator) << "Required field '" << name << "' was not provided";
                 }
             };
 

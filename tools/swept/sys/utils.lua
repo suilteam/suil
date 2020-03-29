@@ -65,6 +65,15 @@ end
 
 S = tostring
 
+Base64 = {
+	encode = function(this, data)
+		return Swept:base64encode(data)
+	end,
+	decode = function(this, data)
+		return Swept:base64decode(data)
+	end
+}
+
 Test = setmetatable({
 	Passed  = 0,
 	Ignored = 2,

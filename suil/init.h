@@ -12,7 +12,7 @@ namespace suil {
 
     using SignalHandler = std::function<void(int sig, siginfo_t *info, void *ctx)>;
 
-    bool load(bool si = true);
+    bool load(bool skipProc = false, bool si = true);
 
     namespace __internal {
         void chwdir(const std::string& to);
@@ -24,7 +24,8 @@ namespace suil {
         static bool initialized{false};
         auto opts = iod::D(args...);
         bool showinfo = opts.get(var(printinfo), true);
-        suil::load(showinfo);
+        bool skiproc  = opts.get(var(skiproc), true);
+        suil::load(skiproc, showinfo);
         // setup logging
         log::setup(args...);
 

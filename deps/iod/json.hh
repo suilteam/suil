@@ -969,7 +969,7 @@ namespace iod {
                 int i = 0;
                 bool attr_found = false;
                 foreach(scheme) | [&](auto &m) {
-                    if (!m.attributes().has(_json_skip) and !attr_found and attr_name == A[i].name) {
+                    if (!attr_found and attr_name == A[i].name) {
                         try {
                             if (!p.eat_null())
                                 iod_from_json_(&m.value(), m.symbol().member_access(o), p);

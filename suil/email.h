@@ -23,6 +23,7 @@ namespace suil {
     }
 
     struct Email {
+        sptr(Email);
         using unique_ptr = std::unique_ptr<Email>;
 
         struct Address {
@@ -342,6 +343,7 @@ namespace suil {
 
     template <typename Sock>
     struct MailOutbox : LOGGER(SMTP_CLIENT) {
+        sptr(MailOutbox<Sock>);
         using unique_ptr = std::unique_ptr<MailOutbox<Sock>>;
     private:
 

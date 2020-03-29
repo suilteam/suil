@@ -160,6 +160,9 @@ namespace suil {
             }  state = state_begin, next_state = state_begin;
             rb.bseek(content_length);
             char *p = rb.data(), *end = p + content_length;
+#if 1   // @TODO CURL/http_parser workaround
+            p[0] = '-';
+#endif
             char *name = nullptr, *filename = nullptr, *data = nullptr, *dend = nullptr;
             bool cap{false};
             itrace("start parse multipart form %d", mnow());
@@ -594,8 +597,9 @@ namespace suil {
             params.clear();
         }
 
-        RequestForm::RequestForm(const Request &req, std::vector<suil::String>&& fields)
+        RequestForm::RequestForm(const Request &req, std::vector<suil::String>&& fields, const char* sep)
             : req(req),
+              seperator(sep),
               required{std::move(fields)}
         {}
 

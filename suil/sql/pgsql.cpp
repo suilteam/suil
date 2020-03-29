@@ -275,8 +275,8 @@ namespace suil {
         return std::move(obj);
     }
 
-    void Settings::init() {
+    void Settings::init(bool reset) {
         sql::SettingsOrm orm("app_settings", conn);
-        orm.cifne();
+        orm.cifne(reset);
     }
 }

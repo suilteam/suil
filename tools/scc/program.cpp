@@ -31,6 +31,12 @@ namespace suil::scc {
 
         for (auto &tp: pf.MetaTypes) {
             // add field symbols defined for each type
+            if (tp.Kind == "union") {
+                addSymbol("Type");
+                addSymbol("Data");
+                continue;
+            }
+
             for (auto field: tp.Fields) {
                 addSymbol(field.Name);
                 for (auto attr: field.Attribs) {
@@ -39,6 +45,66 @@ namespace suil::scc {
                 }
             }
         }
+    }
+
+    static void generateMetaUnion(const MetaType& tp, File& out)
+    {
+        // union only methods
+        out << spaces(8) << "enum Types: std::uint32_t {\n";
+        int index{1};
+        for (auto& field: tp.Fields) {
+            out << spaces(12) << field.Name;
+            if (index != tp.Fields.size()) {
+                out << ",\n";
+            }
+            else {
+                out << "\n";
+            }
+        }
+        out << spaces(8) << "};\n\n";
+
+        out << spaces(8) << "template <typename S>\n"
+            << spaces(8) << "static " << tp.Name << " create(const S& src) {\n"
+            << spaces(12) << "auto it = mUnionEntries.find(std::type_index(typeid(T)));\n"
+            << spaces(12) << "if (it == mUnionEntries.end()) {\n"
+            << spaces(16) << R"(throw Exception::create("Cannot convert '", typeid(T).name(), "' to )" << tp.Name << "'\");\n"
+            << spaces(12) << "}\n"
+            << spaces(12) << tp.Name << " u;\n"
+            << spaces(12) << "u.mType = it->second;\n"
+            << spaces(12) << "suil::Heapboard hb(src.maxBytesSize);\n"
+            << spaces(12) << "hb << src;\n"
+            << spaces(12) << "u.mData = hb.release();\n"
+            << spaces(12) << "return u;\n"
+            << spaces(8) << "}\n\n";
+
+        out << spaces(8) << "template <typename D>\n"
+            << spaces(8) << "suil::Status get(D& dst) {\n"
+            << spaces(12) << "auto it = mUnionEntries.find(std::type_index(typeid(T)));\n"
+            << spaces(12) << "if (it == mUnionEntries.end()) {\n"
+            << spaces(16) << "return suil::Failure{\"Cannot convert " << tp.Name << "to type '\", typeid(T).name(), \"', type not supported\"};\n"
+            << spaces(12) << "}\n"
+            << spaces(12) << "if (it->second != Ego.Type) {\n"
+            << spaces(16) << "return suil::Failure{\"Cannot convert " << tp.Name << " to type '\", typeid(T).name(), \"', data is of type \", Ego.Type};\n"
+            << spaces(12) << "}\n"
+            << spaces(12) << "suil::Heapboard hb(Ego.Data);\n"
+            << spaces(12) <<  "try {\n"
+            << spaces(16) <<  "hb >> dst;\n"
+            << spaces(16) <<  "return suil::Success;\n"
+            << spaces(12) <<  "}\n"
+            << spaces(12) <<  "catch (...) {\n"
+            << spaces(16) <<  "return suil::Failure{Exception::fromCurrent().what()};\n"
+            << spaces(12) <<  "}\n"
+            << spaces(8) <<  "}\n\n";
+
+        out << spaces(8) << "template <typename D>\n"
+            << spaces(8) << "D get() {\n"
+            << spaces(12) << "D dst;\n"
+            << spaces(12) << "auto ok = Ego.get(dst);\n"
+            << spaces(12) << "if (!ok) {\n"
+            << spaces(16) << "throw Exception::create(ok.Error);\n"
+            << spaces(12) << "}\n"
+            << spaces(12) << "return dst;\n"
+            << spaces(8) << "}\n\n";
     }
 
     static void generateMetaTypeHeaders(ProgramFile &pf, File &out) {
@@ -52,7 +118,13 @@ namespace suil::scc {
             // type schema
             out << spaces(8) << "typedef decltype(iod::D(\n";
             bool isFirst{true};
-            for (auto &field: tp.Fields) {
+            static std::vector<Field> unionFields = {
+                    Field{{}, "std::uint32_t", "Type"},
+                    Field{{}, "suil::Data", "Data"}
+            };
+            auto& fields = tp.Kind == "meta"? tp.Fields : unionFields;
+
+            for (auto &field: fields) {
                 if (!isFirst) out << ",\n";
                 out << spaces(12) << "prop(" << field.Name;
                 if (!field.Attribs.empty()) {
@@ -79,11 +151,6 @@ namespace suil::scc {
             out << "\n"
                 << spaces(8) << ")) Schema" << ";\n\n";
 
-            // add type fields
-            for (auto &field: tp.Fields) {
-                out << spaces(8) << field.FieldType << " " << field.Name << ";\n\n";
-            }
-
             // add serialization methods
             out << spaces(8) << "static " << tp.Name << " fromJson(iod::json::parser&);\n\n"
                 << spaces(8) << "void toJson(iod::json::jstream&) const;\n\n"
@@ -92,6 +159,18 @@ namespace suil::scc {
                 << spaces(8) << "void toWire(suil::Wire&) const;\n\n"
                 << spaces(8) << "friend suil::OBuffer& operator<<(suil::OBuffer& out, const " << tp.Name << "& o);\n\n"
                 << spaces(8) << "static Schema Meta;\n\n";
+
+            if (tp.Kind == "union") {
+                out << "/* Union methods */\n\n";
+                generateMetaUnion(tp, out);
+                out << spaces(4) << "private:\n";
+                // declare union types map
+                out << spaces(8) << "static std::unordered_map<std::type_index, std::uint32_t> mUnionEntries;\n\n";
+            }
+            // add type fields
+            for (auto &field: fields) {
+                out << spaces(8) << field.FieldType << " " << field.Name << ";\n\n";
+            }
 
             out << spaces(4) << "};\n\n";
         }
@@ -382,7 +461,9 @@ namespace suil::scc {
         // append includes
         hf << "#include <suil/result.h>\n"
            << "#include <suil/json.h>\n"
-           << "#include <suil/wire.h>\n";
+           << "#include <suil/wire.h>\n\n"
+           << "#include <unordered_map>\n"
+           << "#include <typeindex>\n";
 
         for (auto &inc: Ego.Includes) {
             // add all includes
@@ -404,6 +485,21 @@ namespace suil::scc {
 
     static void generateMetaTypeSources(File &sf, const MetaType &mt)
     {
+        if (mt.Kind == "union") {
+            // generation union entries map
+            int index{0};
+            sf << spaces(4) << "std::unordered_map<std::type_index, std::uint32_t> " << mt.Name << "::UnionEntries = {\n";
+            for (auto& field: mt.Fields) {
+                sf << spaces(8) << "{std::typeindex(typeid(" << field.FieldType << ")), " << std::to_string(index++) << "}";
+                if (index != mt.Fields.size()) {
+                    sf << ",\n";
+                }
+                else {
+                    sf << "\n";
+                }
+            }
+            sf << spaces(4) << "};\n\n";
+        }
         /*
          * */
         sf << spaces(4) << mt.Name << "::Schema " << mt.Name << "::Meta{};\n\n";
@@ -411,8 +507,10 @@ namespace suil::scc {
         sf << spaces(4) << mt.Name << " " << mt.Name << "::fromJson(iod::json::parser& p)\n"
            << spaces(4) << "{\n"
            << spaces(8) << mt.Name << " tmp{};\n"
+           << spaces(8) << "p >> p.spaces >> '{';\n"
            << spaces(8) << "iod::json::iod_attr_from_json(&" << mt.Name << "::Meta, tmp, p);\n"
-           << spaces(8) << "std::move(tmp);\n"
+           << spaces(8) << "p >> p.spaces >> '}';\n"
+           << spaces(8) << "return tmp;\n"
            << spaces(4) << "}\n\n";
 
         sf << spaces(4) << "void " << mt.Name << "::toJson(iod::json::jstream& ss) const\n"
@@ -441,7 +539,6 @@ namespace suil::scc {
            << spaces(4) << "{\n"
            << spaces(8) << "o << suil::json::encode(a);\n"
            << spaces(4) << "}\n\n";
-
     }
 
     void ProgramFile::generateSourceFile(const char *filename, const String &spath)

@@ -65,12 +65,13 @@ local File = setmetatable({
 		mkdir('-p', attrs.dir)
 
 		attrs.fname = (attrs.prefix or '') .. os.date('%Y_%m_%d_%H_%M_%S.log')
-		attrs.path  = attrs.dir..'/'..attrs.fname
+		attrs.path   = attrs.dir..'/'..attrs.fname
+		attrs.handle = io.open(attrs.path, "a")
 		return setmetatable(attrs, {
 			__index = this,
 			__call = function(self, lvl, tag, msg)
 				if self.level == nil or self.level >= lvl then
-					echo('"'..msg..'"', " >> ", self.path)
+					self.handle:write(msg..'\n')
 					return
 				end
 			end
@@ -156,22 +157,23 @@ Logger = setmetatable({
 		-- date lvl tag msg
 		lvl = lvl > this.TRACE1 and this.TRACE1 or lvl
 		local msg
+		local formatted = fmt:format(...)
 		if lvl < this.DEBUG then
 			if not fmt then print(debug.traceback()) end
 			msg = ("%s %s %8s "):format(
 				os.date('%Y-%m-%d %H:%M:%S'),
 				_levelMsg[lvl],
 				this.tag)
-			msg = msg..fmt:format(...)
+			msg = msg..formatted
 		else
 			local info = debug.getinfo(3)
-			local prefix = ("%s %s %8s %s:%d"):format(
+			local prefix = ("%s %s %8s %s:%d "):format(
 				os.date('%Y-%m-%d %H:%M:%S'),
 				_levelMsg[lvl],
 				this.tag,
 				info.short_src,
 				info.currentline)
-			msg = prefix..'\n    '..fmt:format(...)
+			msg = prefix..formatted
 		end
 		this.sink(lvl, this.tag, msg)
 	end

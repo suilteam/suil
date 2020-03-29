@@ -35,7 +35,7 @@ static void cmd_Generate(cmdl::Parser& parser)
     cmdl::Cmd repl{"repl", "Enter's an interactive shell useful for debugging"};
     repl << cmdl::Arg{"grammar",
                      "path to the grammar file to work with",
-                     'g', false};
+                     'g', true};
     repl([&](cmdl::Cmd& cmd) {
         // create a new parser and enter it's REPL
         String grammar = cmd["grammar"];

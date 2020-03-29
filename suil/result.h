@@ -61,8 +61,40 @@ namespace suil {
             return Ego;
         }
 
+
+
         int Code{Result::OK};
     };
-    
+
+    struct Status {
+        Status(int code = Result::OK, String&& err = "")
+            : Code{code},
+              Error{std::move(err)}
+        {}
+
+        operator bool() { return Code == Result::OK; }
+
+        int Code{Result::OK};
+        String Error{""};
+    };
+
+    struct Success final: Status {
+        Success() : Status() {}
+    };
+
+    struct Failure final: Status {
+        template <typename... Args>
+        Failure(Args... args)
+            : Status(Result::ERROR, toString(std::forward<Args>(args)...))
+        {}
+
+    private:
+        template <typename... Args>
+        static String toString(Args... args) {
+            OBuffer ob;
+            ((ob << args), ...);
+            return String{ob};
+        }
+    };
 }
 #endif //SUIL_RESULT_HPP

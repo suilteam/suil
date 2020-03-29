@@ -73,6 +73,7 @@ namespace suil::scc {
     struct MetaType : WithAttributes {
         std::string              Base;
         std::string              Name;
+        std::string              Kind;
         std::vector<Field>       Fields;
         std::vector<Constructor> Ctors;
     };

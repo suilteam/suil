@@ -7,6 +7,7 @@
 --
 
 local Testcase = setmetatable({
+	Disable = 'Disable',
 	before = function(this, func)
 		assert(func and type(func) == 'function', "Testcase before handler must be a function")
 		this._before = func
@@ -34,6 +35,22 @@ local Testcase = setmetatable({
 		return this
 	end,
 
+	tags = function(this, ...)
+		for i,t in ipairs({args}) do
+			this._tags[t] = true
+		end
+		return this
+	end,
+
+	tag = function(this, tag)
+		return tag and this._tags[tostring(tag)]
+	end,
+
+	disable = function(this, why)
+		this._run = tostring(why or 'not reason provided')
+		return this
+	end,
+
 	isTest = function(this, test)
 		return test and type(test) == 'table' and test._exec
 	end,
@@ -48,6 +65,7 @@ local Testcase = setmetatable({
 			if type(msg) == 'table' and msg.status then
 				return ok, {s = msg.status, m = msg.data or nil}
 			elseif msg then
+				Log:trc(debug.traceback())
 				return ok, {s = Test.Failed, m = tostring(msg)}
 			else
 				return ok, {s = Test.Failed}
@@ -109,28 +127,59 @@ local Fixture = setmetatable({
 		local logger = ctx.logger
 		local reporter = ctx.reporter
 
-		for name, test in pairs(this._tests) do
+		for _, name in ipairs(this._order) do
 			logger:dbg("executing test %s", name)
-			if not TestCase:isTest(test) then
-				reporter:endTestcase(Test.Failed, "test is not a valid test case", 'load')
-			else
-				-- run testcase
+			local test = this._tests[name]
+			if TestCase:isTest(test) then
+				-- run test case
 				test(ctx)
+			else
+				logger:err('%s is not valid test case, ignoring', name)
 			end
 		end
 	end,
 
 	desc = function(this, d)
 		this._desc = d
-	end
+	end,
+
+	before = function(this, func)
+		assert(func and type(func) == 'function', "Testcase before handler must be a function")
+		this._before = func
+		return this
+	end,
+	after = function(this, func)
+		assert(func and type(func) == 'function', "Testcase after handler must be a function")
+		this._success = func
+		this._failure = func
+		return this
+	end,
+	success = function(this, func)
+		assert(func and type(func) == 'function', "Testcase success handler must be a function")
+		this._success = func
+		return this
+	end,
+	failure = function(this, func)
+		assert(func and type(func) == 'function', "Testcase failure handler must be a function")
+		this._failure = func
+		return this
+	end,
 }, {
 	__call = function(this, name, descr)
-		return setmetatable({_name = name, descr = descr, _tests = {}}, {
+		return setmetatable({_name = name, descr = descr, _tests = {}, _order = {}, _tags = {}}, {
 			__index = this,
 			__call = function(self, name, description)
 				assert(not(self._tests[name]), "test with name '"..name.."' already added to fixture")
 				self._tests[name] = TestCase(name, description)
-				return self._tests[name]
+				self._order[#self._order + 1] = name
+				local T = self._tests[name]
+				-- inherit callbacks from fixture
+				if self._before then T:before(self._before) end
+				if self._success then T:success(self._success) end
+				if self._failure then T:failure(self._failure) end
+				-- point back to fixture
+				T.fixture = function(s) return self end
+				return T
 			end
 		})
 	end

@@ -7,7 +7,7 @@ using namespace suil;
 
 int main(int argc, char *argv[])
 {
-    suil::init(opt(printinfo, false));
+    suil::init(opt(printinfo, false), opt(skiproc, true));
     suil::log::setup(opt(verbose, 4));
 
     swept::EmbeddedScripts::main(argc, argv);

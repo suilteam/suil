@@ -22,7 +22,7 @@ local Response = setmetatable({
     end
 })
 
-local function _Http(attrs, url)
+local function _Http(url, attrs)
     function parse_resp(id)
         local read = X('_cat', id) | X("_grep", "' '")
         local _hdrs = read():s()
@@ -55,7 +55,7 @@ local function _Http(attrs, url)
                 end
             else
                 -- parsing headers
-                local r, _, name, value = v:find("([-_%a]+):%s+(.*)")
+                local r, _, name, value = v:find("([-_%a]+)%s*:%s*(.*)")
                 if not r then
                     -- invalid status line
                     error("invalid header line in response '" .. v .. "'")
@@ -75,10 +75,11 @@ local function _Http(attrs, url)
     end
 
     -- url required
-    assert(url, "Http requires a valid URL")
-    assert(attrs, "Http requires a table of parameters")
+    assert(url ~= nil and type(url) == 'string', "Http requires a valid URL")
+    assert(attrs ~= nil and type(attrs) == 'table', "Http requires a table of parameters")
 
     local reqid = genid()
+    reqid = Dirs.DATA and Dirs.DATA..'/'..reqid or reqid
 
     local args = {
         s = true,
@@ -114,14 +115,14 @@ local function _Http(attrs, url)
         -- append multipart form
         args.F = {}
         for k, v in pairs(attrs.form) do
-            print(k, v)
-            args.F[#args.F + 1] = k .. '=' .. v
+            args.F[#args.F + 1] = k .. '=' .. tostring(v)
         end
     elseif attrs.params then
         -- append url encoded form
         args.d = {}
-        for k, v in ipairs(attrs.form) do
-            args.d[#args.d] = k .. '=' .. v
+        args.G = true
+        for k, v in pairs(attrs.params) do
+            args.d[#args.d + 1] = k .. '=' .. tostring(v)
         end
     end
 
@@ -205,7 +206,7 @@ local Http = setmetatable({
     NetworkAuthenticationRequired = 511
 }, {
     __call = function(_, url, attrs)
-        return _Http(attrs, url)
+        return _Http(url, attrs)
     end
 })
 
@@ -238,4 +239,21 @@ local Verifier = setmetatable({
     end
 })
 
-return function () return Http, Response, Verifier end
+local Jwt = {
+    decode = function(this, token)
+        token = token:gsub('Bearer ', '')
+        local parts  = {}
+        for p in token:gmatch('[^%.]+') do
+            parts[#parts + 1] = p
+        end
+
+        if #parts ~= 3 then return false end
+        return {
+            header  = Json:decode(Base64:decode(parts[1])),
+            payload = Json:decode(Base64:decode(parts[2])),
+            signature = parts[3]
+        }
+    end
+}
+
+return function () return Http, Response, Verifier, Jwt end

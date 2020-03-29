@@ -1,0 +1,18 @@
+namespace suil {
+
+    meta Login {
+        String Email;
+        String Password;
+    };
+
+    meta Register {
+        String Email;
+        String Passowrd;
+        Repeated<Property> Properties;
+    };
+
+    union Actions {
+        Login UserLogin;
+        Register UserRegister;
+    };
+}

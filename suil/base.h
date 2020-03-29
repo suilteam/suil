@@ -164,6 +164,7 @@ namespace suil {
 #define sptr(type)                          \
 public:                                     \
     using Ptr = std::shared_ptr< type >;    \
+    using WPtr = std::weak_ptr< type >;     \
     using UPtr = std::unique_ptr< type >;   \
     template <typename... Args>             \
     inline static Ptr mkshared(Args... args) {          \

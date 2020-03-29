@@ -86,6 +86,38 @@ if (!lua_istable(L, 1)) {   \
         return 1;
     }
 
+    int EmbeddedScripts::sweptBase64Encode(lua_State *L)
+    {
+        CALL_SYNTAX("base64encode")
+        if (!lua_isstring(L, 2)) {
+            return luaL_error(L, "Swept:base64encode - invalid argument type, only string accepted");
+        }
+        try {
+            auto str = utils::base64::encode(String{luaL_checkstring(L, 2)});
+            lua_pushstring(L, str());
+            return 1;
+        }
+        catch (...) {
+            return luaL_error(L, "Swept:base64encode - encoding failed %s", Exception::fromCurrent().what());
+        }
+    }
+
+    int EmbeddedScripts::sweptBase64Decode(lua_State *L)
+    {
+        CALL_SYNTAX("base64decode")
+        if (!lua_isstring(L, 2)) {
+            return luaL_error(L, "Swept:base64decode - invalid argument type, only string accepted");
+        }
+        try {
+            auto str = utils::base64::decode(String{luaL_checkstring(L, 2)});
+            lua_pushstring(L, str());
+            return 1;
+        }
+        catch (...) {
+            return luaL_error(L, "Swept:base64decode - decoding failed %s", Exception::fromCurrent().what());
+        }
+    }
+
     int EmbeddedScripts::sweptExit(lua_State *L)
     {
         CALL_SYNTAX("env")
@@ -182,6 +214,8 @@ if (!lua_istable(L, 1)) {   \
         exportFunction(state(), EmbeddedScripts::sweptEnv, "env");
         exportFunction(state(), EmbeddedScripts::sweptGc, "gc");
         exportFunction(state(), EmbeddedScripts::sweptExit, "exit");
+        exportFunction(state(), EmbeddedScripts::sweptBase64Encode, "base64encode");
+        exportFunction(state(), EmbeddedScripts::sweptBase64Decode, "base64decode");
     }
 
     static void createargtable (lua_State *L, char **argv, int argc, int script) {

@@ -88,7 +88,7 @@ namespace suil {
         }
     }
 
-    bool load(bool si) {
+    bool load(bool skipProc, bool si) {
         static bool loaded{false};
         if (loaded) return false;
         //signal(SIGPIPE, SIG_IGN);
@@ -100,7 +100,9 @@ namespace suil {
             console::blue("http://suil.suilteam.com\n");
             console::println("---------------------------------------\n");
         }
-        Process_sa_init();
+        if (!skipProc) {
+            Process_sa_init();
+        }
         loaded = true;
 
         return loaded;
