@@ -177,7 +177,7 @@ if (SUIL_DEV_IDE)
     endif()
     if (SUIL_BUILD_APPS)
         add_subdirectory(apps/suilauth)
-        add_subdirectory(apps/nozama)
+        add_subdirectory(apps/semausu)
     endif()
 endif()
 

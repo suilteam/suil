@@ -406,6 +406,15 @@ namespace suil {
         f.write(data, sz, 1500);
         f.close();
     }
+
+    bool utils::fs::read(const char *path, void *data, size_t sz, bool async) {
+        if (!utils::fs::exists(path)) {
+            return false;
+        }
+
+        File f(path, O_RDONLY|O_CREAT, 0666);
+        return f.write(data, sz, 1500);
+    }
 }
 
 #ifdef unit_test

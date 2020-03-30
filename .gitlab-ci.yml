@@ -132,7 +132,7 @@ deploy:prod:
   script:
     - mkdir -p ./build
     - cd ./build
-    - cp -r ../Dockerfile.build.alpine ./Dockerfile
+    - cp -r ../Dockerfile.alpine ./Dockerfile
     - cp -r ../suilteam.ddns.net.crt ./suilteam.ddns.net.crt
     - docker build --pull -t suilteam/suil-dev:unstable .
     - docker push suilteam/suil-dev:unstable
@@ -175,7 +175,7 @@ deploy:release:prod:
   script:
     - mkdir -p ./build
     - cd ./build
-    - cp -r ../Dockerfile.build.alpine ./Dockerfile
+    - cp -r ../Dockerfile.alpine ./Dockerfile
     - cp -r ../suilteam.ddns.net.crt ./suilteam.ddns.net.crt
     - docker build --pull -t suilteam/suil-dev:$SUIL_VERSION_TAG .
     - docker push suilteam/suil-dev:$SUIL_VERSION_TAG
