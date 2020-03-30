@@ -37,19 +37,11 @@ build:dev:
        -DCMAKE_INSTALL_PREFIX=`pwd`/artifacts
     - rm -rf `pwd`/artifacts
     - make clean install
-    - cp -r ../Dockerfile.build.alpine ./Dockerfile
-    - cp -r ../suilteam.ddns.net.crt ./suilteam.ddns.net.crt
-    - docker build --pull -t suilteam/suil-dev:latest .
-    - docker push suilteam/suil-dev:latest
-    - cd ..
-
-  cache:
-    paths:
-      - ./build$CI_COMMIT_TAG/
+    - ./suil/sut -r junit -o /tmp/sut-test-${CI_COMMIT_REF_SLUG}.xml
+    
   artifacts:
-    paths:
-      - ./build$CI_COMMIT_TAG/sut
-    expire_in: 30 mins
+    reports:
+      junit: /tmp/sut-test-${CI_COMMIT_REF_SLUG}.xml
     
 build:prod:
   stage: build
@@ -79,12 +71,74 @@ build:prod:
        -DCMAKE_INSTALL_PREFIX=`pwd`/artifacts
     - rm -rf `pwd`/artifacts
     - make clean install
+
+build:master:dev:
+  stage: build
+  tags:
+    - docker
+    - linux
+  services:
+    - docker:dind
+  only:
+    - master
+  # Install all the required dependencies before proceeding to build
+  before_script: *docker_hub_login
+
+  script:
+    - mkdir -p ./build$CI_COMMIT_TAG
+    - cd ./build$CI_COMMIT_TAG
+    - cmake ..
+      -DSUIL_MAJOR_VERSION=$SUIL_MAJOR_VERSION
+      -DSUIL_MINOR_VERSION=$SUIL_MINOR_VERSION
+      -DSUIL_PATCH_VERSION=$SUIL_PATCH_VERSION
+      -DSUIL_BUILD_NUMBER=$CI_JOB_ID
+      -DSUIL_BUILD_DEV_PACKAGE=ON
+      -DSUIL_BUILD_EXAMPLES=OFF
+      -DSUIL_BUILD_DOCKER=OFF
+      -DSUIL_BUILD_UNIT_TEST=ON
+      -DCMAKE_INSTALL_PREFIX=`pwd`/artifacts
+    - rm -rf `pwd`/artifacts
+    - make clean install
+    - cp -r ../Dockerfile.build.alpine ./Dockerfile
+    - cp -r ../suilteam.ddns.net.crt ./suilteam.ddns.net.crt
+    - docker build --pull -t suilteam/suil-dev:latest .
+    - docker push suilteam/suil-dev:latest
+    - cd ..
+
+build:master:prod:
+  stage: build
+  services:
+    - docker:dind
+  tags:
+    - docker
+    - linux
+  only:
+    - master
+
+  before_script: *docker_hub_login
+
+  script:
+    - mkdir -p ./build$CI_COMMIT_TAG
+    - cd ./build$CI_COMMIT_TAG
+    - cmake ..
+      -DSUIL_MAJOR_VERSION=$SUIL_MAJOR_VERSION
+      -DSUIL_MINOR_VERSION=$SUIL_MINOR_VERSION
+      -DSUIL_PATCH_VERSION=$SUIL_PATCH_VERSION
+      -DSUIL_BUILD_NUMBER=$CI_BUILD_ID
+      -DSUIL_BUILD_DEV_PACKAGE=OFF
+      -DSUIL_BUILD_EXAMPLES=OFF
+      -DSUIL_BUILD_DOCKER=OFF
+      -DCMAKE_BUILD_TYPE=Release
+      -DSUIL_BUILD_UNIT_TEST=OFF
+      -DCMAKE_INSTALL_PREFIX=`pwd`/artifacts
+    - rm -rf `pwd`/artifacts
+    - make clean install
     - cp -r ../Dockerfile.alpine ./Dockerfile
     - cp -r ../suilteam.ddns.net.crt ./suilteam.ddns.net.crt
     - docker build --pull -t suilteam/suil-prod:unstable .
     - docker push suilteam/suil-prod:unstable
     - cd ..
-    
+
 build:release:dev:alpine:
   stage: build
   services:
@@ -214,17 +268,17 @@ test:devel:
     - docker
     - linux
   only:
-    - merge_requests
+    - master
   before_script: *docker_hub_login
   script:
     - docker pull suilteam/suil-dev:latest
     - mkdir sut
     - docker run --rm -i --name "$CI_COMMIT_REF_SLUG"
         -v `pwd`/sut:/tmp/sut suilteam/suil-dev:latest
-        /usr/local/bin/sut -r junit -o /tmp/sut/test-${CI_COMMIT_REF_SLUG}.xml
+        /usr/local/bin/sut -r junit -o /tmp/sut-test-${CI_COMMIT_REF_SLUG}.xml
   artifacts:
     reports:
-      junit: sut/test-${CI_COMMIT_REF_SLUG}.xml
+      junit: /tmp/sut-test-${CI_COMMIT_REF_SLUG}.xml
 
 test:production:
   stage: test
@@ -241,7 +295,7 @@ test:production:
     - mkdir sut
     - docker run --rm -i --name "$CI_COMMIT_REF_SLUG"
         -v `pwd`/sut:/tmp/sut suilteam/suil-dev:$SUIL_VERSION_TAG
-        /usr/local/bin/sut -o /tmp/sut/test-${CI_COMMIT_REF_SLUG}.xml
+        /usr/local/bin/sut -o /tmp/sut-test-${CI_COMMIT_REF_SLUG}.xml
   artifacts:
     reports:
-      junit: sut/test-${CI_COMMIT_REF_SLUG}.xml
+      junit: /tmp/sut-test-${CI_COMMIT_REF_SLUG}.xml
