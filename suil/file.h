@@ -285,12 +285,14 @@ namespace suil {
             }
         }
 
-        template <typename __T>
+        template <typename __T, std::enable_if_t<std::is_pointer_v<__T>, __T> = nullptr>
         inline void append(const char* path, const __T d, bool async = true) {
             OBuffer b(15);
             b << d;
             append(path, b, async);
         }
+
+        bool read(const char *path, void *data, size_t sz, bool async = true);
     }
 
     struct FileLogger {
