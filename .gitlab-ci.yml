@@ -135,7 +135,7 @@ deploy:prod:
     - cp -r ../Dockerfile.alpine ./Dockerfile
     - cp -r ../suilteam.ddns.net.crt ./suilteam.ddns.net.crt
     - docker build --pull -t suilteam/suil-dev:unstable .
-    - docker push suilteam/suil-dev:unstable
+    - docker push suilteam/suil-prod:unstable
     - cd ..
 
 deploy:release:dev:
