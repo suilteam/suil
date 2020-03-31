@@ -413,7 +413,7 @@ namespace suil {
         }
 
         File f(path, O_RDONLY|O_CREAT, 0666);
-        return f.write(data, sz, 1500);
+        return f.read(data, sz, 1500);
     }
 }
 
