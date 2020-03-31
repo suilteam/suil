@@ -103,11 +103,12 @@ local StructuredReport = setmetatable({
 			report.nignored = report.nignored + v.nignored
 		end
 		this.report = report
+		this.report.status = report.nfailed ~= 0 and Test.Failed or Test.Passed
 		return this.report
 	end,
 
 	finalize = function(this, ...)
-		return this:_finalize()
+		return this:_finalize(), this:_finalize().status ~= Test.Failed
 	end,
 
 	update = function(this, name, descr)
@@ -173,7 +174,8 @@ local JsonReporter  = {
 	end,
 
 	finalize = function(this, ...)
-		return this:save(this:_finalize(), ...)
+		local report,status = this:_finalize()
+		return this:save(report, ...), status
 	end
 }
 
@@ -195,6 +197,7 @@ local ConsoleReporter = setmetatable({
 	endCollection = function(this)
 		local duration = timestamp() - this.pstart
 		if this.nfailed > 0 then
+			this.status = false
 			this:_LC(Console.red, "< %s FAIL %0.0f ms", this.currentFile, duration)
 			this:_LC(Console.green, "    %-8d Passed", this.npassed)
 			this:_LC(Console.red,   "    %-8d Failed", this.nfailed)
@@ -213,6 +216,7 @@ local ConsoleReporter = setmetatable({
 	end,
 
 	failCollection = function(this, fmt, ...)
+		this.status = false
 		local duration = timestamp() - this.pstart
 		if fmt and type(fmt) == 'string' then
 			this:_LC(Console.red, fmt, ...)
@@ -266,6 +270,7 @@ local ConsoleReporter = setmetatable({
 	end,
 
 	finalize = function(this, ...)
+		return nil, this.status
 	end,
 
 	update = function(this)
@@ -273,7 +278,8 @@ local ConsoleReporter = setmetatable({
 
 	npassed = 0,
 	nfailed = 0,
-	nignored = 0
+	nignored = 0,
+	status = true
 }, {
 	__call = function(this, attrs)
 		attrs = attrs or {}

@@ -39,7 +39,7 @@ end
 local function Start()
     local config = import("init")
     -- loads and executes the test runner
-    import("sys/sweeper") (config)
+    return import("sys/sweeper") (config)
 end
 
 -- base temporary directory
@@ -67,5 +67,8 @@ os.execute('rm -rf '..Dirs.SHELL..'/*')
 if not ok then
     io.stderr:write(msg..'\n')
     io.stderr:write(debug.traceback()..'\n')
+    Swept:exit(1)
+elseif not msg then
+    io.stderr:write("Executing test cases failed, see test results\n")
     Swept:exit(1)
 end

@@ -119,7 +119,8 @@ local Testit = setmetatable({
             end
         end
         local path = (config.resdir or Dirs.RESULTS)..'/'..config.filename
-        Report:finalize(path)
+        local _,status = Report:finalize(path)
+        return status
     end
 })
 

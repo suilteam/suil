@@ -80,6 +80,9 @@ applyDefaults(Swept.Config, {
     prefix = RUNDIRNAME,
     filters = FILTER
 })
+-- create directories if they don't exist
+os.execute('mkdir -p '..Swept.Config.logdir)
+os.execute('mkdir -p '..Swept.Config.resdir)
 
 if parsed.dump then
     -- only dump arguments if dumping tables is allowed
@@ -103,7 +106,7 @@ Swept.Config.filename = Swept.Config.prefix..'_'..os.date('%Y_%m_%d_%H_%M_%S.log
 
 -- Initialize log file is enable
 Log.sink:add('fileLogger', Exts.File{
-    dir = Swept.Config.logdir or Dirs.LOGS,
+    dir = Swept.Config.logdir,
     fname = Swept.Config.filename..'.log',
     level = Logger.TRACE0
 })
