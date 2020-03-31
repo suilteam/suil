@@ -134,7 +134,7 @@ deploy:prod:
     - cd ./build
     - cp -r ../Dockerfile.alpine ./Dockerfile
     - cp -r ../suilteam.ddns.net.crt ./suilteam.ddns.net.crt
-    - docker build --pull -t suilteam/suil-dev:unstable .
+    - docker build --pull -t suilteam/suil-prod:unstable .
     - docker push suilteam/suil-prod:unstable
     - cd ..
 
@@ -177,8 +177,8 @@ deploy:release:prod:
     - cd ./build
     - cp -r ../Dockerfile.alpine ./Dockerfile
     - cp -r ../suilteam.ddns.net.crt ./suilteam.ddns.net.crt
-    - docker build --pull -t suilteam/suil-dev:$SUIL_VERSION_TAG .
-    - docker push suilteam/suil-dev:$SUIL_VERSION_TAG
+    - docker build --pull -t suilteam/suil-prod:$SUIL_VERSION_TAG .
+    - docker push suilteam/suil-prod:$SUIL_VERSION_TAG
 
 build:release:dev:
   image: suilteam/mecury:ubuntu
