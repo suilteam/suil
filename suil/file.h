@@ -279,14 +279,18 @@ namespace suil {
             append(path, s.data(), s.size(), async);
         }
 
+        inline void append(const char *path, const char* s, bool async = true) {
+            append(path, String{s}, async);
+        }
+
         inline void clear(const char *path) {
             if ((::truncate(path, 0) < 0) && errno != EEXIST) {
                 throw Exception::create("clearing file '", path, "' failed: ", errno_s);
             }
         }
 
-        template <typename __T, std::enable_if_t<std::is_pointer_v<__T>, __T> = nullptr>
-        inline void append(const char* path, const __T d, bool async = true) {
+        template <typename __T, std::enable_if_t<!std::is_pointer_v<__T>, __T>* = nullptr>
+        inline void append(const char* path, __T d, bool async = true) {
             OBuffer b(15);
             b << d;
             append(path, b, async);
