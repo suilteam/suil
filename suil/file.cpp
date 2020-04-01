@@ -170,8 +170,10 @@ namespace suil {
     }
 
     void FileLogger::log(const char *data, size_t sz, log::Level) {
-        dst.write(data, sz, 1500);
-        dst.flush(1500);
+        if (dst.valid()) {
+            dst.write(data, sz, 1500);
+            dst.flush(1500);
+        }
     }
 
     static inline bool _mkdir(const char *dir, mode_t m) {
