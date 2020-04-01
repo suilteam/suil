@@ -71,7 +71,7 @@ local Testit = setmetatable({
         end
 
         local Report = Reporter.Fanout({
-            json = Reporter.Structured(Reporter.Json),
+            junit   = Reporter.Structured(Reporter.JUnit),
             default = Reporter.Console
         })
 
@@ -119,8 +119,7 @@ local Testit = setmetatable({
             end
         end
         local path = (config.resdir or Dirs.RESULTS)..'/'..config.filename
-        local _,status = Report:finalize(path)
-        return status
+        return Report:finalize(path)
     end
 })
 
