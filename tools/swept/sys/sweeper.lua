@@ -49,20 +49,17 @@ local Testit = setmetatable({
         return output
     end
 }, {
-    __call = function(this, config)
-        config =  config or {}
-        applyDefaults(config, Swept.Config)
-
-        if not pathExists(config.root) then
-            Log:err("tests directory '"..config.root.."' does not exist")
+    __call = function(this)
+        if not pathExists(Swept.Config.root) then
+            Log:err("tests directory '"..Swept.Config.root.."' does not exist")
             return false
         end
-        local files = _find(config.root, '-name', "'test_*.lua'"):s():split('\r\n')
+        local files = _find(Swept.Config.root, '-name', "'test_*.lua'"):s():split('\r\n')
         if #files == 0 then
-            Log:wrn("found 0 test cases in directory '"..config.root.."'")
+            Log:wrn("found 0 test cases in directory '"..Swept.Config.root.."'")
             return false
         end
-        local filters = this:resolveFilters(Log, config.filters)
+        local filters = this:resolveFilters(Log, Swept.Config.filters)
         local enabledFiles = files
         if #filters > 0 then enabledFiles = this:applyFilters(Log, files, filters) end
         if #enabledFiles == 0 then
@@ -118,7 +115,8 @@ local Testit = setmetatable({
                 end
             end
         end
-        local path = (config.resdir or Dirs.RESULTS)..'/'..config.filename
+        local path = (Swept.Config.resdir or Dirs.RESULTS)..'/'..Swept.Config.filename
+        Log:dbg("Finalizing log reports to %s", path)
         return Report:finalize(path)
     end
 })

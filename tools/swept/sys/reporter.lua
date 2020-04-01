@@ -227,12 +227,12 @@ local JUnitReporter = {
 					report.nfailed,
 					report.ndisabled,
 					report.ntests,
-					report.duration))
+					math.floor(report.duration/60)))
 
 		function addTest(ts, tc)
 			fwr('  ')
-			fwr(('<testcase name="%s" classname="%s" status="%s" time="%d">\n')
-			    :format(tc.name, ts.path, status2str(tc.status), tc.duration))
+			fwr(('<testcase name="%s - %s" classname="%s" status="%s" time="%d">\n')
+			    :format(tc.name, tc.descr, ts.name, status2str(tc.status), math.floor(tc.duration/60)))
 			if tc.status == Test.Ignored then
 				fwr('    <skipped') if tc.msg then fwr((' message="%s"'):format(tc.msg)) end fwr('/>\n')
 			elseif tc.status == Test.Failed then
@@ -250,7 +250,8 @@ local JUnitReporter = {
 
 		function addSuite(ts)
 			fwr(('<testsuite name="%s" tests="%d" disabled="%d" errors="%d" failures="%d" skipped="%d" time="%d" timestamp="%d">\n')
-			    :format(ts.name, #ts.tests, ts.ndisabled, ts.nerrors, ts.nfailed, ts.nignored, ts.duration, ts.timestamp))
+			    :format(ts.name, #ts.tests, ts.ndisabled, ts.nerrors, ts.nfailed, ts.nignored, math.floor(ts.duration/60),
+					    ts.timestamp))
 			fwr('  <properties>\n')
 			fwr(('    <property name="path" value="%s"/>\n'):format(ts.path))
 			fwr('  </properties>\n')
@@ -272,7 +273,15 @@ local JUnitReporter = {
 	finalize = function(this, ...)
 		local report,status = this:_finalize()
 		local ok,data = pcall(this.save, this, report, ...)
-		if not ok then Log.err("JUnit reporter error: %s", tostring(data)) end
+		local cleanup = function(path)
+			if pathExists(path) then
+				-- clean up path as it have be corrupt
+				_mv(path, path..'CORRUPT')
+			end
+		end
+		if not ok then
+			cleanup(...)
+			Log:err("JUnit reporter error: %s", tostring(data)) end
 		return ok,data
 	end
 }
@@ -459,8 +468,8 @@ local Fanout = setmetatable({
 	__call = function(this, sinks)
 		local fo = setmetatable({ _sinks = {}}, {
 			__index = this,
-			__call = function(this, tag, fmt, ...)
-				for _,s in pairs(this._sinks) do
+			__call = function(sel, tag, fmt, ...)
+				for _,s in pairs(self._sinks) do
 					-- forward the log to all outputs of the fanout
 					s(tag, fmt, ...)
 				end
