@@ -65,6 +65,19 @@ end
 
 S = tostring
 
+function _shortpath(src, source)
+	local ok = 0
+	if src then
+		src,ok = src:gsub(Swept._SourceDir, '')
+	end
+
+	if ok == 0 and source ~= nil then
+		tmp, ok = source:gsub(Swept.Cwd, '')
+		if ok ~= 0 then src = tmp end
+	end
+	return src
+end
+
 Base64 = {
 	encode = function(this, data)
 		return Swept:base64encode(data)

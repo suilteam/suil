@@ -61,10 +61,8 @@ local File = setmetatable({
 }, {
 	__call = function(this, attrs)
 		attrs = attrs or {}
-		attrs.dir = attrs.dir or TEMPDIR..'/logs'
-		mkdir('-p', attrs.dir)
-
-		attrs.fname = (attrs.prefix or '') .. os.date('%Y_%m_%d_%H_%M_%S.log')
+		if not attrs.dir then attrs.dir = Dirs.LOGS end
+		if not attrs.fname then attrs.fname = (Swept.Config.prefix or '') .. os.date('%Y_%m_%d_%H_%M_%S.txt') end
 		attrs.path   = attrs.dir..'/'..attrs.fname
 		attrs.handle = io.open(attrs.path, "a")
 		return setmetatable(attrs, {
@@ -167,15 +165,30 @@ Logger = setmetatable({
 			msg = msg..formatted
 		else
 			local info = debug.getinfo(3)
+
 			local prefix = ("%s %s %8s %s:%d "):format(
 				os.date('%Y-%m-%d %H:%M:%S'),
 				_levelMsg[lvl],
 				this.tag,
-				info.short_src,
+				_shortpath(info.short_src, info.source),
 				info.currentline)
 			msg = prefix..formatted
 		end
 		this.sink(lvl, this.tag, msg)
+	end,
+	---
+	--- @field push function this can be used by reporters to
+	--- to open sections in a logger. It is up to the log sink to
+	--- implement a push handler
+	--- @param utag string a tag used to indentify the start of a section
+	push = function(this, utag)
+		if this.sink.push then this.sink:push(utag) end
+	end,
+	---
+	--- @field pop function this is used inline with push to pop a tag off the
+	--- the logger
+	pop = function(this)
+		if this.sink.pop then this.sink:pop() end
 	end
 }, {
 	__call = function(this, attrs)
