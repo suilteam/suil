@@ -88,9 +88,11 @@ Base64 = {
 }
 
 Test = setmetatable({
-	Passed  = 0,
-	Ignored = 2,
-	Failed  = 3,
+	Passed   = 0,
+	Ignored  = 2,
+	Failed   = 3,
+	Disabled = 2,
+
 	check = function(this, cond, fmt, ...)
 		if not(cond) then
 			local info = debug.getinfo(3)

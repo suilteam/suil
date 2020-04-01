@@ -13,8 +13,8 @@ local Testit = setmetatable({
     applyFilters = function(this, logger, files, filters)
         local function includeFile(file)
             for _,filter in ipairs(filters) do
-                if file:find(filter.expr) then
-                    if filter.ex then return false,filter.expr else return true end
+                if file:find(filter.expr.F) then
+                    if filter.ex then return false,filter.expr else return true, filter.expr end
                 end
             end
             return #filters == 0
@@ -22,11 +22,12 @@ local Testit = setmetatable({
 
         local output = {}
         for _, file in ipairs(files) do
-            local ok,filter = includeFile(file)
+            local ok,expr = includeFile(file)
             if ok then
-                output[#output+1] = file
+                output[#output+1] = {file = file, T = expr.T}
             else
-                logger:dbg("test file '%s' filtered out by filter ~%s", file, (filter or ''))
+                logger:dbg("test file '%s' filtered out by filter ~%s",
+                        file, (expr  and expr.F or ''))
             end
         end
         return output
@@ -35,6 +36,7 @@ local Testit = setmetatable({
     resolveFilters = function(this, logger, filters)
         assert(filters and type(filters) == 'table', "invalid filter list provided")
         local output = {}
+        local hasInclusive = false
         for i,filter in ipairs(filters) do
             if type(filter) ~= 'string' or not filter then
                 logger:err("ignoring filter #%d (%s) is invalid, it has invalid format", i, tostring(filter or ''))
@@ -43,8 +45,18 @@ local Testit = setmetatable({
                 if ex then
                     filter = filter:sub(2)
                 end
-                output[#output+1] = {ex = ex, expr = filter}
+                hasInclusive = hasInclusive or not(ex)
+                local parts = filter:split(':')
+                assert(#parts < 3, "invalid filter, can be file filter or with a test filter")
+                local expr = {F = parts[1]}
+                if parts[2] then expr.T = parts[2] end
+                output[#output+1] = {ex = ex, expr = expr}
             end
+        end
+        if not hasInclusive then
+            -- this is very important, if all filters are exclusive and a file
+            -- does not match any of them, this will ensure the file is included
+            output[#output + 1] = {expr = {F = '.*'}}
         end
         return output
     end
@@ -61,11 +73,17 @@ local Testit = setmetatable({
         end
         local filters = this:resolveFilters(Log, Swept.Config.filters)
         local enabledFiles = files
-        if #filters > 0 then enabledFiles = this:applyFilters(Log, files, filters) end
+        local filesTable = false
+        if #filters > 0 then
+            filesTable = true
+            enabledFiles = this:applyFilters(Log, files, filters)
+
+        end
         if #enabledFiles == 0 then
             Log:wrn("all test files filtered out, nothing to execute")
             return false
         end
+
 
         local Report = Reporter.Fanout({
             junit   = Reporter.Structured(Reporter.JUnit),
@@ -73,7 +91,10 @@ local Testit = setmetatable({
         })
 
         Log:inf("proceeding with %s test files", #enabledFiles)
-        for _,testFile in pairs(enabledFiles) do
+        for _,value in pairs(enabledFiles) do
+            local testFile = filesTable and value.file or value
+            local testFilter = filesTable and value.T or nil
+
             local short_path = testFile:gsub(Swept.Config.root, '${ROOT}')
             local ctx = setmetatable({ reporter = Report, logger = Log }, {
                 __index = function (self, key)
@@ -105,7 +126,7 @@ local Testit = setmetatable({
                     Report:failCollection("loading test suites failed - %s", msg or 'no returned fixture')
                 else
                     Report:update(suite._name, suite._descr)
-                    local ok, msg = pcall(function(_ctx) suite:_exec(_ctx) end, ctx)
+                    local ok, msg = pcall(function(_ctx) suite:_exec(_ctx, testFilter) end, ctx)
                     if not ok then
                         -- unhandled error when executing suite
                         Log:err("unhandled error - %s", msg)

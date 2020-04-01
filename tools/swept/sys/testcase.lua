@@ -123,18 +123,32 @@ local Testcase = setmetatable({
 })
 
 local Fixture = setmetatable({
-	_exec = function(this, ctx)
+	_exec = function(this, ctx, tf)
 		local logger = ctx.logger
 		local reporter = ctx.reporter
 
+		local ex = tf and tf:byte(1) == string.byte('~', 1) or false
+		tf = tf and tf:sub(2) or nil
+
+		local function includeTest(name)
+			if not tf then return true end
+			if name:find(tf) then return not ex
+			else return ex end
+		end
+
 		for _, name in ipairs(this._order) do
-			logger:dbg("executing test %s", name)
-			local test = this._tests[name]
-			if TestCase:isTest(test) then
-				-- run test case
-				test(ctx)
+			if includeTest(name) then
+				logger:dbg("executing test %s", name)
+				local test = this._tests[name]
+				if TestCase:isTest(test) then
+					-- run test case
+					test(ctx)
+				else
+					logger:err('%s is not valid test case, ignoring', name)
+				end
 			else
-				logger:err('%s is not valid test case, ignoring', name)
+				logger:dbg("skipping test as it filtered out {name: %s, filter: %s, ex: %s}",
+				            name, tf, tostring(ex))
 			end
 		end
 	end,

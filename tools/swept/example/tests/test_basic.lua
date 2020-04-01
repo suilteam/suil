@@ -23,4 +23,10 @@ end)
     ctx("after", "test done {start  %d, end %d}", ctx.start, Swept:now())
 end)
 
+Example("ExampleTestSkipped", "This test case should be skipped")
+        :run(function(ctx)
+    Test(false, "Test case shouldn't be run, it is disabled")
+end)
+:disable("Disabling test case to demonstrate disabled test cases")
+
 return Example
