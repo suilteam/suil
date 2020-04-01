@@ -74,6 +74,7 @@ local Testit = setmetatable({
 
         Log:inf("proceeding with %s test files", #enabledFiles)
         for _,testFile in pairs(enabledFiles) do
+            local short_path = testFile:gsub(Swept.Config.root, '${ROOT}')
             local ctx = setmetatable({ reporter = Report, logger = Log }, {
                 __index = function (self, key)
                     if self.reporter[key] then
@@ -90,12 +91,12 @@ local Testit = setmetatable({
             })
 
             -- start running collection
-            Report:startCollection(testFile)
+            Report:startCollection(short_path)
             local func,msg = loadfile(testFile, 't', _ENV)
             if not func then
                 -- loading test cases failed
-                Log:err("loading test file '%s' failed - %s", testFile, msg)
-                Report:failCollection("loading test file '%s' failed - %s", testFile, msg)
+                Log:err("loading test file '%s' failed - %s", short_path, msg)
+                Report:failCollection("loading test file '%s' failed - %s", short_path, msg)
             else
                 local suite, msg = func()
                 if not suite then

@@ -103,6 +103,7 @@ local StructuredReport = setmetatable({
 		local report = {
 			collections = collections,
 			name      = this.name or Swept.Config.prefix,
+			root      = Swept.Config.root,
 			npassed   = 0,
 			nfailed   = 0,
 			nignored  = 0,
@@ -254,6 +255,7 @@ local JUnitReporter = {
 					    ts.timestamp))
 			fwr('  <properties>\n')
 			fwr(('    <property name="path" value="%s"/>\n'):format(ts.path))
+			fwr(('    <property name="ROOT" value="%s"/>\n'):format(ts.root))
 			fwr('  </properties>\n')
 			for _,tc in pairs(ts.tests) do
 				addTest(ts, tc)
@@ -402,6 +404,7 @@ local ConsoleReporter = setmetatable({
 
 local Fanout = setmetatable({
 	startCollection = function(this, path, name, descr)
+		Log:pop(path)
 		for _,s in pairs(this._sinks) do
 			-- forward the log to all outputs of the fanout
 			s:startCollection(path, name, descr)
@@ -409,6 +412,7 @@ local Fanout = setmetatable({
 	end,
 
 	endCollection = function(this)
+		Log:pop()
 		for _,s in pairs(this._sinks) do
 			-- forward the log to all outputs of the fanout
 			s:endCollection()
@@ -416,6 +420,7 @@ local Fanout = setmetatable({
 	end,
 
 	failCollection = function(this, fmt, ...)
+		Log:pop()
 		for _,s in pairs(this._sinks) do
 			-- forward the log to all outputs of the fanout
 			s:failCollection(fmt, ...)

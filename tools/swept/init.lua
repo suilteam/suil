@@ -28,10 +28,9 @@ local parser = import("sys/argparse") {
     description = "Swept is the a single file testing framework/runtime used for executing swept tests written in LUA"
 }
 
-_,_,RUNDIR=_pwd_S()
-Log:inf("swept started from directory %s", RUNDIR)
-_,_,RUNDIRNAME=_basename_S(RUNDIR)
-Log:inf("run directory name is %s", RUNDIRNAME)
+Log:inf("Swept started from directory %s", Swept.Cwd)
+_,_,RUNDIRNAME=_basename_S(Swept.Cwd)
+Log:inf("Run directory name is %s", RUNDIRNAME)
 
 parser:option("-r --root", "The root directory to scan for swept test cases", nil)
 parser:option("--logdir",  "The directory to save all log files", nil)
@@ -40,23 +39,23 @@ parser:option("--prefix",  "The string to prefix all files (logs and results) ge
 parser:option("-f --filters", "A list of test script filters in regex format, prefix with '~' to exclude script", nil)
       :args("*")
 
-local startupPath = RUNDIR..'/startup.lua'
+local startupPath = Swept.Cwd..'/startup.lua'
 local Init, Parse
 
 if pathExists(startupPath) then
-    Log:inf("loading startup scripit %s", startupPath)
+    Log:inf("Loading startup script @%s", _shortpath(nil, startupPath))
     Parse, Init = require('startup')()
     if Parse then
-        Log:inf("invoking command line parser extension returned by startup script")
+        Log:inf("Invoking command line parser extension returned by startup script")
         Parse(parser)
     end
 end
 
 -- parse and dump command line arguments
-local configPath = RUNDIR..'/.config'
+local configPath = Swept.Cwd..'/.config'
 Swept.Config = {}
 if pathExists(configPath) then
-    Log:inf("loading configuration file %s", configPath)
+    Log:inf("loading configuration file @%s", _shortpath(nil, configPath))
     Swept.Config = Json:decode(_cat(configPath):s())
 end
 
@@ -74,7 +73,7 @@ end
 
 -- Add defaults for missing arguments
 applyDefaults(Swept.Config, {
-    root = RUNDIR..'/tests',
+    root = Swept.Cwd..'/tests',
     logdir = Dirs.LOGS,
     resdir = Dirs.RESULTS,
     prefix = RUNDIRNAME,
@@ -105,8 +104,8 @@ end
 Swept.Config.filename = Swept.Config.prefix..'_'..os.date('%Y_%m_%d_%H_%M_%S')
 
 -- Initialize log file is enable
-Log.sink:add('fileLogger', Exts.File{
-    dir = Swept.Config.logdir,
+Log.sink:add('fileLogger', Exts.File {
+    dir   = Swept.Config.logdir,
     fname = Swept.Config.filename..'.txt',
     level = Logger.TRACE0
 })

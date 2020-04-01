@@ -10,8 +10,8 @@
 #include <lua/lua.hpp>
 #include <libmill/libmill.h>
 #include <suil/buffer.h>
-#include <suil/logging.h>
 #include <suil/utils.h>
+#include <suil/file.h>
 
 #include "scripts.h"
 
@@ -229,10 +229,26 @@ if (!lua_istable(L, 1)) {   \
         }
         lua_setglobal(L, "arg");
     }
+    template <typename V, std::enable_if_t<std::is_arithmetic_v<V>, V>* = nullptr>
+    inline void pushValue(lua_State* L, const V v)
+    {
+        lua_pushnumber(L, v);
+    }
+    inline void pushValue(lua_State *L, const char *value) { lua_pushstring(L, value); }
+    inline void pushValue(lua_State *L, null_t) { lua_pushnil(L); }
+    inline void pushValue(lua_State *L, bool value) {lua_pushboolean(L, value); }
+
+    template <typename V>
+    void setField(lua_State* L, const char *name, V value) {
+        lua_pushstring(L, name);
+        pushValue(L, std::forward<V>(value));
+        lua_settable(L, -3);
+    }
 
     void EmbeddedScripts::main(int argc, char **argv)
     {
         // export some runtime native API's
+        auto cwd = utils::fs::currdir();
         lua_atpanic(state(), EmbeddedScripts::panicHandler);
         luaL_newmetatable(state(), "Swept_mt");
         lua_pushstring(state(), "__index");
@@ -241,7 +257,11 @@ if (!lua_istable(L, 1)) {   \
         lua_settable(state(), -3);
         lua_newtable(state());
         luaL_getmetatable(state(), "Swept_mt");
-        lua_setmetatable(L, -2);
+        lua_setmetatable(state(), -2);
+        // add properties to the table
+        setField(state(), "_SourceDir",   SRC_DIR);
+        setField(state(), "_SuilVersion", APP_VERSION);
+        setField(state(), "Cwd", cwd());
         lua_setglobal(state(), "Swept");
 
         // build commandline arguments table

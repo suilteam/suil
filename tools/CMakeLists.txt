@@ -103,7 +103,7 @@ set(swept_SOURCES
 SuilApp(swept
         SOURCES    ${swept_SOURCES}
         VERSION    ${tools_VERSION}
-        DEFINES    ${tools_DEFINES}
+        DEFINES    "${tools_DEFINES};-DSRC_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/swept\""
         INSTALL    ON
         DEPENDS    suil
         LUA2C      ${swept_LUA2C_SOURCES})
