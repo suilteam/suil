@@ -102,12 +102,12 @@ if Init ~= nil then
 end
 
 -- Setup the filename
-Swept.Config.filename = Swept.Config.prefix..'_'..os.date('%Y_%m_%d_%H_%M_%S.log')
+Swept.Config.filename = Swept.Config.prefix..'_'..os.date('%Y_%m_%d_%H_%M_%S')
 
 -- Initialize log file is enable
 Log.sink:add('fileLogger', Exts.File{
     dir = Swept.Config.logdir,
-    fname = Swept.Config.filename..'.log',
+    fname = Swept.Config.filename..'.txt',
     level = Logger.TRACE0
 })
 

@@ -3,6 +3,13 @@ local Json = import('sys/json')
 
 local Console = Sinks.Console
 
+local function status2str(s)
+	if s == Test.Passed then return 'passed'
+	elseif s == Test.Failed then return 'failed'
+	elseif s == Test.Ignored then return 'skipped' end
+	return 'error'
+end
+
 local StructuredReport = setmetatable({
 	startCollection = function(this, path)
 		assert(not(this.openCollection), "startCollection: another collection still running")
@@ -11,11 +18,14 @@ local StructuredReport = setmetatable({
 			path = path,
 			name = path,
 			descr = nil,
-			started = timestamp(),
+			timestamp = timestamp(),
 			tests = {},
 			npassed = 0,
 			nignored = 0,
-			nfailed = 0
+			nfailed = 0,
+			ndisabled = 0,
+			nerrors = 0,
+			id = #this.collections
 		}
 		if #this.collections == 0 then this.started = timestamp() end
 	end,
@@ -23,8 +33,7 @@ local StructuredReport = setmetatable({
 	endCollection = function(this)
 		local collection = this.openCollection
 		assert(collection, "endCollection: no open collection to run")
-		collection.duration = timestamp() - collection.started
-		collection.started = nil
+		collection.duration = timestamp() - collection.timestamp
 		-- add collection to a list of collections
 		this.collections[#this.collections + 1] = collection
 		this.openCollection = nil
@@ -92,17 +101,21 @@ local StructuredReport = setmetatable({
 		end
 		local collections = this.collections
 		local report = {
-			collections = {collections},
-			npassed = 0,
-			nfailed = 0,
-			nignored = 0,
-			duration = (this.ended or 0) - (this.started or 0)}
+			collections = collections,
+			name      = this.name or Swept.Config.prefix,
+			npassed   = 0,
+			nfailed   = 0,
+			nignored  = 0,
+			nerrors   = 0,
+			ndisabled = 0,
+			duration  = (this.ended or 0) - (this.started or 0)}
 		for _,v in ipairs(collections) do
 			report.npassed = report.npassed + v.npassed
 			report.nfailed = report.nfailed + v.nfailed
 			report.nignored = report.nignored + v.nignored
 		end
 		this.report = report
+		this.report.ntests = report.npassed + report.nfailed + report.nignored
 		this.report.status = report.nfailed ~= 0 and Test.Failed or Test.Passed
 		return this.report
 	end,
@@ -153,7 +166,7 @@ local JsonReporter  = {
 			return nil, msg
 		end
 
-		local file,err = io.open(path, "w")
+		local file,err = io.open(path..'.json', "w")
 		if not file then
 			-- failed to open file
 			Log:err(err)
@@ -175,7 +188,92 @@ local JsonReporter  = {
 
 	finalize = function(this, ...)
 		local report,status = this:_finalize()
-		return this:save(report, ...), status
+		return this:save(report, ...)
+	end
+}
+
+local JUnitReporter = {
+	save = function(this, report, path)
+		if not report or path == nil or #path == 0 then
+			-- There is no report to save
+			local msg = ("There is no report to save or path '%s' is empty"):format(path)
+			Log:wrn(msg)
+			return nil, msg
+		end
+
+		-- Encode the finalized report and save to disk
+		local _,ok,dir = _dirname_S(path)
+		if not ok or not pathExists(dir) then
+			-- given path is invalid
+			local msg = ("JsonReporter:save - give path %s is invalid"):format(path)
+			Log:err(msg)
+			return nil, msg
+		end
+
+		local file,err = io.open(path..'.xml', "w")
+		if not file then
+			-- failed to open file
+			Log:err(err)
+			return nil, err
+		end
+
+		-- encode data
+		local function fwr(s) file:write(s) end
+		fwr('<?xml version="1.0" encoding="UTF-8"?>\n')
+		fwr(('<testsuites name="%s" skipped="%d" errors="%d" failures="%d" disabled="%d" tests="%d" time="%d">\n')
+			:format(report.name,
+					report.nignored,
+					report.nerrors,
+					report.nfailed,
+					report.ndisabled,
+					report.ntests,
+					report.duration))
+
+		function addTest(ts, tc)
+			fwr('  ')
+			fwr(('<testcase name="%s" classname="%s" status="%s" time="%d">\n')
+			    :format(tc.name, ts.path, status2str(tc.status), tc.duration))
+			if tc.status == Test.Ignored then
+				fwr('    <skipped') if tc.msg then fwr((' message="%s"'):format(tc.msg)) end fwr('/>\n')
+			elseif tc.status == Test.Failed then
+				fwr('    <failure') if tc.msg then fwr((' message="%s"'):format(tc.msg)) end fwr('/>\n')
+			end
+			if #tc.messages ~= 0 then
+				fwr('    <system-out>\n')
+				for _,msg in ipairs(tc.messages) do
+					fwr(msg) ; fwr('\n')
+				end
+				fwr('    </system-out>\n')
+			end
+			fwr('  </testcase>\n')
+		end
+
+		function addSuite(ts)
+			fwr(('<testsuite name="%s" tests="%d" disabled="%d" errors="%d" failures="%d" skipped="%d" time="%d" timestamp="%d">\n')
+			    :format(ts.name, #ts.tests, ts.ndisabled, ts.nerrors, ts.nfailed, ts.nignored, ts.duration, ts.timestamp))
+			fwr('  <properties>\n')
+			fwr(('    <property name="path" value="%s"/>\n'):format(ts.path))
+			fwr('  </properties>\n')
+			for _,tc in pairs(ts.tests) do
+				addTest(ts, tc)
+			end
+			fwr('</testsuite>\n')
+		end
+
+		for _,ts in ipairs(report.collections) do
+			addSuite(ts)
+		end
+		fwr('</testsuites>')
+
+		file:close()
+		return true
+	end,
+
+	finalize = function(this, ...)
+		local report,status = this:_finalize()
+		local ok,data = pcall(this.save, this, report, ...)
+		if not ok then Log.err("JUnit reporter error: %s", tostring(data)) end
+		return ok,data
 	end
 }
 
@@ -270,7 +368,7 @@ local ConsoleReporter = setmetatable({
 	end,
 
 	finalize = function(this, ...)
-		return nil, this.status
+		return true
 	end,
 
 	update = function(this)
@@ -337,13 +435,13 @@ local Fanout = setmetatable({
 	end,
 
 	finalize = function(this, ...)
-		local status = false
-		for _,s in pairs(this._sinks) do
+		local status = true
+		for name,s in pairs(this._sinks) do
 			-- forward the log to all outputs of the fanout
-			local _, s = s:finalize(...)
-			if not s then status = false end
+			local ok = s:finalize(...)
+			status = status and ok
 		end
-		return _,status
+		return status
 	end,
 
 	update = function(this, name, descr)
@@ -386,6 +484,7 @@ return function()
 		Fanout     = Fanout,
 		Structured = StructuredReport,
 		Console    = ConsoleReporter,
-		Json       = JsonReporter
+		Json       = JsonReporter,
+		JUnit      = JUnitReporter
 	}
 end
