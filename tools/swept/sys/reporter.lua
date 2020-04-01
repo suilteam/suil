@@ -337,10 +337,13 @@ local Fanout = setmetatable({
 	end,
 
 	finalize = function(this, ...)
+		local status = false
 		for _,s in pairs(this._sinks) do
 			-- forward the log to all outputs of the fanout
-			s:finalize(...)
+			local _, s = s:finalize(...)
+			if not s then status = false end
 		end
+		return _,status
 	end,
 
 	update = function(this, name, descr)
