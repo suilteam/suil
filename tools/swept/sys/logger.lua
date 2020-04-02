@@ -170,7 +170,7 @@ Logger = setmetatable({
 				os.date('%Y-%m-%d %H:%M:%S'),
 				_levelMsg[lvl],
 				this.tag,
-				_shortpath(info.short_src, info.source),
+				shortPath(info.short_src, info.source),
 				info.currentline)
 			msg = prefix..formatted
 		end

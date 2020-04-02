@@ -89,13 +89,15 @@ local Testit = setmetatable({
             junit   = Reporter.Structured(Reporter.JUnit),
             default = Reporter.Console
         })
+        local cleanRoot = cleanString(Swept.Config.root)
 
         Log:inf("proceeding with %s test files", #enabledFiles)
         for _,value in pairs(enabledFiles) do
             local testFile = filesTable and value.file or value
             local testFilter = filesTable and value.T or nil
 
-            local short_path = testFile:gsub(Swept.Config.root, '${ROOT}')
+            local short_path = testFile:gsub(cleanRoot, '${ROOT}')
+
             local ctx = setmetatable({ reporter = Report, logger = Log }, {
                 __index = function (self, key)
                     if self.reporter[key] then

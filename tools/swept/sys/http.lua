@@ -239,8 +239,34 @@ local Verifier = setmetatable({
     end
 })
 
-local Jwt = {
-    decode = function(this, token)
+local Jwt = setmetatable({
+    AnyRole = function(this, ...)
+        local roles = {...}
+        local claims = this.payload.claims
+
+        if #roles == 0 then return true end
+        if not claims.roles or #claims.roles == 0 then return false end
+        for _,rx in ipairs(claims.roles) do
+            for _,r in ipairs(roles) do if r == rx then return true end end
+        end
+        return false
+    end,
+    AllRoles = function(this, ...)
+        local roles = {...}
+        local claims = this.payload.claims
+
+        if not claims.roles or #claims.roles == 0 then return false end
+        local function find(r)
+            for _,rx in ipairs(claims.roles) do if r == rx then return true end end
+            return false
+        end
+        for _,r in ipairs(roles) do
+            if not find(r) then return false end
+        end
+        return true
+    end
+}, {
+    __call = function(this, token)
         token = token:gsub('Bearer ', '')
         local parts  = {}
         for p in token:gmatch('[^%.]+') do
@@ -248,12 +274,14 @@ local Jwt = {
         end
 
         if #parts ~= 3 then return false end
-        return {
+        return setmetatable( {
             header  = Json:decode(Base64:decode(parts[1])),
             payload = Json:decode(Base64:decode(parts[2])),
             signature = parts[3]
-        }
+        }, {
+            __index = this
+        })
     end
-}
+})
 
 return function () return Http, Response, Verifier, Jwt end
