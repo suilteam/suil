@@ -65,14 +65,19 @@ end
 
 S = tostring
 
-function _shortpath(src, source)
+function cleanString(str)
+	if not str or type(str) ~= 'string' then return str end
+	return str:gsub('([().%+-*?[^$%]])', '%%%1')
+end
+
+function shortPath(src, source)
 	local ok = 0
 	if src then
-		src,ok = src:gsub(Swept._SourceDir, '')
+		src,ok = src:gsub(Swept._SourceDirExp, '')
 	end
 
 	if ok == 0 and source ~= nil then
-		tmp, ok = source:gsub(Swept.Cwd, '')
+		tmp, ok = source:gsub(Swept._CwdExp, '')
 		if ok ~= 0 then src = tmp end
 	end
 	return src
@@ -87,6 +92,19 @@ Base64 = {
 	end
 }
 
+Assertions = setmetatable({
+	reset = function(this)
+		local count = this.count
+		this.count = 0
+		return count
+	end,
+	count = 0
+}, {
+	__call = function(this)
+		this.count = this.count + 1
+	end
+})
+
 Test = setmetatable({
 	Passed   = 0,
 	Ignored  = 2,
@@ -94,6 +112,7 @@ Test = setmetatable({
 	Disabled = 2,
 
 	check = function(this, cond, fmt, ...)
+		Assertions()
 		if not(cond) then
 			local info = debug.getinfo(3)
 			error({

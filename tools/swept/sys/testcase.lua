@@ -41,7 +41,13 @@ local Testcase = setmetatable({
 		end
 		return this
 	end,
-
+	attrs = function(this, attrs)
+		if attrs and type(attrs) == 'table' then
+			for name,value in pairs(attrs) do
+				this._attrs[name] = value
+			end
+		end
+	end,
 	tag = function(this, tag)
 		return tag and this._tags[tostring(tag)]
 	end,
@@ -74,10 +80,12 @@ local Testcase = setmetatable({
 	end,
 
 	_exec = function(this, ctx)
+		Assertions:reset()
+		ctx.attrs = this._attrs
 		ctx.reporter:startTestcase(this.name, this.descr)
 		if not this._run or type(this._run) == 'string' then
 			-- test case ignored
-			ctx.reporter:endTestcase(Test.Ignored, this._run or nil, 'ignore')
+			ctx.reporter:endTestcase(Test.Ignored, this._run or nil, 'ignore', Assertions:reset())
 			return true
 		end
 		
@@ -86,7 +94,7 @@ local Testcase = setmetatable({
 		if this._before and type(this._before) == 'function' then
 			ok,status = this._resolve(pcall(this._before, ctx))
 			if not ok then
-				ctx.reporter:endTestcase(status.s, status.m, 'before')
+				ctx.reporter:endTestcase(status.s, status.m, 'before', Assertions:reset())
 				return ok
 			end
 		end
@@ -110,12 +118,12 @@ local Testcase = setmetatable({
 				status.m = tmp.m
 			end
 		end
-		ctx.reporter:endTestcase(status.s, status.m, 'run')
+		ctx.reporter:endTestcase(status.s, status.m, 'run', Assertions:reset())
 	end
 }, {
 	__call = function(this, name, description)
 		assert(name, "Testcase must have a unique name")
-		return setmetatable({ name = name, descr = description }, {
+		return setmetatable({ name = name, descr = description, _attrs = {} }, {
 			__index = this,
 			__call  = this._exec
 		})
@@ -198,4 +206,5 @@ local Fixture = setmetatable({
 		})
 	end
 })
+
 return function() return Testcase, Fixture end

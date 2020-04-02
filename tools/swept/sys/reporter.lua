@@ -49,7 +49,7 @@ local StructuredReport = setmetatable({
 			this:startTestcase(this.openCollection.name, 'This shows that a collection failed outside test case')
 		end
 
-		this:endTestcase(Test.Failed, 'NotInTest', fmt:format(...))
+		this:endTestcase(Test.Failed, 'NotInTest', fmt:format(...), Assertions:reset())
 		this:endCollection()
 	end,
 
@@ -64,13 +64,14 @@ local StructuredReport = setmetatable({
 		}
 	end,
 
-	endTestcase = function(this, status, msg, stage)
+	endTestcase = function(this, status, msg, stage, assertions)
 		local test = this.openTest
 		assert(test, "there is no test case currently running")
 		test.duration = timestamp() - test.started
 		test.status   = status
 		test.stage    = stage
 		test.msg      = msg
+		test.assertions = assertions
 		test.started  = nil
 		-- update collection stats
 		local collection = this.openCollection
@@ -351,7 +352,7 @@ local ConsoleReporter = setmetatable({
 		this:_LC(Console.white, "  > Start %s %s", name, descr or '')
 	end,
 	
-	endTestcase = function(this, status, msg, stage)
+	endTestcase = function(this, status, msg, stage, assetions)
 		assert(this.currentTest, "there is no test case currently running")
 		local duration = timestamp() - this.tstart
 		if status == Test.Ignored then this.nignored = this.nignored + 1
@@ -361,13 +362,13 @@ local ConsoleReporter = setmetatable({
 		stage = stage or 'run'
 		
 		if status == Test.Ignored then
-			this:_LC(Console.yellow, "  < Done %s:%s SKIP %0.0f", this.currentTest, stage, duration)
+			this:_LC(Console.yellow, "  < Done %s:%s SKIP %0.0f ms (%06d Checks)", this.currentTest, stage, duration, assetions)
 			if msg then this:_LC(Console.yellow, "    %s", msg:gsub('\n', '\n    ')) end
 		elseif status == Test.Passed then
-			this:_LC(Console.green,  "  < Done %s:%s PASS %0.0f", this.currentTest, stage, duration)
+			this:_LC(Console.green,  "  < Done %s:%s PASS %0.0f ms (%06d Checks)", this.currentTest, stage, duration, assetions)
 			if msg then this:_LC(Console.green, "    %s", msg:gsub('\n', '\n    ')) end
 		else
-			this:_LC(Console.red,    "  < Done %s:%s FAIL %0.0f", this.currentTest, stage, duration)
+			this:_LC(Console.red,    "  < Done %s:%s FAIL %0.0f ms (%06d Checks)", this.currentTest, stage, duration, assetions)
 			if msg then this:_LC(Console.red, "    %s", msg:gsub('\n', '\n    ')) end
 		end
 		this.currentTest = nil
@@ -434,10 +435,10 @@ local Fanout = setmetatable({
 		end
 	end,
 
-	endTestcase = function(this, status, msg, stage)
+	endTestcase = function(this, status, msg, stage, assertions)
 		for _,s in pairs(this._sinks) do
 			-- forward the log to all outputs of the fanout
-			s:endTestcase(status, msg, stage)
+			s:endTestcase(status, msg, stage, assertions)
 		end
 	end,
 

@@ -11,6 +11,9 @@ include("sys/utils")
 local Json   = import("sys/json")
 local Logger,Exts =import('sys/logger')
 
+Swept._CwdExp =  cleanString(Swept.Cwd)
+Swept._SourceDirExp = cleanString(Swept._SourceDir)
+
 -- initialize a default global system logger
 local fanout = Exts.Fanout({
     consoleLogger = Exts.Console {
@@ -43,7 +46,7 @@ local startupPath = Swept.Cwd..'/startup.lua'
 local Init, Parse
 
 if pathExists(startupPath) then
-    Log:inf("Loading startup script @%s", _shortpath(nil, startupPath))
+    Log:inf("Loading startup script @%s", shortPath(nil, startupPath))
     Parse, Init = require('startup')()
     if Parse then
         Log:inf("Invoking command line parser extension returned by startup script")
@@ -55,7 +58,7 @@ end
 local configPath = Swept.Cwd..'/.config'
 Swept.Config = {}
 if pathExists(configPath) then
-    Log:inf("loading configuration file @%s", _shortpath(nil, configPath))
+    Log:inf("loading configuration file @%s", shortPath(nil, configPath))
     Swept.Config = Json:decode(_cat(configPath):s())
 end
 
