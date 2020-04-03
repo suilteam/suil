@@ -85,7 +85,7 @@ namespace suil {
                 /* check if any of the roles is present */
                 for (const auto [_, role] : rs)
                     /* roles must be strings */
-                    if (((String)role).compare(r, true))
+                    if (((String)role).compare(r, true) == 0)
                         return true;
             };
             return false;

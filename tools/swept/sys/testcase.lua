@@ -6,6 +6,20 @@
 -- To change this template use File | Settings | File Templates.
 --
 
+local _resolve = function(ok, msg)
+	if ok then return ok, {s = Test.Passed}
+	else
+		if type(msg) == 'table' and msg.status then
+			return ok, {s = msg.status, m = msg.data or nil}
+		elseif msg then
+			Log:trc(debug.traceback())
+			return ok, {s = Test.Failed, m = tostring(msg)}
+		else
+			return ok, {s = Test.Failed}
+		end
+	end
+end
+
 local Testcase = setmetatable({
 	Disable = 'Disable',
 	before = function(this, func)
@@ -65,20 +79,6 @@ local Testcase = setmetatable({
 		if this:isTest(test) then return test.description else return nil end
 	end,
 
-	_resolve = function(ok, msg)
-		if ok then return ok, {s = Test.Passed}
-		else
-			if type(msg) == 'table' and msg.status then
-				return ok, {s = msg.status, m = msg.data or nil}
-			elseif msg then
-				Log:trc(debug.traceback())
-				return ok, {s = Test.Failed, m = tostring(msg)}
-			else
-				return ok, {s = Test.Failed}
-			end
-		end
-	end,
-
 	_exec = function(this, ctx)
 		Assertions:reset()
 		ctx.attrs = this._attrs
@@ -92,7 +92,7 @@ local Testcase = setmetatable({
 		local status = {s = Test.Passed }
 		local ok = true
 		if this._before and type(this._before) == 'function' then
-			ok,status = this._resolve(pcall(this._before, ctx))
+			ok,status = _resolve(pcall(this._before, ctx))
 			if not ok then
 				ctx.reporter:endTestcase(status.s, status.m, 'before', Assertions:reset())
 				return ok
@@ -101,7 +101,7 @@ local Testcase = setmetatable({
 		
 		if type(this._run) == 'function' then
 			-- testcase might fail or pass, but we still have to run post handlers
-			ok,status = this._resolve(pcall(this._run, ctx))
+			ok,status = _resolve(pcall(this._run, ctx))
 		else
 			status = {s = Test.Failed, m = ("Test '%s' is malformed, does not have runner"):format(this.name)}
 		end
@@ -109,12 +109,12 @@ local Testcase = setmetatable({
 		if status.s == Test.Passed then
 			if this._success and type(this._success) == 'function' then
 				if status.m then ctx.reporter:message('run', status.m) end
-				ok,status = this._resolve(pcall(this._success, ctx))
+				ok,status = _resolve(pcall(this._success, ctx))
 			end
 		elseif status.s ~= Test.Ignore then
 			if this._failure and type(this._failure) == 'function' then
 				if status.m then ctx.reporter:message('run', status.m) end
-				local ok,tmp = this._resolve(pcall(this._success, ctx))
+				local ok,tmp = _resolve(pcall(this._success, ctx))
 				status.m = tmp.m
 			end
 		end
@@ -174,6 +174,16 @@ local Fixture = setmetatable({
 		assert(func and type(func) == 'function', "Testcase after handler must be a function")
 		this._success = func
 		this._failure = func
+		return this
+	end,
+	setup = function(this, func)
+		assert(func and type(func) == 'function', "Fixture setup handler must be a function")
+		this._setup = func
+		return this
+	end,
+	teardown = function(this, func)
+		assert(func and type(func) == 'function', "Fixture teardown handler must be a function")
+		this._teardown = func
 		return this
 	end,
 	success = function(this, func)

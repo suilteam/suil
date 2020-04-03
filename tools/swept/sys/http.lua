@@ -37,7 +37,7 @@ local function _Http(url, attrs)
         local _ih = false
         local resp = { headers = {} }
         for k, v in ipairs(hdrs) do
-            _ih = _ih or v:find("([-_%a]+):%s+(.*)")
+            _ih = _ih or v:find("([-_%a]+)%s*:%s*(.*)")
             if not _ih then
                 -- still parsing status line
                 local r, _, proto, code, msg = v:find("(HTTP/%d.*)%s+(%d+)%s+(%a*)")
@@ -90,7 +90,7 @@ local function _Http(url, attrs)
     if attrs.headers then
         -- append headers
         args.H = {}
-        for k, v in ipairs(attrs.headers) do
+        for k, v in pairs(attrs.headers) do
             args.H[#args.H + 1] = k .. ': ' .. v
         end
     end
@@ -217,12 +217,12 @@ local Verifier = setmetatable({
     end,
 
     IsHeader = function(this, name, value, fmt, ...)
-        Equal(this.resp.headers[name], value, fmt, ...)
+        Test:check(Equal2(this.resp.headers[name], value, fmt, ...))
         return this
     end,
 
     IsStatus = function(this, value, fmt, ...)
-        Equal(this.resp.status, value, fmt, ...)
+        Test:check(Equal2(this.resp.status, value, fmt, ...))
         return this
     end,
     WithFunc = function(this, func)
@@ -275,10 +275,22 @@ local Jwt = setmetatable({
 
         if #parts ~= 3 then return false end
         return setmetatable( {
+            claim = function(this, name)
+                if not name or type(name) ~= 'string' then return nil end
+                if this.payload.claims then return this.payload.claims[name] end
+                return nil
+            end,
+            claims = function(this)
+                return this.payload.claims
+            end,
             header  = Json:decode(Base64:decode(parts[1])),
             payload = Json:decode(Base64:decode(parts[2])),
             signature = parts[3]
         }, {
+            __call = function(this, attr)
+                if attr == nil or type(attr) ~= 'string' then return nil end
+                return this.payload[attr]
+            end,
             __index = this
         })
     end
