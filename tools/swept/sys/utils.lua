@@ -117,7 +117,8 @@ Test = setmetatable({
 			local info = debug.getinfo(3)
 			error({
 				status = this.Failed,
-				data = ('%s:%d - '..fmt):format(info.short_src, info.currentline, ...)})
+				data = ('%s:%d - '..fmt):format(
+					shortPath(info.short_src, info.source), info.currentline, ...)})
 		end
 	end
 }, {
@@ -131,6 +132,13 @@ function Equal(a, b, fmt, ...)
 	Test:check(a == b, ("%s == %s? "..fmt):format(tostring(a), tostring(b), ...))
 end
 
+function Equal2(a, b, fmt, ...)
+	return a == b, ("%s == %s? "..fmt), tostring(a), tostring(b), ...
+end
+
 function NotEqual(a, b, fmt, ...)
-	Test(a ~= b, ("%s ~= %s? "..fmt):format(tostring(a), tostring(b), ...))
+	Test:check(a ~= b, ("%s ~= %s? "..fmt):format(tostring(a), tostring(b), ...))
+end
+function NotEqual2(a, b, fmt, ...)
+	return a ~= b, ("%s ~= %s? "..fmt), tostring(a), tostring(b), ...
 end
