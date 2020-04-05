@@ -115,10 +115,13 @@ namespace suil {
          */
         void toupper();
 
+        String toupper() const;
         /**
          * transform all characters in this string to lowercase
          */
         void tolower();
+
+        String tolower() const;
 
         /**
          * check if the string references any buffer with a size greater than 0

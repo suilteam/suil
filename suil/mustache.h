@@ -149,7 +149,7 @@ namespace suil {
     };
 
     struct MustacheCache {
-        Mustache& load(const String&& name);
+        Mustache& load(const String& name);
         template<typename... Opts>
         void setup(Opts... args) {
             auto opts = iod::D(std::forward<Opts>(args)...);

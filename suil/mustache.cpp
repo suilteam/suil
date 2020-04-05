@@ -429,7 +429,7 @@ namespace suil {
         return tmpl;
     }
 
-    Mustache& MustacheCache::load(const suil::String &&name)
+    Mustache& MustacheCache::load(const suil::String &name)
     {
         auto it = Ego.mCached.find(name);
         if (it != Ego.mCached.end()) {

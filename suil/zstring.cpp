@@ -124,10 +124,28 @@ namespace suil {
         }
     }
 
+    String String::toupper() const {
+        OBuffer ob(m_len+1);
+        ob.seek(m_len);
+        for (int i = 0; i < m_len; i++) {
+            ob[i] = (char) ::toupper(m_str[i]);
+        }
+        return String{ob};
+    }
+
     void String::tolower() {
         for (int i = 0; i < m_len; i++) {
             m_str[i] = (char) ::tolower(m_str[i]);
         }
+    }
+
+    String String::tolower() const {
+        OBuffer ob(m_len+1);
+        ob.seek(m_len);
+        for (int i = 0; i < m_len; i++) {
+            m_str[i] = (char) ::tolower(m_str[i]);
+        }
+        return String{ob};
     }
 
     bool String::empty() const {
