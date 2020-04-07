@@ -87,9 +87,9 @@ local function _Http(url, attrs)
         X = attrs.method or 'GET'
     }
 
+    args.H = {}
     if attrs.headers then
         -- append headers
-        args.H = {}
         for k, v in pairs(attrs.headers) do
             args.H[#args.H + 1] = k .. ': ' .. v
         end
@@ -97,11 +97,7 @@ local function _Http(url, attrs)
 
     if attrs.body then
         -- append request body
-        if not args.H then
-            args.H = { [1] = 'Content-Type: text/plain' }
-        else
-            args.H[#args.H + 1] = 'Content-Type: text/plain'
-        end
+        args.H[#args.H + 1] = 'Content-Type: text/plain'
 
         if type(attrs.body) == 'table' then
             args.data = Json:encode(attrs.body)
@@ -119,11 +115,13 @@ local function _Http(url, attrs)
         end
     elseif attrs.params then
         -- append url encoded form
-        args.d = {}
+        args.H[#args.H + 1] = "Content-Type: application/x-www-form-urlencoded"
+        local enc = {}
         args.G = true
         for k, v in pairs(attrs.params) do
-            args.d[#args.d + 1] = k .. '=' .. tostring(v)
+            enc[#enc + 1] = k .. '=' .. tostring(v)
         end
+        args['data-urlencode'] = enc
     end
 
     -- perform http request

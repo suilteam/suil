@@ -70,7 +70,6 @@ local function encode_table(val, stack)
     local n = 0
     for k in pairs(val) do
       if type(k) ~= "number" then
-        tprint(val)
         error("invalid table: mixed or invalid key types.."..tostring(k))
       end
       n = n + 1
