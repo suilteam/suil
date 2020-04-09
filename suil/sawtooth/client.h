@@ -9,11 +9,32 @@
 #include <suil/sawtooth/protos.h>
 #include <suil/json.h>
 #include <suil/http/clientapi.h>
+#include <suil/sawtooth/common.h>
+#include <suil/sawtooth/address.h>
 
 
 namespace suil::sawsdk::Client {
 
     define_log_tag(SAWSDK_CLIENT);
+
+    struct Logger final {
+        DISABLE_MOVE(Logger);
+        DISABLE_COPY(Logger);
+
+        Logger();
+        ~Logger();
+
+        inline void operator()(const char *msg, size_t size, log::Level l) {
+            Ego.log(msg, size, l);
+        }
+        inline size_t operator()(char *out, log::Level l, const char *tag, const char *fmt, va_list args) {
+            return Ego.format(out, l, tag, fmt, args);
+        }
+    private:
+        void log(const char *msg, size_t size, log::Level l);
+        size_t format(char *out, log::Level l, const char *tag, const char *fmt, va_list args);
+        static Syslog sSysLog;
+    };
 
     struct Signer final : LOGGER(SAWSDK_CLIENT) {
 
@@ -23,7 +44,7 @@ namespace suil::sawsdk::Client {
         Signer(const Signer&) = delete;
         Signer& operator=(const Signer&) = delete;
 
-        static Signer load(const suil::String& privKey);
+        static Signer load(const String& privKey);
         static Signer load(const secp256k1::PrivateKey& privKey);
 
         void get(secp256k1::PrivateKey& out) const;
@@ -33,17 +54,17 @@ namespace suil::sawsdk::Client {
         [[nodiscard]]
         const secp256k1::PublicKey& getPublicKey() const;
 
-        suil::String sign(const void* data, size_t len) const;
+        String sign(const void* data, size_t len) const;
 
         template <typename T>
-        suil::String sign(const T& data) const {
+        String sign(const T& data) const {
             return Ego.sign(data.data(), data.size());
         }
 
-        static bool verify(const void* data, size_t len, const suil::String& signature, const suil::String& publicKey);
+        static bool verify(const void* data, size_t len, const String& signature, const String& publicKey);
 
         template <typename T>
-        static bool verify(const T& data, const suil::String& signature, const suil::String& publicKey) {
+        static bool verify(const T& data, const String& signature, const String& publicKey) {
             return verify(data.data(), data.size(), signature, publicKey);
         }
 
@@ -81,8 +102,8 @@ namespace suil::sawsdk::Client {
         std::shared_ptr<sawtooth::protos::Batch> mSelf{nullptr};
     };
 
-    using Inputs = std::vector<suil::String>;
-    using Outputs = std::vector<suil::String>;
+    using Inputs = std::vector<String>;
+    using Outputs = std::vector<String>;
 
     struct Encoder final {
         Encoder(const String& family, String&& familyVersion, const String&& privateKey);
@@ -104,10 +125,10 @@ namespace suil::sawsdk::Client {
         const String& getBatcher() const { return Ego.mBatcherPublicKey; }
         void setBatcher(const String& key);
     private:
-        suil::String mFamily;
-        suil::String mFamilyVersion;
-        suil::String mBatcherPublicKey;
-        suil::String mSignerPublicKey;
+        String mFamily;
+        String mFamilyVersion;
+        String mBatcherPublicKey;
+        String mSignerPublicKey;
         Signer mSigner;
         Signer mBatcher;
     };
@@ -128,9 +149,9 @@ namespace suil::sawsdk::Client {
 
         bool asyncBatches(const suil::Data& payload, const StringVec& inputs = {}, const StringVec& outputs = {});
         bool asyncBatches(const std::vector<Batch>& batches);
-        suil::Data getState(const suil::String& key, bool encode = true);
-        std::vector<suil::Data> getStates(const suil::String& prefix);
-        suil::String getPrefix();
+        suil::Data getState(const String& key, bool encode = true);
+        std::vector<suil::Data> getStates(const String& prefix);
+        String prefix();
         Encoder& encoder() { return  mEncoder; }
     private:
         Encoder mEncoder;
@@ -140,25 +161,6 @@ namespace suil::sawsdk::Client {
     private:
         static const char* BATCHES_RESOURCE;
         static const char* STATE_RESOURCE;
-    };
-
-    struct Logger final {
-        DISABLE_MOVE(Logger);
-        DISABLE_COPY(Logger);
-
-        Logger();
-        ~Logger();
-
-        inline void operator()(const char *msg, size_t size, log::Level l) {
-            Ego.log(msg, size, l);
-        }
-        inline size_t operator()(char *out, log::Level l, const char *tag, const char *fmt, va_list args) {
-            return Ego.format(out, l, tag, fmt, args);
-        }
-    private:
-        void log(const char *msg, size_t size, log::Level l);
-        size_t format(char *out, log::Level l, const char *tag, const char *fmt, va_list args);
-        static Syslog sSysLog;
     };
 
     struct Wallet final {

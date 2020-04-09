@@ -2,15 +2,17 @@
 // Created by dc on 2019-12-16.
 //
 
-#include "dispatcher.h"
+#include "../dispatcher.h"
 #include "network.pb.h"
 #include "processor.pb.h"
 
 namespace suil::sawsdk {
 
-    const suil::String Dispatcher::DISPATCH_THREAD_ENDPOINT{"inproc://dispatch_thread"};
-    const suil::String Dispatcher::SERVER_MONITOR_ENDPOINT{"inproc://server_monitor"};
-    const suil::String Dispatcher::EXIT_MESSAGE{"Exit"};
+    const String Dispatcher::DISPATCH_THREAD_ENDPOINT{"inproc://dispatch_thread"};
+    const String Dispatcher::SERVER_MONITOR_ENDPOINT{"inproc://server_monitor"};
+    const String Dispatcher::EXIT_MESSAGE{"Exit"};
+    constexpr const char* SEND_QUEUE = "inproc://send_queue";
+    constexpr const char* REQUEST_QUEUE = "inproc://request_queue";
 
     Dispatcher::Dispatcher(zmq::Context& ctx)
         : mContext{ctx},
@@ -19,20 +21,20 @@ namespace suil::sawsdk {
           mRequestSock{mContext},
           mDispatchSock{mContext}
     {
-        Ego.mMsgSock.bind("inproc://send_queue");
-        Ego.mRequestSock.bind("inproc://request_queue");
+        Ego.mMsgSock.bind(SEND_QUEUE);
+        Ego.mRequestSock.bind(REQUEST_QUEUE);
         Ego.mDispatchSock.bind(DISPATCH_THREAD_ENDPOINT);
     }
 
     Stream Dispatcher::createStream() {
-        return Stream{Ego.mContext, Ego.mOnAirMessages};
+        return Stream{Ego.mContext, Ego.mOnAirMsgs};
     }
 
-    void Dispatcher::connect(const suil::String &connString) {
-        iinfo("Dispatcher connecting to %s", connString());
+    void Dispatcher::connect(const String &validator) {
+        iinfo("Dispatcher connecting to %s", validator());
         bool status{true};
         try {
-            status = Ego.mServerSock.connect(connString);
+            status = Ego.mServerSock.connect(validator);
         }
         catch (...) {
             auto ex = Exception::fromCurrent();
@@ -49,9 +51,9 @@ namespace suil::sawsdk {
             throw Exception::create("Failed to monitor server socket: ", zmq_strerror(zmq_errno()));
         }
 
-        go(sendMessages(Ego));
+        go(send(Ego));
         go(exitMonitor(Ego));
-        go(receiveMessages(Ego));
+        go(receive(Ego));
     }
 
     void Dispatcher::disconnect() {
@@ -64,90 +66,90 @@ namespace suil::sawsdk {
         Ego.mDispatchSock.send(Dispatcher::EXIT_MESSAGE);
     }
 
-    void Dispatcher::receiveMessages(Dispatcher &Self)
+    void Dispatcher::receive(Dispatcher &S)
     {
-        ldebug(&Self, "starting receiveMessages coroutine");
-        while (!Self.mExiting) {
-            auto zmsg = Self.mServerSock.receive();
+        ldebug(&S, "starting receiveMessages coroutine");
+        while (!S.mExiting) {
+            auto zmsg = S.mServerSock.receive();
             if (zmsg.empty()) {
-                ldebug(&Self, "receivedMessages - ignoring empty message");
+                ldebug(&S, "receivedMessages - ignoring empty message");
                 continue;
             }
 
             Message::UPtr proto(Message::mkunique());
             proto->ParseFromArray(zmsg.data(), static_cast<int>(zmsg.size()));
-            ltrace(&Self, "received message {type: %d}", proto->message_type());
+            ltrace(&S, "received message {type: %d}", proto->message_type());
 
             switch (proto->message_type()) {
-                case sawtooth::protos::Message_MessageType_TP_PROCESS_REQUEST: {
-                    Self.mRequestSock.send(zmsg);
+                case msgtype(TP_PROCESS_REQUEST): {
+                    S.mRequestSock.send(zmsg);
                     break;
                 }
-                case sawtooth::protos::Message_MessageType_PING_REQUEST: {
-                    ldebug(&Self, "Received ping request with correlation %s", proto->correlation_id().data());
+                case msgtype(PING_REQUEST): {
+                    ldebug(&S, "Received ping request with correlation %s", proto->correlation_id().data());
                     sawtooth::protos::PingResponse resp;
-                    suil::Data data{resp.ByteSizeLong()};
+                    Data data{resp.ByteSizeLong()};
                     resp.SerializeToArray(data.data(), static_cast<int>(data.size()));
 
                     sawtooth::protos::Message msg;
                     msg.set_correlation_id(proto->correlation_id());
-                    msg.set_message_type(sawtooth::protos::Message_MessageType_PING_RESPONSE);
+                    msg.set_message_type(msgtype(PING_RESPONSE));
                     msg.set_content(data.cdata(), data.size());
-                    suil::Data rdata{msg.ByteSizeLong()};
+                    Data rdata{msg.ByteSizeLong()};
                     msg.SerializeToArray(data.data(), static_cast<int>(data.size()));
-                    Self.mServerSock.send(rdata);
+                    S.mServerSock.send(rdata);
                     break;
                 }
                 default: {
                     String cid{proto->correlation_id(), false};
-                    auto it = Self.mOnAirMessages.find(cid);
-                    if (it != Self.mOnAirMessages.end()) {
-                        it->second->setMessage(std::move(proto));
-                        Self.mOnAirMessages.erase(it);
+                    auto it = S.mOnAirMsgs.find(cid);
+                    if (it != S.mOnAirMsgs.end()) {
+                        it->second->set(std::move(proto));
+                        S.mOnAirMsgs.erase(it);
                     }
                     else {
-                        ldebug(&Self, "Received a message with no matching correlation %s", cid());
+                        ldebug(&S, "Received a message with no matching correlation %s", cid());
                     }
                 }
             }
         }
-        ldebug(&Self, "receive messages coroutine exit");
+        ldebug(&S, "receive messages coroutine exit");
     }
 
-    void Dispatcher::sendMessages(Dispatcher &Self)
+    void Dispatcher::send(Dispatcher &S)
     {
-        ldebug(&Self, "Starting sendMessages coroutine");
-        while (!Self.mExiting) {
-            auto msg = Self.mMsgSock.receive();
+        ldebug(&S, "Starting sendMessages coroutine");
+        while (!S.mExiting) {
+            auto msg = S.mMsgSock.receive();
             if (msg.empty()) {
-                ldebug(&Self, "sendMessages - ignoring empty message");
+                ldebug(&S, "sendMessages - ignoring empty message");
                 continue;
             }
 
-            if (!Self.mServerSock.isConnected()) {
-                ldebug(&Self, "sendMessages - server is not connected, dropping message");
+            if (!S.mServerSock.isConnected()) {
+                ldebug(&S, "sendMessages - server is not connected, dropping message");
                 continue;
             }
 
-            Self.mServerSock.send(msg);
+            S.mServerSock.send(msg);
         }
-        ldebug(&Self, "Exiting sendMessages coroutines");
+        ldebug(&S, "Exiting sendMessages coroutines");
     }
 
-    void Dispatcher::exitMonitor(Dispatcher &Self)
+    void Dispatcher::exitMonitor(Dispatcher &S)
     {
-        ldebug(&Self, "Starting exitMonitor coroutine");
-        zmq::Pair sock(Self.mContext);
+        ldebug(&S, "Starting exitMonitor coroutine");
+        zmq::Pair sock(S.mContext);
         sock.connect(Dispatcher::DISPATCH_THREAD_ENDPOINT);
 
-        while (!Self.mExiting) {
+        while (!S.mExiting) {
             auto msg = sock.receive();
             if (msg == EXIT_MESSAGE) {
-                Self.mExiting = true;
-                Self.mServerSock.close();
-                Self.mMsgSock.close();
+                S.mExiting = true;
+                S.mServerSock.close();
+                S.mMsgSock.close();
             }
         }
-        ldebug(&Self, "Exiting exitMonitor coroutine");
+        ldebug(&S, "Exiting exitMonitor coroutine");
     }
 }

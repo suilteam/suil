@@ -1,7 +1,7 @@
 
 #include "../sdk.h"
 #include "../client.h"
-#include "dispatcher.h"
+#include "suil/sawtooth/dispatcher.h"
 
 namespace sp {
     using namespace sawtooth::protos;
