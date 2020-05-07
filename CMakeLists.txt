@@ -178,6 +178,7 @@ if (SUIL_DEV_IDE)
     if (SUIL_BUILD_APPS)
         add_subdirectory(apps/suilauth)
         add_subdirectory(apps/semausu)
+        add_subdirectory(apps/suiltrader)
     endif()
 endif()
 
