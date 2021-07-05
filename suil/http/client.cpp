@@ -101,8 +101,8 @@ namespace suil {
                         /* failed to receive headers*/
                         throw Exception::create("receiving Request failed: ", errno_s);
                     }
-
-                    if (!feed(tmp.data(), nrd)) {
+                    auto remaining = feed2(tmp.data(), nrd);
+                    if (remaining == nrd) {
                         throw Exception::create("parsing headers failed: ",
                               http_errno_name((enum http_errno) http_errno));
                     }
@@ -114,21 +114,24 @@ namespace suil {
                 }
 
                 /* received and parse body */
-                size_t len  = 0, left = content_length == ULLONG_MAX? 8000 : (content_length+20);
+                bool chunked{(flags & F_CHUNKED) == F_CHUNKED};
+                size_t len  = 0, left = chunked ? 2048 : content_length+20;
                 // read body in chunks
-                tmp.reserve(left);
+                tmp.reserve(2048);
 
                 do {
-                    tmp.reset(len, true);
-                    len = tmp.capacity();
+                    tmp.reset(0, true);
+                    if (!chunked)
+                        left -= len;
+                    len = std::min(left, tmp.capacity());
                     // read whatever is available
                     if (!sock.read(&tmp[0], len, timeout)) {
                         throw Exception::create("receive failed: ", errno_s);
                     }
 
-                    tmp.seek(len);
                     // parse header line
-                    if (!feed(tmp, len)) {
+                    auto remaining = feed2(tmp.data(), len);
+                    if (remaining == len) {
                         throw Exception::create("parsing  body failed: ",
                                      http_errno_name((enum http_errno )http_errno));
                     }
@@ -141,7 +144,7 @@ namespace suil {
                     return parser::handle_body_part(at, length);
                 }
                 else {
-                    if (reader(at, length) == length) {
+                    if (reader(at, length)) {
                         return 0;
                     }
                     return -1;
@@ -163,8 +166,8 @@ namespace suil {
                 size_t total = len;
                 int page_sz = getpagesize();
                 total += page_sz-(len % page_sz);
-                data = (char *) mmap(nullptr, total, PROT_READ, MAP_SHARED , -1, 0);
-                if (data == nullptr) {
+                data = (char *) mmap(nullptr, total, PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE , -1, 0);
+                if (data == nullptr || errno != 0) {
                     swarn("client::MemoryOffload mmap failed: %s", errno_s);
                     return false;
                 }

@@ -4,22 +4,27 @@
 
 #include "suil/sawtooth/stream.h"
 
+namespace {
+    suil::String correlationid() {
+        static uint32_t sCounter{0};
+        return suil::utils::tostr((++sCounter));
+    }
+}
+
 namespace suil::sawsdk {
 
-    uint32_t Stream::CorrelationCounter{0};
-
-    OnAirMessage::OnAirMessage(const suil::String id)
+    AsyncMessage::AsyncMessage(const String id)
         : mCorrelationId(std::move(id))
     {}
 
-    OnAirMessage::OnAirMessage(OnAirMessage&& other) noexcept
+    AsyncMessage::AsyncMessage(AsyncMessage&& other) noexcept
         : mCorrelationId(std::move(other.mCorrelationId)),
           mSync(std::move(other.mSync)),
           mMessage(std::move(other.mMessage)),
           mWaiting(other.mWaiting)
     {}
 
-    OnAirMessage& OnAirMessage::operator=(OnAirMessage&& other) noexcept {
+    AsyncMessage& AsyncMessage::operator=(AsyncMessage&& other) noexcept {
         mCorrelationId = std::move(other.mCorrelationId);
         mSync = std::move(other.mSync);
         mMessage = std::move(other.mMessage);
@@ -28,17 +33,17 @@ namespace suil::sawsdk {
         return Ego;
     }
 
-    OnAirMessage::~OnAirMessage() {
+    AsyncMessage::~AsyncMessage() {
         if (mWaiting) {
             // force waiter to give up on waiting
             !Ego.mSync;
         }
     }
 
-    void OnAirMessage::waitForMessage(Message::Type type) {
-        while (mWaiting) {
+    void AsyncMessage::wait(Message::Type type) {
+        while (Ego.mWaiting) {
             // yield until we received a message
-            msleep(500);
+            msleep(mnow() + 500);
         }
 
         if (mMessage == nullptr) {
@@ -57,7 +62,7 @@ namespace suil::sawsdk {
         }
     }
 
-    void OnAirMessage::setMessage(Message::UPtr&& message) {
+    void AsyncMessage::set(Message::UPtr&& message) {
         Ego.mMessage = std::move(message);
         if (Ego.mWaiting) {
             // notify waiter
@@ -65,7 +70,7 @@ namespace suil::sawsdk {
         }
     }
 
-    Stream::Stream(suil::zmq::Context &ctx, suil::Map<OnAirMessage::Ptr> &msgs)
+    Stream::Stream(suil::zmq::Context &ctx, suil::Map<AsyncMessage::Ptr> &msgs)
         : mOnAirMsgs{msgs},
           mSocket{ctx, ZMQ_PUSH}
     {}
@@ -82,16 +87,15 @@ namespace suil::sawsdk {
         return Ego;
     }
 
-    OnAirMessage::Ptr Stream::asyncSend(Message::Type type, const suil::Data &data)
+    AsyncMessage::Ptr Stream::sendAsync(Message::Type type, const Data &data)
     {
-        auto correlationId = Ego.getCorrelationId();
-        auto onAir = OnAirMessage::mkshared(std::move(correlationId));
-        mOnAirMsgs[onAir->correlationId().peek()] = onAir;
-        Ego.send(type, data, onAir->correlationId());
+        auto onAir = AsyncMessage::mkshared(correlationid());
+        mOnAirMsgs[onAir->cid().peek()] = onAir;
+        Ego.send(type, data, onAir->cid());
         return onAir;
     }
 
-    void Stream::send(Message::Type type, const suil::Data &data, const suil::String &correlationId)
+    void Stream::send(Message::Type type, const Data &data, const String &cid)
     {
         if (!Ego.mSocket.isConnected()) {
             if (!Ego.mSocket.connect("inproc://send_queue")) {
@@ -101,17 +105,11 @@ namespace suil::sawsdk {
 
         ::sawtooth::protos::Message msg;
         msg.set_message_type(type);
-        msg.set_correlation_id(correlationId.data(), correlationId.size());
+        msg.set_correlation_id(cid.data(), cid.size());
         msg.set_content(data.cdata(), data.size());
-        suil::Data out{msg.ByteSizeLong()};
+        Data out{msg.ByteSizeLong()};
         msg.SerializeToArray(out.data(), static_cast<int>(out.size()));
 
         Ego.mSocket.send(out);
-    }
-
-    suil::String Stream::getCorrelationId() {
-        OBuffer ob;
-        ob << (++Ego.CorrelationCounter);
-        return String{ob};
     }
 }

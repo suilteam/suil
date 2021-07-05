@@ -2,11 +2,13 @@
 // Created by dc on 2019-12-31.
 //
 
-#include "../sdk.h"
+#include <suil/utils.h>
+
+#include "../address.h"
 
 namespace suil::sawsdk {
 
-    void AddressEncoder::isValidAddr(const suil::String& addr) {
+    void AddressEncoder::isValidAddr(const String& addr) {
         if (addr.size() != ADDRESS_LENGTH) {
             throw Exception::create("Address size is invalid, {Expected: ",
                                     ADDRESS_LENGTH, ", Got: ", addr.size(), "}");
@@ -16,7 +18,7 @@ namespace suil::sawsdk {
         }
     }
 
-    void AddressEncoder::isNamespaceValid(const suil::String& ns) {
+    void AddressEncoder::isNamespaceValid(const String& ns) {
         if (ns.size() != NS_PREFIX_LENGTH) {
             throw Exception::create("Namespace size is invalid, {Expected: ",
                                     NS_PREFIX_LENGTH, ", Got: ", ns.size(), "}");
@@ -26,7 +28,7 @@ namespace suil::sawsdk {
         }
     }
 
-    AddressEncoder::AddressEncoder(const suil::String &ns)
+    AddressEncoder::AddressEncoder(const String &ns)
         : mNamespace(ns.dup())
     {}
 
@@ -42,17 +44,17 @@ namespace suil::sawsdk {
         return Ego;
     }
 
-    suil::String AddressEncoder::mapNamespace(const suil::String &ns) const
+    String AddressEncoder::mapNamespace(const String &ns) const
     {
         return utils::SHA512(ns).substr(0, NS_PREFIX_LENGTH, false);
     }
 
-    suil::String AddressEncoder::mapKey(const suil::String &key)
+    String AddressEncoder::mapKey(const String &key)
     {
         return utils::SHA512(key).substr(NS_PREFIX_LENGTH, ADDRESS_LENGTH-NS_PREFIX_LENGTH, false);
     }
 
-    const suil::String& AddressEncoder::getPrefix()
+    const String& AddressEncoder::prefix()
     {
         if (Ego.mPrefix.empty()) {
             Ego.mPrefix = Ego.mapNamespace(Ego.mNamespace);
@@ -61,9 +63,9 @@ namespace suil::sawsdk {
         return Ego.mPrefix;
     }
 
-    suil::String AddressEncoder::operator()(const suil::String &key)
+    String AddressEncoder::operator()(const String &key)
     {
-        auto addr = utils::catstr(Ego.getPrefix(), Ego.mapKey(key));
+        auto addr = utils::catstr(Ego.prefix(), Ego.mapKey(key));
         isValidAddr(addr);
         return addr;
     }

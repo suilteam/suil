@@ -5,7 +5,7 @@
 #ifndef SUIL_DISPATCHER_H
 #define SUIL_DISPATCHER_H
 
-#include "suil/sawtooth/stream.h"
+#include <suil/sawtooth/stream.h>
 
 namespace suil::sawsdk {
     namespace Client { struct ValidatorContext; }
@@ -19,10 +19,10 @@ namespace suil::sawsdk {
         Dispatcher&operator=(Dispatcher&&) = delete;
         Dispatcher&operator=(const Dispatcher&) = delete;
 
-        static constexpr Message::Type SERVER_CONNECT_EVENT = static_cast<Message::Type>(0xFFFE);
+        static constexpr Message::Type SERVER_CONNECT_EVENT    = static_cast<Message::Type>(0xFFFE);
         static constexpr Message::Type SERVER_DISCONNECT_EVENT = static_cast<Message::Type>(0XFFFF);
 
-        void connect(const suil::String& connString);
+        void connect(const String& validator);
         void bind();
 
         Stream createStream();
@@ -30,17 +30,17 @@ namespace suil::sawsdk {
         void disconnect();
         void exit();
     protected:
-        friend struct TpContext;
+        friend struct TransactionProcessor;
         friend struct Client::ValidatorContext;
         Dispatcher(zmq::Context& ctx);
 
     private:
-        static const suil::String DISPATCH_THREAD_ENDPOINT;
-        static const suil::String SERVER_MONITOR_ENDPOINT;
-        static const suil::String EXIT_MESSAGE;
+        static const String DISPATCH_THREAD_ENDPOINT;
+        static const String SERVER_MONITOR_ENDPOINT;
+        static const String EXIT_MESSAGE;
 
-        static void receiveMessages(Dispatcher& self);
-        static void sendMessages(Dispatcher& self);
+        static void receive(Dispatcher& self);
+        static void send(Dispatcher& Self);
         static void exitMonitor(Dispatcher& Self);
 
         zmq::Context& mContext;
@@ -48,7 +48,7 @@ namespace suil::sawsdk {
         zmq::Dealer mMsgSock;
         zmq::Dealer mRequestSock;
         zmq::Pair   mDispatchSock;
-        suil::Map<OnAirMessage::Ptr> mOnAirMessages;
+        Map<AsyncMessage::Ptr> mOnAirMsgs;
         bool mExiting{false};
         bool mServerConnected{false};
     };

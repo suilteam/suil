@@ -2,17 +2,17 @@
 // Created by dc on 2019-12-16.
 //
 
-#include "../sdk.h"
+#include "../common.h"
 #include "transaction.pb.h"
 
 namespace suil::sawsdk {
 
     TransactionHeader::TransactionHeader(sawtooth::protos::TransactionHeader *proto)
-        : mHeader(proto)
+            : mHeader(proto)
     {}
 
     TransactionHeader::TransactionHeader(suil::sawsdk::TransactionHeader &&other) noexcept
-        : mHeader(other.mHeader)
+            : mHeader(other.mHeader)
     {
         other.mHeader = nullptr;
     }
@@ -75,24 +75,5 @@ namespace suil::sawsdk {
             default:
                 return suil::Data{};
         }
-    }
-
-    TransactionHandler::TransactionHandler(const String &family, const String &ns)
-        : mAddressEcoder(ns),
-          mFamily(family.dup())
-    {
-        mNamespaces.push_back(ns.dup());
-    }
-
-    const String& TransactionHandler::getFamily() const {
-        return mFamily;
-    }
-
-    StringVec& TransactionHandler::getNamespaces() {
-        return mNamespaces;
-    }
-
-    StringVec& TransactionHandler::getVersions() {
-        return mVersions;
     }
 }

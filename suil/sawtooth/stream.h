@@ -8,7 +8,7 @@
 #include <suil/channel.h>
 #include <suil/zmq/zmq.h>
 
-#include <suil/sawtooth/protos.h>
+#include <suil/sawtooth/common.h>
 
 namespace suil::sawsdk {
 
@@ -17,41 +17,41 @@ namespace suil::sawsdk {
         sptr(::sawtooth::protos::Message);
     };
 
-    struct OnAirMessage final {
-        sptr(OnAirMessage);
+    struct AsyncMessage final {
+        sptr(AsyncMessage);
 
-        OnAirMessage(suil::String id);
+        AsyncMessage(String id);
 
-        OnAirMessage(OnAirMessage&& other) noexcept;
+        AsyncMessage(AsyncMessage&& other) noexcept;
 
-        OnAirMessage&operator=(OnAirMessage&& other) noexcept;
+        AsyncMessage&operator=(AsyncMessage&& other) noexcept;
 
-        OnAirMessage(const OnAirMessage&) = delete;
-        OnAirMessage&operator=(const OnAirMessage&) = delete;
+        AsyncMessage(const AsyncMessage&) = delete;
+        AsyncMessage&operator=(const AsyncMessage&) = delete;
 
         operator bool() const {
             return Ego.mMessage != nullptr;
         }
 
         [[nodiscard]]
-        const suil::String& correlationId() const { return mCorrelationId; }
+        const String& cid() const { return mCorrelationId; }
 
         template <typename T>
-        void getMessage(T& proto, Message::Type type) {
+        void get(T& proto, Message::Type type) {
             if (Ego.mMessage == nullptr) {
-                waitForMessage(type);
+                wait(type);
             }
 
             const auto& data = mMessage->content();
             proto.ParseFromArray(data.c_str(), data.size());
         }
 
-        void setMessage(Message::UPtr&& message);
+        void set(Message::UPtr&& message);
 
-        ~OnAirMessage();
+        ~AsyncMessage();
 
     private:
-        void waitForMessage(Message::Type type);
+        void wait(Message::Type type);
 
         suil::String  mCorrelationId{};
         suil::Channel<bool> mSync{false};
@@ -59,7 +59,7 @@ namespace suil::sawsdk {
         bool  mWaiting{false};
     };
 
-    struct Stream {
+    struct Stream final : LOGGER(SAWSDK) {
         sptr(Stream);
 
         Stream(Stream&& other) noexcept;
@@ -69,16 +69,16 @@ namespace suil::sawsdk {
         Stream&operator=(const Stream&) = delete;
 
         template <typename T>
-        OnAirMessage::Ptr asyncSend(Message::Type type, const T& msg) {
+        AsyncMessage::Ptr sendAsync(Message::Type type, const T& msg) {
             suil::Data data{msg.ByteSizeLong()};
             msg.SerializeToArray(data.data(), data.size());
-            return Ego.asyncSend(type, data);
+            return Ego.sendAsync(type, data);
         }
 
-        OnAirMessage::Ptr asyncSend(Message::Type type, const suil::Data& data);
+        AsyncMessage::Ptr sendAsync(Message::Type type, const suil::Data& data);
 
         template <typename T>
-        void sendResponse(Message::Type type, const T& msg, const suil::String& correlationId) {
+        void respond(Message::Type type, const T& msg, const suil::String& correlationId) {
             suil::Data data{msg.ByteSizeLong()};
             msg.SerializeToArray(data.data(), data.size());
             Ego.send(type, data, correlationId);
@@ -89,13 +89,10 @@ namespace suil::sawsdk {
     private:
         friend struct Dispatcher;
         friend struct TpContext;
-        Stream(zmq::Context& ctx, suil::Map<OnAirMessage::Ptr>& msgs);
-
-        suil::String getCorrelationId();
+        Stream(zmq::Context& ctx, suil::Map<AsyncMessage::Ptr>& msgs);
 
         zmq::Socket mSocket;
-        static uint32_t CorrelationCounter;
-        suil::Map<OnAirMessage::Ptr>& mOnAirMsgs;
+        suil::Map<AsyncMessage::Ptr>& mOnAirMsgs;
     };
 }
 
