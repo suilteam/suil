@@ -2,10 +2,9 @@
 // Created by dc on 2019-12-16.
 //
 
-#include "gstate.h"
-#include "processor.pb.h"
+#include "../processor.h"
 
-#include "tp.h"
+#include "processor.pb.h"
 
 namespace sp {
     using sawtooth::protos::Message;
@@ -20,36 +19,40 @@ namespace sp {
 
 namespace suil::sawsdk {
 
-    TpContext::TpContext(suil::String &&connString)
-        : mConnString(connString.dup()),
+    TransactionProcessor::TransactionProcessor(suil::String&& validator)
+        : mValidator{validator},
           mDispatcher{mContext},
-          mRespStream{mDispatcher.createStream()},
+          mStream{mDispatcher.createStream()},
           mConnMonitor{mContext}
     {}
 
-    void TpContext::registerHandler(sawsdk::TransactionHandler::UPtr &&handler)
+    TransactionFamily& TransactionProcessor::registerFamily(TransactionFamily::UPtr &&handler)
     {
-        auto fn = handler->getFamily();
+        auto fn = handler->name();
         idebug("registerHandler adding handler for %s", fn());
-        Ego.mHandlers[fn.dup()] = std::move(handler);
+        if (Ego.mFamilies.count(fn) != 0) {
+            throw Exception::create("Transaction family '", fn, "' already registered");
+        }
+        auto it = Ego.mFamilies.emplace(fn.dup(), std::move(handler));
+        return *(it.first->second.get());
     }
 
-    void TpContext::registerAll()
+    void TransactionProcessor::registerAll()
     {
-        for(const auto& [fn, handler]: Ego.mHandlers) {
+        for(const auto& [fn, handler]: Ego.mFamilies) {
             idebug("registerAll - registering handler %s", fn());
-            auto versions = handler->getVersions();
+            auto versions = handler->versions();
             for(const auto& version: versions) {
                 idebug("registerAll - register handler {name: %s, version: %s}", fn(), version());
                 sp::TpRegisterRequest req;
                 sp::TpRegisterResponse resp;
                 setValue(req, &sp::TpRegisterRequest::set_family, fn);
                 setValue(req, &sp::TpRegisterRequest::set_version, version);
-                for (const auto& ns: handler->getNamespaces()) {
+                for (const auto& ns: handler->namespaces()) {
                     setValue(req, &sp::TpRegisterRequest::add_namespaces, ns);
                 }
-                auto future = Ego.mRespStream.asyncSend(sp::Message::TP_REGISTER_REQUEST, req);
-                future->getMessage(resp, sp::Message::TP_REGISTER_RESPONSE);
+                auto future = Ego.mStream.sendAsync(msgtype(TP_REGISTER_REQUEST), req);
+                future->get(resp, msgtype(TP_REGISTER_RESPONSE));
                 if (resp.status() != sp::TpRegisterResponse::OK) {
                     throw Exception::create("failed to register handler {name: ",
                             fn, ", version: ", version, "}");
@@ -59,13 +62,13 @@ namespace suil::sawsdk {
         }
     }
 
-    void TpContext::unRegisterAll()
+    void TransactionProcessor::unRegisterAll()
     {
         sp::TpUnregisterRequest req;
         sp::TpUnregisterResponse resp;
 
-        auto future = Ego.mRespStream.asyncSend(sp::Message::TP_UNREGISTER_REQUEST, req);
-        future->getMessage(resp, sp::Message::TP_UNREGISTER_REQUEST);
+        auto future = Ego.mStream.sendAsync(msgtype(TP_UNREGISTER_REQUEST), req);
+        future->get(resp, msgtype(TP_UNREGISTER_REQUEST));
 
         if (resp.status() != sp::TpUnregisterResponse::OK) {
             ierror("TpUnregisterRequest failed: ", resp.status());
@@ -75,7 +78,7 @@ namespace suil::sawsdk {
         }
     }
 
-    void TpContext::handleRequest(const suil::Data &msg, const suil::String &cid)
+    void TransactionProcessor::handleRequest(const suil::Data &msg, const suil::String &cid)
     {
         sp::TpProcessRequest req;
         sp::TpProcessResponse resp;
@@ -84,12 +87,12 @@ namespace suil::sawsdk {
             sp::TransactionHeader* txnHeader{req.release_header()};
             suil::String fn{txnHeader->family_name()};
 
-            auto it = Ego.mHandlers.find(fn);
-            if (it != Ego.mHandlers.end()) {
+            auto it = Ego.mFamilies.find(fn);
+            if (it != Ego.mFamilies.end()) {
                 try {
                     Transaction txn(TransactionHeader{txnHeader}, req.payload(), req.signature());
-                    GlobalState gs(new GlobalStateContext(mDispatcher.createStream(), String{req.context_id()}.dup()));
-                    auto applicator = it->second->getProcessor(std::move(txn), std::move(gs));
+                    GlobalState gs(mDispatcher.createStream(), String{req.context_id(), true});
+                    auto applicator = it->second->transactor(std::move(txn), std::move(gs));
                     try {
                         applicator->apply();
                         resp.set_status(sp::TpProcessResponse::OK);
@@ -119,10 +122,10 @@ namespace suil::sawsdk {
             ierror("Transaction process error: %s", ex.what());
             resp.set_status(sp::TpProcessResponse::INTERNAL_ERROR);
         }
-        Ego.mRespStream.sendResponse(sp::Message::TP_PROCESS_RESPONSE, resp, cid);
+        Ego.mStream.respond(sp::Message::TP_PROCESS_RESPONSE, resp, cid);
     }
 
-    void TpContext::connectionMonitor(suil::sawsdk::TpContext &Self)
+    void TransactionProcessor::connectionMonitor(suil::sawsdk::TransactionProcessor &Self)
     {
         ldebug(&Self, "Starting connectionMonitor coroutine");
         Self.mConnMonitor.connect(Dispatcher::SERVER_MONITOR_ENDPOINT);
@@ -154,11 +157,11 @@ namespace suil::sawsdk {
         Self.mConnMonitor.close();
     }
 
-    void TpContext::run() {
+    void TransactionProcessor::run() {
         try {
             zmq::Dealer sock(Ego.mContext);
             sock.connect("inproc://request_queue");
-            Ego.mDispatcher.connect(Ego.mConnString);
+            Ego.mDispatcher.connect(Ego.mValidator);
 
             Ego.mRunning = true;
             go(connectionMonitor(Ego));
@@ -192,24 +195,4 @@ namespace suil::sawsdk {
         Ego.unRegisterAll();
         Ego.mDispatcher.exit();
     }
-
-    TransactionProcessor::TransactionProcessor(suil::String &&connString)
-        : mContext(new TpContext(std::move(connString)))
-    {}
-
-    void TransactionProcessor::registerHandler(TransactionHandler::UPtr &&handler) {
-        mContext->registerHandler(std::move(handler));
-    }
-
-    void TransactionProcessor::run() {
-        mContext->run();
-    }
-
-    TransactionProcessor::~TransactionProcessor() {
-        if (mContext != nullptr) {
-            delete  mContext;
-            mContext = nullptr;
-        }
-    }
-
 }

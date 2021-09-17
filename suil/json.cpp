@@ -1338,6 +1338,34 @@ bool json_check(const JsonNode *node, char errmsg[256])
 	#undef problem
 }
 
+namespace {
+
+    int luaEnv(lua_State *L) {
+        if (!lua_isstring(L, 1)) {
+            return luaL_error(
+                    L,
+                    "'env' function expects an environment name");
+        }
+
+        if (lua_gettop(L) == 2 and !lua_isboolean(L, 2)) {
+            return luaL_error(
+                    L,
+                    "env(name, required:false) parameter must be boolean");
+        }
+
+        auto name = luaL_checkstring(L, 1);
+        auto val = std::getenv(name);
+        if (val == nullptr) {
+            return luaL_error(
+                    L,
+                    "env(%s, true): environment variable required but does not exist",
+                    name);
+        }
+        lua_pushstring(L, val);
+        return 1;
+    }
+}
+
 
 namespace suil::json {
 
@@ -1743,6 +1771,8 @@ namespace suil::json {
     Object Object::fromLuaString(const suil::String &script) {
         lua_State *L{luaL_newstate()};
         luaL_openlibs(L);
+        lua_register(L, "env", luaEnv);
+
         defer(L, {
             if (L != nullptr)
                 lua_close(L);

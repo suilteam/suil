@@ -345,6 +345,7 @@ namespace suil {
 
             // return false on error
             bool feed(const char *buffer, size_t length);
+            size_t feed2(const char *buffer, size_t length);
 
             virtual void clear(bool internal = false);
 

@@ -40,10 +40,12 @@ protobuf_generate_cpp(SAWTOOTH_PROTO_SRCS SAWTOOTH_PROTO_HDRS ${SAWTOOTH_PROTOS}
 
 set(SAWTOOTH_SOURCES
         src/address.cpp
+        src/common.cpp
         src/dispatcher.cpp
-        src/gstate.cpp
+        src/log.cpp
+        src/state.cpp
         src/tp.cpp
-        src/transaction.cpp
+        src/transactor.cpp
         src/stream.cpp
         src/client.cpp
         src/rest.cpp

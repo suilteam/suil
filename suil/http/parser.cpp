@@ -1958,6 +1958,7 @@ http_parser_init(http_parser *parser, enum http_parser_type t) {
     parser->method = HTTP_GET;
     parser->state = (t == HTTP_REQUEST ? s_start_req : (t == HTTP_RESPONSE ? s_start_res : s_start_req_or_res));
     parser->http_errno = HPE_OK;
+    parser->content_length = 0;
 }
 
 const char *
@@ -2373,6 +2374,10 @@ namespace suil {
         }
 
         bool parser::feed(const char *buf, size_t len) {
+            return feed2(buf, len) == 0;
+        }
+
+        size_t parser::feed2(const char *buf, size_t len) {
             const static http_parser_settings PARSER_SETTINGS {
                     parser::on_message_begin,
                     parser::on_url,
@@ -2385,7 +2390,7 @@ namespace suil {
             };
 
             size_t nparsed = http_parser_execute(this, &PARSER_SETTINGS, buf, len);
-            return nparsed == len;
+            return len - nparsed;
         }
 
         void parser::clear(bool internal) {

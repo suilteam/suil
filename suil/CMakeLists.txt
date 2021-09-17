@@ -46,7 +46,7 @@ set(LIB_SUIL_SQL_SOURCES
         sql/pgsql.cpp)
 
 set(LIB_SUIL_RPC_SOURCES
-        rpc/common.cpp
+        rpc/utils.cpp
         rpc/jsonrpc.cpp
         rpc/suilrpc.cpp)
 

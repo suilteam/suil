@@ -476,6 +476,10 @@ namespace suil {
                 void configure(const char* path, __O&... opts) {
                     /* configure Session */
                     // FIXME: String sess(utils::fs::readall(path, true));
+                    if (port == 0) {
+                        port = ishttps()? 443 : 80;
+                    }
+
                     addr = ipremote(host.data(), port, 0, utils::after(timeout));
                     if (errno != 0) {
                         throw Exception::create("getting address '", host(),
@@ -552,14 +556,18 @@ namespace suil {
             };
 
             struct MemoryOffload {
+                DISABLE_COPY(MemoryOffload);
+
                 MemoryOffload(size_t mapped_min = 65000)
                     : mapped_min(mapped_min)
                 {
                     handler = [&](const char *at, size_t len) {
-                        if (at == NULL && len) {
-                            if (len > mapped_min) {
+                        // FIXME temporary workaround for chunked encoding
+                        if (data == nullptr) {
+                            len = len > UINT32_MAX? Ego.mapped_min+1 : len;
+                            if (len > Ego.mapped_min) {
                                 /* used mapped memory */
-                                return map_region(len);
+                                return Ego.map_region(len);
                             }
                             else {
                                 /* allocate memory from heap */
@@ -567,7 +575,7 @@ namespace suil {
                                 return data != nullptr;
                             }
                         }
-                        else {
+                        else if (at != nullptr and len != 0){
                             /* received data portion */
                             memcpy(&data[offset], at, len);
                             offset += len;
@@ -624,7 +632,7 @@ namespace suil {
                 return sess;
             }
 
-            inline Session load(const char *url, int port = 80) {
+            inline Session load(const char *url, int port = 0) {
                 return load(url, port, nullptr);
             }
 
